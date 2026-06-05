@@ -36,3 +36,15 @@ If this hub was just copied from **agentic-multisession-template** and not yet c
 | Bootstrap | [CUSTOMIZE.md](CUSTOMIZE.md) |
 | Start | `.cursor/skills/session-orchestrator` |
 | End | `.cursor/skills/session-end` |
+
+## Cross-session inbox
+
+Leave a note for another session: `./scripts/session-inbox.sh write <from> <to> "message"`.  
+On bind, the target session's inbox is injected into context. Read anytime: `session-inbox.sh read <codename>`.
+
+## Git / PRs
+
+- May open branches and PRs; fix CI if tests fail
+- **Never** `gh pr merge --auto` or enable auto-merge
+- **Never** merge or push to `main` unless the user explicitly asks
+- See [CONTRIBUTING.md](CONTRIBUTING.md) Pull requests section

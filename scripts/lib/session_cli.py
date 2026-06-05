@@ -23,12 +23,14 @@ from session_binding import (
     print_session_table,
     prompt_is_start_new,
     read_binding,
+    read_inbox,
     rename_tmux_for_codename,
     resolve_codename,
     resolve_source_label,
     tmux_window_label,
     unbind_session_context,
     write_context_file,
+    write_inbox,
 )
 
 
@@ -228,6 +230,29 @@ def cmd_hook_session_end(_args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_inbox(args: argparse.Namespace) -> int:
+    root = hub_root()
+    if args.inbox_command == "read":
+        content = read_inbox(root, args.codename)
+        if not content:
+            print(f"No inbox for {args.codename}.")
+            return 0
+        print(content)
+        return 0
+
+    if args.inbox_command == "write":
+        try:
+            path = write_inbox(root, args.from_session, args.to_session, args.message)
+        except ValueError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
+        print(f"Wrote to {path.relative_to(root)}")
+        return 0
+
+    print("Error: unknown inbox command", file=sys.stderr)
+    return 1
+
+
 def cmd_hook_guard_paths(_args: argparse.Namespace) -> int:
     payload = _load_hook_payload()
     root = hub_root()
@@ -251,6 +276,10 @@ def cmd_hook_guard_paths(_args: argparse.Namespace) -> int:
         print(json.dumps(allow))
         return 0
     if f"/sessions/{codename}/" in norm or norm.endswith(f"/sessions/{codename}"):
+        print(json.dumps(allow))
+        return 0
+
+    if "/sessions/_inbox/" in norm:
         print(json.dumps(allow))
         return 0
 
@@ -306,6 +335,15 @@ def main(argv: list[str] | None = None) -> int:
     close_p.add_argument("codename", nargs="?")
     close_p.add_argument("--note", default="")
 
+    inbox_p = sub.add_parser("inbox", help="Cross-session inbox read/write")
+    inbox_sub = inbox_p.add_subparsers(dest="inbox_command", required=True)
+    inbox_read = inbox_sub.add_parser("read", help="Print inbox for a session")
+    inbox_read.add_argument("codename")
+    inbox_write = inbox_sub.add_parser("write", help="Append message to another session's inbox")
+    inbox_write.add_argument("from_session", metavar="from")
+    inbox_write.add_argument("to_session", metavar="to")
+    inbox_write.add_argument("message")
+
     sub.add_parser("hook-session-start")
     sub.add_parser("hook-before-prompt")
     sub.add_parser("hook-session-end")
@@ -321,6 +359,7 @@ def main(argv: list[str] | None = None) -> int:
         "sync": cmd_sync,
         "rename": cmd_rename,
         "close": cmd_close,
+        "inbox": cmd_inbox,
         "hook-session-start": cmd_hook_session_start,
         "hook-before-prompt": cmd_hook_before_prompt,
         "hook-session-end": cmd_hook_session_end,

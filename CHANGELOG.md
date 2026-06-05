@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-06-05
+
+### Added
+
+- **Session inbox** — `sessions/_inbox/<target>.md`; `session-inbox.sh write/read`; injected on bind
+- Guard allows `sessions/_inbox/` for all bound sessions
+
 ## [0.1.2] - 2026-06-05
 
 ### Added

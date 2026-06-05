@@ -3,4 +3,4 @@ description: Per-session writable scope
 alwaysApply: true
 ---
 
-After `resolve-session.sh` returns a codename: read `sessions/<codename>/BOUNDARIES.md`. Do not edit other `sessions/<other>/` trees.
+After `resolve-session.sh` returns a codename: read `sessions/<codename>/BOUNDARIES.md`. Do not edit other `sessions/<other>/` trees. Cross-session notes: `./scripts/session-inbox.sh write <from> <to> "message"` → `sessions/_inbox/<to>.md`.

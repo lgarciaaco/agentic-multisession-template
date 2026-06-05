@@ -16,10 +16,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from session_binding import (  # noqa: E402
     _read_tty_line,
     bind_session_context,
+    build_context_markdown,
     codename_from_tmux,
     codename_from_tmux_session,
     default_tmux_window_prefix,
     hub_root,
+    read_inbox,
     resolve_codename,
     resume_session_on_bind,
     sync_index_from_session,
@@ -27,6 +29,7 @@ from session_binding import (  # noqa: E402
     tmux_pane_option,
     tmux_window_label,
     tmux_window_prefix,
+    write_inbox,
 )
 
 
@@ -126,6 +129,34 @@ class ResolveSessionTests(unittest.TestCase):
             with self.assertRaises(SystemExit) as ctx:
                 _read_tty_line("Session> ")
         self.assertEqual(ctx.exception.code, 130)
+
+
+class InboxTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmpdir.name)
+        for name in ("alpha", "bravo"):
+            (self.root / "sessions" / name).mkdir(parents=True)
+            (self.root / "sessions" / name / "session.json").write_text(
+                json.dumps({"codename": name, "status": "active", "tasks": []}) + "\n"
+            )
+            (self.root / "sessions" / name / "TASKS.md").write_text("# Goal\n\n## Tasks\n")
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def test_write_and_read_inbox(self) -> None:
+        path = write_inbox(self.root, "bravo", "alpha", "M1-0 schema done.")
+        self.assertTrue(path.exists())
+        content = read_inbox(self.root, "alpha")
+        self.assertIn("bravo", content or "")
+        self.assertIn("M1-0 schema done.", content or "")
+
+    def test_inbox_injected_in_context(self) -> None:
+        write_inbox(self.root, "bravo", "alpha", "Fix parser before ingest.")
+        ctx = build_context_markdown(self.root, "alpha", "test-chat-id")
+        self.assertIn("Inbox (from other sessions)", ctx)
+        self.assertIn("Fix parser before ingest.", ctx)
 
 
 class SessionSyncTests(unittest.TestCase):

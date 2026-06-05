@@ -12,7 +12,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 CLOSED_STATUSES = frozenset({"completed", "closed", "cancelled"})
-RESERVED_SESSION_DIRS = frozenset({"bindings", "context"})
+RESERVED_SESSION_DIRS = frozenset({"bindings", "context", "_inbox"})
 RESOLVE_SOURCE_LABELS = {
     "binding": "this chat",
     "tmux-pane": "tmux tab",
@@ -240,6 +240,52 @@ def resume_session_on_bind(root: Path, codename: str) -> None:
     sync_index_from_session(root, codename, session)
 
 
+def inbox_path(root: Path, target_codename: str) -> Path:
+    """Cross-session messages for `target_codename` live in sessions/_inbox/<target>.md."""
+    return root / "sessions" / "_inbox" / f"{target_codename}.md"
+
+
+def read_inbox(root: Path, codename: str) -> str | None:
+    path = inbox_path(root, codename)
+    if not path.exists():
+        return None
+    text = path.read_text().strip()
+    return text if text else None
+
+
+def write_inbox(root: Path, from_codename: str, to_codename: str, message: str) -> Path:
+    """Append a message from one session into another session's inbox file."""
+    message = message.strip()
+    if not message:
+        raise ValueError("inbox message must not be empty")
+    for name in (from_codename, to_codename):
+        session_dir = root / "sessions" / name
+        if not session_dir.is_dir() or name.startswith("_") or name in RESERVED_SESSION_DIRS:
+            raise ValueError(f"invalid session codename: {name}")
+
+    path = inbox_path(root, to_codename)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    stamp = _utc_now_iso()[:10]
+    block = f"\n\n---\n\n**From `{from_codename}`** ({stamp})\n\n{message}\n"
+
+    if path.exists():
+        path.write_text(path.read_text().rstrip() + block + "\n")
+    else:
+        header = (
+            f"# Inbox for `{to_codename}`\n\n"
+            "Messages from other sessions. Written via `./scripts/session-inbox.sh write`.\n"
+        )
+        path.write_text(header + block + "\n")
+    return path
+
+
+def format_inbox_section(root: Path, codename: str) -> str:
+    content = read_inbox(root, codename)
+    if not content:
+        return ""
+    return f"\n## Inbox (from other sessions)\n\n{content}\n"
+
+
 def build_context_markdown(root: Path, codename: str, chat_id: str) -> str:
     """Agent-facing context snippet from canonical session metadata."""
     session_dir = root / "sessions" / codename
@@ -256,6 +302,7 @@ def build_context_markdown(root: Path, codename: str, chat_id: str) -> str:
         if progress.get("handoff_note"):
             progress_note = f"\n- **Handoff:** {progress['handoff_note']}"
 
+    inbox_section = format_inbox_section(root, codename)
     tasks_line = ", ".join(running) if running else "—"
 
     return f"""# Session context (this chat)
@@ -265,9 +312,9 @@ def build_context_markdown(root: Path, codename: str, chat_id: str) -> str:
 - **Title:** {title}
 - **Status:** {session.get("status", "draft")}
 - **Tasks in flight:** {tasks_line}
-- **Writable:** project root + `sessions/{codename}/**` (not other sessions)
+- **Writable:** project root + `sessions/{codename}/**` (cross-session: `sessions/_inbox/` via session-inbox.sh)
 {progress_note}
-
+{inbox_section}
 {goal}
 
 See [SESSIONS.md](../../SESSIONS.md), `sessions/{codename}/BOUNDARIES.md`, `session.json`.

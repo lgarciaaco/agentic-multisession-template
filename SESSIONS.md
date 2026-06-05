@@ -109,6 +109,20 @@ Do **not** run bare `agent` in tmux — use the project launcher so hooks and se
 
 ---
 
+## Cross-session inbox
+
+Session **A** leaves a note for session **B** without copy-paste between Cursor windows.
+
+| Action | Command |
+|--------|---------|
+| **Write** | `./scripts/session-inbox.sh write bravo alpha "your message"` |
+| **Read** | `./scripts/session-inbox.sh read alpha` |
+| **Auto** | On bind, `sessions/_inbox/<codename>.md` is injected into `sessions/context/<chat>.md` |
+
+Files live in `sessions/_inbox/` (shared; any session may write via the script). See [sessions/_inbox/README.md](sessions/_inbox/README.md).
+
+---
+
 ## Git — committed vs local
 
 | Commit | Do not commit (see `.gitignore`) |

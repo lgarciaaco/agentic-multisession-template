@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1] - 2026-06-05
+
+### Added
+
+- `.gitignore` — env, venv, pytest cache, logs; commented Node block for product forks
+- `SESSIONS.md` — Git committed vs local table
+
+### Fixed
+
+- Session picker exits cleanly on Ctrl+C (exit 130, no traceback) — from 0.1.0 follow-up
+
 ## [0.1.0] - 2026-06-05
 
 ### Added

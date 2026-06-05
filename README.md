@@ -74,7 +74,7 @@ CUSTOMIZE.md      bootstrap checklist (agents)
 | Variable | Default |
 |----------|---------|
 | `WORKSPACE_TMUX_PANE_OPTION` | `workspace-codename` |
-| `WORKSPACE_TMUX_WINDOW_PREFIX` | *(empty)* |
+| `WORKSPACE_TMUX_WINDOW_PREFIX` | Auto: first slug segment + `-` (e.g. `immo-investor` → `immo-`); set `""` to disable |
 | `WORKSPACE_AGENT_BIN` | `agent` |
 | `WORKSPACE_AGENT_LAUNCHER` | auto: `<slug-prefix>-agent` |
 | `WORKSPACE_HUB_SLUG` | hub folder basename |

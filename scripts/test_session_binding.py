@@ -18,6 +18,7 @@ from session_binding import (  # noqa: E402
     bind_session_context,
     codename_from_tmux,
     codename_from_tmux_session,
+    default_tmux_window_prefix,
     hub_root,
     resolve_codename,
     resume_session_on_bind,
@@ -25,6 +26,7 @@ from session_binding import (  # noqa: E402
     sync_session_from_canonical,
     tmux_pane_option,
     tmux_window_label,
+    tmux_window_prefix,
 )
 
 
@@ -95,10 +97,24 @@ class ResolveSessionTests(unittest.TestCase):
         self.assertEqual(codename, "alpha")
         self.assertEqual(source, "tmux-session")
 
-    def test_tmux_window_prefix(self) -> None:
+    def test_default_tmux_window_prefix_from_slug(self) -> None:
+        self.assertEqual(default_tmux_window_prefix("immo-investor"), "immo-")
+        self.assertEqual(default_tmux_window_prefix("my-app"), "my-")
+        self.assertEqual(default_tmux_window_prefix("agentic-multisession-template"), "agentic-")
+
+    def test_tmux_window_prefix_explicit(self) -> None:
         os.environ["WORKSPACE_TMUX_WINDOW_PREFIX"] = "hub-"
         self.assertEqual(tmux_window_label("alpha"), "hub-alpha")
+
+    def test_tmux_window_prefix_from_hub_slug(self) -> None:
         os.environ.pop("WORKSPACE_TMUX_WINDOW_PREFIX", None)
+        with patch("session_binding.hub_slug", return_value="immo-investor"):
+            self.assertEqual(tmux_window_prefix(), "immo-")
+            self.assertEqual(tmux_window_label("alpha"), "immo-alpha")
+
+    def test_tmux_window_prefix_disabled(self) -> None:
+        os.environ["WORKSPACE_TMUX_WINDOW_PREFIX"] = ""
+        self.assertEqual(tmux_window_prefix(), "")
         self.assertEqual(tmux_window_label("alpha"), "alpha")
 
     def test_tmux_pane_option_default(self) -> None:

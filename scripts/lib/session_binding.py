@@ -36,8 +36,33 @@ def tmux_pane_option() -> str:
     return os.environ.get("WORKSPACE_TMUX_PANE_OPTION", "workspace-codename").strip() or "workspace-codename"
 
 
+def hub_slug() -> str:
+    env = os.environ.get("WORKSPACE_HUB_SLUG", "").strip()
+    if env:
+        return env
+    meta = hub_root() / ".hub-slug"
+    if meta.exists():
+        slug = meta.read_text().strip()
+        if slug:
+            return slug
+    return hub_root().name
+
+
+def default_tmux_window_prefix(slug: str) -> str:
+    """Derive window prefix from hub slug (e.g. immo-investor → immo-)."""
+    name = slug.strip()
+    if not name:
+        return ""
+    if name.endswith("-agent"):
+        name = name[: -len("-agent")]
+    stem = name.split("-", 1)[0] if "-" in name else name
+    return f"{stem}-"
+
+
 def tmux_window_prefix() -> str:
-    return os.environ.get("WORKSPACE_TMUX_WINDOW_PREFIX", "")
+    if "WORKSPACE_TMUX_WINDOW_PREFIX" in os.environ:
+        return os.environ["WORKSPACE_TMUX_WINDOW_PREFIX"]
+    return default_tmux_window_prefix(hub_slug())
 
 
 def agent_launcher_name() -> str:

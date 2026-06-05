@@ -12,11 +12,11 @@ repos: {}
 #     default_branch: main
 #
 # Example (several repos):
-#   immo-investor:
-#     path: repos/immo-investor
-#     clone: git@github.com:YOU/immo-investor.git
+#   api-service:
+#     path: repos/api-service
+#     clone: git@github.com:YOU/api-service.git
 #     default_branch: main
-#   flet-app:
-#     path: repos/flet-app
-#     clone: git@github.com:YOU/flet-app.git
+#   web-ui:
+#     path: repos/web-ui
+#     clone: git@github.com:YOU/web-ui.git
 #     default_branch: main

@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- **repos.yaml registry** — art-style hub + `repos/` reference clones + `sessions/<codename>/worktrees/<repo>/`
+- **repos.yaml registry** — multi-repo hub + `repos/` reference clones + `sessions/<codename>/worktrees/<repo>/`
 - `scripts/clone-repos.sh`, `scripts/ensure-worktrees.sh`, `scripts/repos-status.sh`
 - `scripts/lib/repos.py`, `scripts/lib/hub_git.py`, `repos.yaml.example`
 - **Agent-first bootstrap** — `repos-status.sh` states; agent asks when registry missing/empty

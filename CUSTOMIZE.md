@@ -27,7 +27,7 @@ Run from the **new project root** (not the template repo path unless that is the
 
 | Topic | What to change | Default (no action) |
 |-------|----------------|---------------------|
-| Tmux window prefix | `WORKSPACE_TMUX_WINDOW_PREFIX` | Auto from `.hub-slug` (`immo-investor` → `immo-alpha`); `""` = bare codename |
+| Tmux window prefix | `WORKSPACE_TMUX_WINDOW_PREFIX` | Auto from `.hub-slug` (`my-app` → `my-alpha`); `""` = bare codename |
 | Tmux pane option | `WORKSPACE_TMUX_PANE_OPTION` | `workspace-codename` |
 | Launcher name | `WORKSPACE_AGENT_LAUNCHER=my-agent ./scripts/install-workspace-agent.sh` | `<first-segment>-agent` (e.g. `my-app` → `my-agent`; long slug `agentic-multisession-template` → `agentic-agent` — override if undesired) |
 | Codename pool | Edit `sessions/_codenames.example.yaml` before first `new-session.sh`, or local `_codenames.yaml` after | NATO `alpha`…`hotel` |

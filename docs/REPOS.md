@@ -38,7 +38,7 @@ repos:
 | `clone` | Remote URL (`clone-repos.sh`) |
 | `default_branch` | Branch to track and branch worktrees from |
 
-Add a second key when you add a second repo (e.g. `flet-app`). Flet in the same git remote stays one `project` entry.
+Add a second key when you add a second repo (e.g. `web-ui`). Code in the same git remote stays one `project` entry.
 
 ---
 
@@ -74,7 +74,7 @@ User clones template and starts the agent. Agent runs:
 - **`needs_clone`** → `./scripts/clone-repos.sh`
 - **`ready`** → sessions + worktrees
 
-User may add repos later (“add flet repo”) → agent edits `repos.yaml`, `clone-repos`, optional `ensure-worktrees`.
+User may add repos later (“add web-ui repo”) → agent edits `repos.yaml`, `clone-repos`, optional `ensure-worktrees`.
 
 ## Commands
 

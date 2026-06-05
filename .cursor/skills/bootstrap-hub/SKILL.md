@@ -36,7 +36,7 @@ Do **not** invent clone URLs. Ask:
 
 User may say:
 - **None yet** — hub-only (sessions/scripts). Leave `repos: {}`; no `clone-repos` until they add repos.
-- **One repo** — e.g. immo-investor → one `repos.yaml` entry, `path: repos/<alias>`.
+- **One repo** — e.g. `project` → one `repos.yaml` entry, `path: repos/<alias>`.
 - **Several** — one entry per remote.
 
 Write `repos.yaml`:

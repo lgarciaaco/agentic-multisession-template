@@ -104,8 +104,8 @@ class ResolveSessionTests(unittest.TestCase):
         self.assertEqual(source, "tmux-session")
 
     def test_default_tmux_window_prefix_from_slug(self) -> None:
-        self.assertEqual(default_tmux_window_prefix("immo-investor"), "immo-")
         self.assertEqual(default_tmux_window_prefix("my-app"), "my-")
+        self.assertEqual(default_tmux_window_prefix("acme-corp-hub"), "acme-")
         self.assertEqual(default_tmux_window_prefix("agentic-multisession-template"), "agentic-")
 
     def test_tmux_window_prefix_explicit(self) -> None:
@@ -114,9 +114,9 @@ class ResolveSessionTests(unittest.TestCase):
 
     def test_tmux_window_prefix_from_hub_slug(self) -> None:
         os.environ.pop("WORKSPACE_TMUX_WINDOW_PREFIX", None)
-        with patch("session_binding.hub_slug", return_value="immo-investor"):
-            self.assertEqual(tmux_window_prefix(), "immo-")
-            self.assertEqual(tmux_window_label("alpha"), "immo-alpha")
+        with patch("session_binding.hub_slug", return_value="my-app"):
+            self.assertEqual(tmux_window_prefix(), "my-")
+            self.assertEqual(tmux_window_label("alpha"), "my-alpha")
 
     def test_tmux_window_prefix_disabled(self) -> None:
         os.environ["WORKSPACE_TMUX_WINDOW_PREFIX"] = ""
@@ -149,11 +149,11 @@ class InboxTests(unittest.TestCase):
         self._tmpdir.cleanup()
 
     def test_write_and_read_inbox(self) -> None:
-        path = write_inbox(self.root, "bravo", "alpha", "M1-0 schema done.")
+        path = write_inbox(self.root, "bravo", "alpha", "Feature shipped — ready for review.")
         self.assertTrue(path.exists())
         content = read_inbox(self.root, "alpha")
         self.assertIn("bravo", content or "")
-        self.assertIn("M1-0 schema done.", content or "")
+        self.assertIn("Feature shipped", content or "")
 
     def test_inbox_injected_in_context(self) -> None:
         write_inbox(self.root, "bravo", "alpha", "Fix parser before ingest.")

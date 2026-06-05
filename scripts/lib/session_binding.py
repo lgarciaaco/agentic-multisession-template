@@ -49,7 +49,7 @@ def hub_slug() -> str:
 
 
 def default_tmux_window_prefix(slug: str) -> str:
-    """Derive window prefix from hub slug (e.g. immo-investor → immo-)."""
+    """Derive window prefix from hub slug (e.g. my-app → my-)."""
     name = slug.strip()
     if not name:
         return ""
@@ -325,7 +325,7 @@ def format_worktree_section(root: Path, codename: str, session: dict) -> str:
 
 
 def guard_path_decision(root: Path, codename: str, file_path: str) -> dict:
-    """Cursor hook: allow/deny edits — art-style repos/ read-only, worktrees writable."""
+    """Cursor hook: allow/deny edits — repos/ read-only, worktrees writable."""
     allow = {"permission": "allow"}
     if not codename or not file_path:
         return allow

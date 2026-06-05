@@ -17,7 +17,7 @@ Use **GitHub → Use this template**, or clone this repo as your hub.
 **You:** clone, `cd`, start the agent.
 
 ```bash
-git clone https://github.com/lgarciaaco/agentic-multisession-template.git my-hub
+git clone https://github.com/YOUR_ORG/agentic-multisession-template.git my-hub
 cd my-hub
 # Cursor: /start-work bootstrap
 # or tmux after install: $(cat .hub-launcher)

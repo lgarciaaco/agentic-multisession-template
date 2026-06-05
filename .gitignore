@@ -6,6 +6,16 @@ __pycache__/
 sessions/bindings/
 sessions/context/
 
+# Session runtime — local only (_template + examples + _inbox/README committed)
+sessions/*/
+!sessions/_template/
+!sessions/_inbox/
+sessions/_inbox/*.md
+!sessions/_inbox/README.md
+sessions/index.json
+sessions/_codenames.yaml
+sessions/*/worktrees/*
+
 # Local env / tooling
 .env
 .env.*

@@ -279,6 +279,91 @@ def write_inbox(root: Path, from_codename: str, to_codename: str, message: str) 
     return path
 
 
+def session_mode(session: dict) -> str:
+    """product = code in worktrees only; hub = hub scripts/docs at root."""
+    mode = (session.get("mode") or "product").strip().lower()
+    return mode if mode in ("product", "hub") else "product"
+
+
+def task_worktree_rel(codename: str, task: dict) -> str:
+    alias = (task.get("id") or "project").strip() or "project"
+    return task.get("worktree") or f"sessions/{codename}/worktrees/{alias}"
+
+
+def worktree_dest(root: Path, codename: str, task: dict) -> Path:
+    return root / task_worktree_rel(codename, task)
+
+
+def primary_worktree(root: Path, codename: str, session: dict | None = None) -> Path | None:
+    session = session or _load_session_json(root, codename) or {}
+    tasks = session.get("tasks") or []
+    if not tasks:
+        return None
+    path = worktree_dest(root, codename, tasks[0])
+    return path if path.is_dir() else None
+
+
+def format_worktree_section(root: Path, codename: str, session: dict) -> str:
+    tasks = session.get("tasks") or []
+    if not tasks:
+        return ""
+    lines = ["\n## Worktrees\n"]
+    for task in tasks:
+        rel = task_worktree_rel(codename, task)
+        branch = task.get("feature_branch") or task.get("base_branch") or "main"
+        exists = (root / rel).is_dir()
+        state = "ready" if exists else "run `./scripts/ensure-worktrees.sh " + codename + "`"
+        lines.append(f"- **`{task.get('id', 'main')}`** — `{rel}` (branch `{branch}`) — {state}")
+    return "\n".join(lines) + "\n"
+
+
+def guard_path_decision(root: Path, codename: str, file_path: str) -> dict:
+    """Cursor hook: allow/deny edits by bound session mode and path."""
+    allow = {"permission": "allow"}
+    if not codename or not file_path:
+        return allow
+
+    norm = file_path.replace("\\", "/")
+    hub = str(root).replace("\\", "/")
+    if not norm.startswith(hub):
+        return allow
+
+    session = _load_session_json(root, codename) or {}
+    mode = session_mode(session)
+
+    if f"/sessions/{codename}/" in norm or norm.endswith(f"/sessions/{codename}"):
+        return allow
+
+    if "/sessions/_inbox/" in norm:
+        return allow
+
+    rel = norm[len(hub) :].lstrip("/")
+    match = re.search(r"/sessions/([a-z0-9-]+)/", norm)
+    if match and match.group(1) != codename:
+        other = match.group(1)
+        if other not in RESERVED_SESSION_DIRS and (root / "sessions" / other).is_dir():
+            return {
+                "permission": "deny",
+                "user_message": f"This chat is bound to session {codename}, not {other}.",
+                "agent_message": f"Do not edit sessions/{other}/. This chat is bound to {codename}.",
+            }
+
+    if not rel.startswith("sessions/"):
+        if mode == "hub":
+            return allow
+        return {
+            "permission": "deny",
+            "user_message": f"Product session {codename}: hub root is read-only.",
+            "agent_message": (
+                f"Edit product code only under sessions/{codename}/worktrees/. "
+                f"Session metadata: sessions/{codename}/session.json, TASKS.md, progress.json. "
+                f"Run ./scripts/ensure-worktrees.sh {codename} if the worktree is missing."
+            ),
+        }
+
+    return allow
+
+
 def format_inbox_section(root: Path, codename: str) -> str:
     content = read_inbox(root, codename)
     if not content:
@@ -303,21 +388,30 @@ def build_context_markdown(root: Path, codename: str, chat_id: str) -> str:
             progress_note = f"\n- **Handoff:** {progress['handoff_note']}"
 
     inbox_section = format_inbox_section(root, codename)
+    worktree_section = format_worktree_section(root, codename, session)
     tasks_line = ", ".join(running) if running else "—"
+    mode = session_mode(session)
+    if mode == "hub":
+        writable = f"hub root (`scripts/`, `.cursor/`, docs) + `sessions/{codename}/**`"
+    else:
+        writable = f"`sessions/{codename}/worktrees/**` + session metadata (cross-session: `sessions/_inbox/`)"
+    wt = primary_worktree(root, codename, session)
+    worktree_note = f"\n- **Product root:** `{wt.relative_to(root)}`" if wt else ""
 
     return f"""# Session context (this chat)
 
 - **Codename:** `{codename}`
 - **Conversation:** `{chat_id}`
 - **Title:** {title}
+- **Mode:** {mode}
 - **Status:** {session.get("status", "draft")}
 - **Tasks in flight:** {tasks_line}
-- **Writable:** project root + `sessions/{codename}/**` (cross-session: `sessions/_inbox/` via session-inbox.sh)
+- **Writable:** {writable}{worktree_note}
 {progress_note}
-{inbox_section}
+{worktree_section}{inbox_section}
 {goal}
 
-See [SESSIONS.md](../../SESSIONS.md), `sessions/{codename}/BOUNDARIES.md`, `session.json`.
+See [SESSIONS.md](../../SESSIONS.md), [docs/WORKTREES.md](../../docs/WORKTREES.md), `sessions/{codename}/BOUNDARIES.md`, `session.json`.
 """
 
 

@@ -1,7 +1,15 @@
 {
   "codename": "CODENAME",
   "title": "",
+  "mode": "product",
   "status": "draft",
   "created": "YYYY-MM-DD",
-  "tasks": []
+  "tasks": [
+    {
+      "id": "main",
+      "feature_branch": "session/CODENAME",
+      "base_branch": "main",
+      "status": "draft"
+    }
+  ]
 }

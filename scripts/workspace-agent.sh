@@ -43,8 +43,26 @@ if ! command -v "$AGENT_BIN" >/dev/null 2>&1; then
   exit 1
 fi
 
+if [[ -d "$ROOT/.git" ]] && [[ -f "$ROOT/sessions/$CODENAME/session.json" ]]; then
+  if ! "$ROOT/scripts/ensure-worktrees.sh" "$CODENAME"; then
+    echo "Warning: ensure-worktrees failed — run manually after fixing git remote." >&2
+  fi
+fi
+
 WINDOW_LABEL="${WORKSPACE_TMUX_WINDOW_PREFIX}${CODENAME}"
-echo "Session: $CODENAME (tmux: $WINDOW_LABEL)" >&2
+WT="$(python3 -c "
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path('$ROOT/scripts/lib')))
+from session_binding import primary_worktree
+wt = primary_worktree(Path('$ROOT'), '$CODENAME')
+print(wt if wt else '')
+" 2>/dev/null || true)"
+if [[ -n "$WT" ]]; then
+  echo "Session: $CODENAME | worktree: $WT (tmux: $WINDOW_LABEL)" >&2
+else
+  echo "Session: $CODENAME (tmux: $WINDOW_LABEL)" >&2
+fi
 if [[ -r /dev/tty && -w /dev/tty ]]; then
   exec "$AGENT_BIN" "${AGENT_ARGS[@]}" </dev/tty >/dev/tty 2>&1
 fi

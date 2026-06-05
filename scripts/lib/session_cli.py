@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import sys
 from pathlib import Path
 
@@ -258,51 +257,20 @@ def cmd_hook_guard_paths(_args: argparse.Namespace) -> int:
     root = hub_root()
     cid = conversation_id() or payload.get("conversation_id", "")
     file_path = payload.get("file_path", "") or ""
-    allow = {"permission": "allow"}
 
     if not cid or not file_path:
-        print(json.dumps(allow))
+        print(json.dumps({"permission": "allow"}))
         return 0
 
     os.environ["WORKSPACE_CONVERSATION_ID"] = cid
     codename, _ = resolve_codename(root)
     if not codename:
-        print(json.dumps(allow))
+        print(json.dumps({"permission": "allow"}))
         return 0
 
-    norm = file_path.replace("\\", "/")
-    hub = str(root).replace("\\", "/")
-    if not norm.startswith(hub):
-        print(json.dumps(allow))
-        return 0
-    if f"/sessions/{codename}/" in norm or norm.endswith(f"/sessions/{codename}"):
-        print(json.dumps(allow))
-        return 0
+    from session_binding import guard_path_decision
 
-    if "/sessions/_inbox/" in norm:
-        print(json.dumps(allow))
-        return 0
-
-    rel = norm[len(hub) :].lstrip("/")
-    if not rel.startswith("sessions/"):
-        print(json.dumps(allow))
-        return 0
-
-    match = re.search(r"/sessions/([a-z0-9-]+)/", norm)
-    if match and match.group(1) != codename and (root / "sessions" / match.group(1)).is_dir():
-        other = match.group(1)
-        print(
-            json.dumps(
-                {
-                    "permission": "deny",
-                    "user_message": f"This chat is bound to session {codename}, not {other}.",
-                    "agent_message": f"Do not edit sessions/{other}/. This chat is bound to {codename}.",
-                }
-            )
-        )
-        return 0
-
-    print(json.dumps(allow))
+    print(json.dumps(guard_path_decision(root, codename, file_path)))
     return 0
 
 

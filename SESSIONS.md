@@ -106,3 +106,17 @@ Tab 3: my-agent → pick bravo  →  separate codename
 4. **end session** — skill runs `./scripts/end-session.sh` (not the before-prompt hook)
 
 Do **not** run bare `agent` in tmux — use the project launcher so hooks and session resolution run.
+
+---
+
+## Git — committed vs local
+
+| Commit | Do not commit (see `.gitignore`) |
+|--------|----------------------------------|
+| `scripts/`, `.cursor/`, `SESSIONS.md`, `sessions/_template/`, `sessions/_codenames.yaml` | `sessions/bindings/` — per-chat bindings |
+| `sessions/<codename>/` — `TASKS.md`, `session.json`, `BOUNDARIES.md` | `sessions/context/` — derived per conversation |
+| `sessions/index.json` (synced from `session.json`) | `.hub-launcher`, `.hub-slug` — local install paths |
+
+**Optional:** omit `sessions/*/progress.json` if you want less churn; track milestones in product `CURRENT.md` instead.
+
+When you add a Node monorepo, uncomment the `node_modules/` block in `.gitignore` or merge your app ignores.

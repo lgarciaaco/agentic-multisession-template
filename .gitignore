@@ -5,3 +5,19 @@ __pycache__/
 .hub-slug
 sessions/bindings/
 sessions/context/
+
+# Local env / tooling
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Optional — uncomment when adding a Node monorepo (see CUSTOMIZE.md)
+# node_modules/
+# dist/
+# *.tsbuildinfo

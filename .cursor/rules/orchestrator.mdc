@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Session orchestrator
 
-**Bootstrap hub** / **customize template** → load `.cursor/skills/bootstrap-hub/SKILL.md` + [CUSTOMIZE.md](../../CUSTOMIZE.md).
+**Fresh hub / bootstrap** → `./scripts/repos-status.sh` then `.cursor/skills/bootstrap-hub/SKILL.md` (agent asks for repos if missing).
 
 **Start work** / `/start-work` → load `.cursor/skills/session-orchestrator/SKILL.md`. You run `./scripts/*`.
 

@@ -336,6 +336,42 @@ class WorktreeGuardTests(unittest.TestCase):
         self.assertIn("`project`", ctx)
 
 
+class BootstrapStatusTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmpdir.name)
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def test_no_repos_yaml(self) -> None:
+        from repos import bootstrap_status  # noqa: E402
+
+        status = bootstrap_status(self.root)
+        self.assertEqual(status["state"], "no_repos_yaml")
+        self.assertIn("Ask", status["agent_action"])
+
+    def test_empty_registry(self) -> None:
+        from repos import bootstrap_status  # noqa: E402
+
+        (self.root / "repos.yaml").write_text("repos: {}\n")
+        status = bootstrap_status(self.root)
+        self.assertEqual(status["state"], "empty_registry")
+
+    def test_ready_when_cloned(self) -> None:
+        from repos import bootstrap_status  # noqa: E402
+
+        (self.root / "repos.yaml").write_text(
+            "repos:\n  project:\n    path: repos/project\n    clone: git@example.com/p.git\n    default_branch: main\n"
+        )
+        repo = self.root / "repos" / "project"
+        repo.mkdir(parents=True)
+        (repo / ".git").mkdir()
+        status = bootstrap_status(self.root)
+        self.assertEqual(status["state"], "ready")
+        self.assertEqual(status["repos"], ["project"])
+
+
 class ReposYamlTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmpdir = tempfile.TemporaryDirectory()

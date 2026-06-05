@@ -182,7 +182,7 @@ def cmd_hook_session_start(_args: argparse.Namespace) -> int:
         window = tmux_window_label(codename) or codename
         extra = (
             f"Session `{codename}` resolved via {label}. "
-            f"Tmux window: `{window}`. Writable: project root + sessions/{codename}/"
+            f"Tmux window: `{window}`. Writable: sessions/{codename}/worktrees/** + metadata; repos/ read-only."
         )
     else:
         extra = format_session_start_required(root)

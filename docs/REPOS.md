@@ -62,16 +62,30 @@ Add a second key when you add a second repo (e.g. `flet-app`). Flet in the same 
 
 ---
 
+## Agent-first bootstrap
+
+User clones template and starts the agent. Agent runs:
+
+```bash
+./scripts/repos-status.sh
+```
+
+- **`no_repos_yaml` / `empty_registry`** → agent **asks** user for alias + clone URL + branch per repo, writes `repos.yaml`
+- **`needs_clone`** → `./scripts/clone-repos.sh`
+- **`ready`** → sessions + worktrees
+
+User may add repos later (“add flet repo”) → agent edits `repos.yaml`, `clone-repos`, optional `ensure-worktrees`.
+
 ## Commands
 
 ```bash
-cp repos.yaml.example repos.yaml    # once — set clone URL
-./scripts/clone-repos.sh            # reference clones under repos/
+./scripts/repos-status.sh           # agent: what to do next
+./scripts/clone-repos.sh            # after repos.yaml filled
 ./scripts/new-session.sh [codename]
-./scripts/ensure-worktrees.sh <name>
+./scripts/ensure-worktrees.sh <name>   # after tasks[].repo set
 ```
 
-Launcher runs `clone-repos` + `ensure-worktrees` when `repos.yaml` exists.
+Launcher runs `clone-repos` + `ensure-worktrees` when `repos.yaml` exists and status is past empty.
 
 ---
 

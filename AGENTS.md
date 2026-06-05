@@ -1,53 +1,64 @@
 # Agent guide
 
-## Template bootstrap
+## First run (agentic bootstrap)
 
-If this hub was just copied from **agentic-multisession-template** and not yet customized: read [CUSTOMIZE.md](CUSTOMIZE.md), run mandatory steps, update `README.md` / this file for the project name, then continue below.
+User cloned **agentic-multisession-template**, `cd` here, started you. **You** drive setup.
+
+```bash
+./scripts/repos-status.sh    # always start here — JSON state
+```
+
+| `state` | Your move |
+|---------|-----------|
+| `no_repos_yaml` / `empty_registry` | **Ask user** for repos (alias + git URL + branch each). Create/edit `repos.yaml`. |
+| `needs_clone` | `./scripts/clone-repos.sh` |
+| `ready` | Sessions + worktrees (below) |
+
+Full playbook: `.cursor/skills/bootstrap-hub/SKILL.md` · [docs/REPOS.md](docs/REPOS.md)
+
+Hub install if needed: `pip install -r scripts/requirements.txt` && `./scripts/install-workspace-agent.sh`
 
 ---
 
-## Start
+## Start work
 
-**Tmux / terminal:** `$(cat .hub-launcher)` after install — session list by default (`--reuse` to keep tab binding). Not bare `agent`.
+**Tmux:** `$(cat .hub-launcher)` — not bare `agent`.
 
-**Cursor chat:** **start work** / **`/start-work`** → `.cursor/skills/session-orchestrator/SKILL.md`
+**Cursor:** **start work** / **`/start-work`** → `.cursor/skills/session-orchestrator/SKILL.md`
 
-1. `./scripts/resolve-session.sh` or picker → bind codename
-2. `cp repos.yaml.example repos.yaml` once; `./scripts/clone-repos.sh` (launcher runs this)
-3. `./scripts/ensure-worktrees.sh <codename>` when tasks exist
-4. Read `repos.yaml`, `sessions/<codename>/TASKS.md`, `session.json`; edit product in `sessions/<codename>/worktrees/<repo>/`
+1. `./scripts/repos-status.sh` — if not `ready` and user wants **product** work, bootstrap repos first (ask if missing).
+2. `./scripts/resolve-session.sh` or picker → bind codename
+3. `session.json` tasks need `"repo": "<alias>"` matching `repos.yaml`; then `./scripts/ensure-worktrees.sh <codename>`
+4. Edit product in `sessions/<codename>/worktrees/<repo>/` only
 5. `./scripts/sync-session.sh <codename>` after metadata edits
 
 ## End
 
 **end session** / **`/end-session`** → `.cursor/skills/session-end/SKILL.md` → `./scripts/end-session.sh`
 
-## First read
+## Reference
 
 [SESSIONS.md](SESSIONS.md) · [docs/REPOS.md](docs/REPOS.md) · bound `BOUNDARIES.md`
 
 ## Scope
 
 - **Product:** `sessions/<codename>/worktrees/**` + session metadata; `repos/` read-only
-- **Hub session (`mode: hub`):** hub root + `sessions/<codename>/` (optional)
 - **Forbidden:** other `sessions/<other>/`, edits under `repos/`
 
 ## Skills
 
 | | Path |
 |-|------|
-| Bootstrap | [CUSTOMIZE.md](CUSTOMIZE.md) |
+| Bootstrap | `.cursor/skills/bootstrap-hub` |
 | Start | `.cursor/skills/session-orchestrator` |
 | End | `.cursor/skills/session-end` |
 
 ## Cross-session inbox
 
-Leave a note for another session: `./scripts/session-inbox.sh write <from> <to> "message"`.  
-On bind, the target session's inbox is injected into context. Read anytime: `session-inbox.sh read <codename>`.
+`./scripts/session-inbox.sh write <from> <to> "message"` · read on bind or `session-inbox.sh read <codename>`
 
 ## Git / PRs
 
-- May open branches and PRs; fix CI if tests fail
-- **Never** `gh pr merge --auto` or enable auto-merge
-- **Never** merge or push to `main` unless the user explicitly asks
-- See [CONTRIBUTING.md](CONTRIBUTING.md) Pull requests section
+- **Never** `gh pr merge --auto` or auto-merge
+- **Never** merge/push `main` unless user explicitly asks
+- [CONTRIBUTING.md](CONTRIBUTING.md)

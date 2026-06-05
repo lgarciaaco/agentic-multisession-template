@@ -34,7 +34,7 @@ Run from the **new project root** (not the template repo path unless that is the
 | Session template | `sessions/_template/` | New sessions start with `tasks: []` until agent adds tasks + repos |
 | Domain skills | Add `.cursor/skills/<name>/SKILL.md`, register in `.cursor/skills/README.md` | session-orchestrator + session-end only |
 | Domain rules | Add `.cursor/rules/*.mdc` | session-binding + orchestrator + session-boundary |
-| Writable scope | Product: worktrees only; `repos/` read-only; optional `mode: hub` | art-style |
+| Writable scope | Product: worktrees only; `repos/` read-only | default guard |
 
 ---
 
@@ -57,7 +57,7 @@ Run from the **new project root** (not the template repo path unless that is the
 ## After bootstrap
 
 1. Delete or archive this file (`CUSTOMIZE.md`) if the user wants a clean repo — or keep it as reference.
-2. `./scripts/clone-repos.sh` → `$(cat .hub-launcher)` → pick **new** → work under `sessions/<codename>/worktrees/project/`.
+2. When user gave repos and `repos-status` is `ready`: `$(cat .hub-launcher)` → **new** session → add tasks → `ensure-worktrees` → work under `sessions/<codename>/worktrees/<repo>/`.
 3. Mark template task **done** when mandatory steps pass and docs name the project.
 
 ---

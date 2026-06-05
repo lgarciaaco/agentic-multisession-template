@@ -2,7 +2,7 @@
 
 Hub = orchestration (`sessions/`, `scripts/`, `.cursor/`). Product code lives in **registered repos** under `repos/` (reference clones) and **session worktrees** (writable).
 
-**One product repo** = `repos.yaml` with a single entry. No separate “monorepo layout” — same model as art, N=1.
+**One product repo** = `repos.yaml` with a single entry (multi-repo registry with N=1).
 
 ---
 

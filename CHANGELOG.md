@@ -6,20 +6,20 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- **Git worktree isolation** — art-style `repos.yaml` + `repos/` reference clones + `sessions/<codename>/worktrees/<repo>/`
-- `scripts/clone-repos.sh`, `scripts/lib/repos.py`, `repos.yaml.example`
-- `scripts/ensure-worktrees.sh` — branches from `repos.yaml` via `tasks[].repo`
-- `scripts/lib/hub_git.py` — fetch + `origin/<base>` (no JIRA / fork remotes)
-- `docs/REPOS.md` — registry, one-repo = one entry (no separate monorepo layout)
-- `sessions/_codenames.example.yaml`, `sessions/index.example.json` — bootstrapped by `new-session.sh`
-- Default product task in `sessions/_template/session.json` (`session/CODENAME` branch)
-- Launcher runs `ensure-worktrees.sh` when hub has `.git`
+- **repos.yaml registry** — art-style hub + `repos/` reference clones + `sessions/<codename>/worktrees/<repo>/`
+- `scripts/clone-repos.sh`, `scripts/ensure-worktrees.sh`, `scripts/repos-status.sh`
+- `scripts/lib/repos.py`, `scripts/lib/hub_git.py`, `repos.yaml.example`
+- **Agent-first bootstrap** — `repos-status.sh` states; agent asks when registry missing/empty
+- `docs/REPOS.md` — one product repo = one registry entry (N=1 or N=many)
+- `sessions/_codenames.example.yaml`, `sessions/index.example.json`
+- New sessions default to `tasks: []` until agent adds repos + tasks
 
 ### Changed
 
-- Guard: `repos/` read-only; writable worktrees + session metadata (optional `mode: hub`)
+- Guard: `repos/` read-only; writable worktrees + session metadata
 - Session runtime gitignored: `sessions/*/`, `repos/*`, `repos.yaml`, `index.json`, `_codenames.yaml`
-- `BOUNDARIES.md`, `SESSIONS.md`, `AGENTS.md` updated for repos registry workflow
+- Launcher runs `clone-repos` + `ensure-worktrees` only when `repos-status` is `needs_clone` or `ready`
+- `AGENTS.md`, skills, hooks, `SESSIONS.md` aligned to agentic bootstrap
 
 ## [0.2.0] - 2026-06-05
 
@@ -32,7 +32,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- Auto tmux window prefix from hub slug (`immo-investor` → `immo-alpha`) via `hub-env.sh` + `session_binding`
+- Auto tmux window prefix from hub slug via `hub-env.sh` + `session_binding`
 - Re-run `install-workspace-agent.sh` after upgrade so the PATH launcher exports the prefix
 
 ### Changed
@@ -48,7 +48,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- Session picker exits cleanly on Ctrl+C (exit 130, no traceback) — from 0.1.0 follow-up
+- Session picker exits cleanly on Ctrl+C (exit 130, no traceback)
 
 ## [0.1.0] - 2026-06-05
 

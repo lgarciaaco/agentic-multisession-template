@@ -1,3 +1,3 @@
 See [SESSIONS.md](../SESSIONS.md) · [docs/REPOS.md](../docs/REPOS.md).
 
-Bootstrap: `cp repos.yaml.example repos.yaml` → `./scripts/clone-repos.sh` → `./scripts/new-session.sh` → `./scripts/ensure-worktrees.sh <codename>`.
+Agent bootstrap: `./scripts/repos-status.sh` → ask user for repos if needed → `clone-repos.sh` → `new-session.sh` → add tasks → `ensure-worktrees.sh`.

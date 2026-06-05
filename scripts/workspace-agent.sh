@@ -43,15 +43,28 @@ if ! command -v "$AGENT_BIN" >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ -f "$ROOT/repos.yaml" ]]; then
-  if ! "$ROOT/scripts/clone-repos.sh"; then
-    echo "Warning: clone-repos failed — fix repos.yaml / network, then re-run." >&2
-  elif [[ -f "$ROOT/sessions/$CODENAME/session.json" ]]; then
-    if ! "$ROOT/scripts/ensure-worktrees.sh" "$CODENAME"; then
-      echo "Warning: ensure-worktrees failed — run manually after clone-repos." >&2
+REPOS_STATE="$(python3 -c "
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path('$ROOT/scripts/lib')))
+from repos import bootstrap_status
+print(bootstrap_status()['state'])
+" 2>/dev/null || echo "unknown")"
+
+case "$REPOS_STATE" in
+  needs_clone|ready)
+    if ! "$ROOT/scripts/clone-repos.sh"; then
+      echo "Warning: clone-repos failed — fix repos.yaml / network." >&2
+    elif [[ -f "$ROOT/sessions/$CODENAME/session.json" ]]; then
+      if ! "$ROOT/scripts/ensure-worktrees.sh" "$CODENAME"; then
+        echo "Warning: ensure-worktrees failed — check tasks[].repo in session.json." >&2
+      fi
     fi
-  fi
-fi
+    ;;
+  no_repos_yaml|empty_registry)
+    echo "Note: repos not configured ($REPOS_STATE) — agent should ask before product work." >&2
+    ;;
+esac
 
 WINDOW_LABEL="${WORKSPACE_TMUX_WINDOW_PREFIX}${CODENAME}"
 WT="$(python3 -c "

@@ -1,102 +1,92 @@
 # agentic-multisession-template
 
-Project-agnostic **multi-session Cursor agent hub** template. Each chat and tmux tab binds to a named session; hooks enforce scope and inject context.
+Project-agnostic **multi-session Cursor agent hub**. Each chat/tmux tab binds to a codename; hooks enforce scope and inject context.
 
-Use **GitHub → Use this template** to create your own hub, or clone and copy.
+Use **GitHub → Use this template**, or clone this repo as your hub.
 
 ## Prerequisites
 
 - [Cursor](https://cursor.com) IDE
 - Cursor **agent CLI** (`agent` on PATH)
 - **Python** 3.10+
-- **tmux** (terminal workflow)
+- **tmux** (optional terminal workflow)
 - **PyYAML**: `pip install -r scripts/requirements.txt`
 
-## Quick start
+## Quick start (agentic-first)
+
+**You:** clone, `cd`, start the agent.
 
 ```bash
-# 1. Create your hub from this template (GitHub UI) or:
-git clone https://github.com/lgarciaaco/agentic-multisession-template.git my-app
-cd my-app
-
-# 2. Install deps + per-project launcher
-pip install -r scripts/requirements.txt
-./scripts/install-workspace-agent.sh
-
-# 3. Terminal: session picker → agent
-cat .hub-launcher          # e.g. my-agent for hub folder my-app
-$(cat .hub-launcher)
-
-# 4. Cursor chat
-/start-work <task>
+git clone https://github.com/lgarciaaco/agentic-multisession-template.git my-hub
+cd my-hub
+# Cursor: /start-work bootstrap
+# or tmux after install: $(cat .hub-launcher)
 ```
 
-**Launcher naming:** folder `my-app` → command `my-agent`. Long folder names use the first segment (`agentic-multisession-template` → `agentic-agent`). Override:
+**Agent:** reads [AGENTS.md](AGENTS.md), runs `./scripts/repos-status.sh`, asks which product repos to register (if any), runs setup scripts.
 
 ```bash
-WORKSPACE_AGENT_LAUNCHER=my-agent ./scripts/install-workspace-agent.sh
+./scripts/repos-status.sh   # no_repos_yaml → agent asks for alias + git URL + branch
+```
+
+Hub-only (no product repos yet) is valid — `repos: {}` until you tell the agent what to add.
+
+Optional manual install before tmux:
+
+```bash
+pip install -r scripts/requirements.txt
+./scripts/install-workspace-agent.sh
 ```
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-  clone[Clone_or_copy_template] --> install[install-workspace-agent.sh]
-  install --> launcher[.hub-launcher_on_PATH]
-  install --> config["~/.config/slug/hub"]
-  launcher --> picker[Session_picker]
-  picker --> bind[bind_session_context]
-  bind --> agent[Cursor_agent_CLI]
+  clone[Clone_template] --> agent[Start_agent]
+  agent --> status[repos-status.sh]
+  status -->|ask_user| repos_yaml[repos.yaml]
+  repos_yaml --> clone_repos[clone-repos.sh]
+  clone_repos --> picker[Session_picker]
+  picker --> worktrees[ensure-worktrees.sh]
+  worktrees --> bind[bind_session_context]
+  bind --> work[Product_in_worktrees]
 ```
 
-**Resolution order** (chat/tab → session): chat binding → tmux pane option → sibling tab → window name. See [SESSIONS.md](SESSIONS.md).
-
-**Repos:** product code in registered repos (`repos.yaml` → `repos/<name>/` read-only, `sessions/<codename>/worktrees/<name>/` writable). One repo = one registry entry. See [docs/REPOS.md](docs/REPOS.md).
+**Sessions:** [SESSIONS.md](SESSIONS.md) · **Repos:** [docs/REPOS.md](docs/REPOS.md)
 
 ## Layout
 
 ```
-.cursor/          hooks, rules, skills, commands
-repos.yaml.example   registry template → copy to repos.yaml
-repos/               reference clones (gitignored)
-sessions/            _template + examples; codename dirs local (gitignored)
-scripts/             clone-repos, ensure-worktrees, bind, sync, workspace-agent
-docs/                REPOS.md
-AGENTS.md         agent entry
-SESSIONS.md       binding spec
-CUSTOMIZE.md      bootstrap checklist (agents)
+.cursor/              hooks, rules, skills
+repos.yaml.example    agent copies → repos.yaml (local)
+repos/                reference clones (gitignored)
+sessions/             codename dirs (gitignored)
+scripts/              repos-status, clone-repos, ensure-worktrees, bind, …
+docs/REPOS.md         registry spec
+AGENTS.md             agent entry (read first)
 ```
 
 ## For agents
 
 | Task | Doc |
 |------|-----|
-| Bootstrap new hub | [CUSTOMIZE.md](CUSTOMIZE.md) |
-| Daily work | [AGENTS.md](AGENTS.md) · [SESSIONS.md](SESSIONS.md) |
+| First run / bootstrap | [AGENTS.md](AGENTS.md) · `.cursor/skills/bootstrap-hub` |
+| Daily work | `.cursor/skills/session-orchestrator` · [SESSIONS.md](SESSIONS.md) |
 
 ## Env (optional)
 
 | Variable | Default |
 |----------|---------|
 | `WORKSPACE_TMUX_PANE_OPTION` | `workspace-codename` |
-| `WORKSPACE_TMUX_WINDOW_PREFIX` | Auto: first slug segment + `-` (e.g. `immo-investor` → `immo-`); set `""` to disable |
+| `WORKSPACE_TMUX_WINDOW_PREFIX` | Auto from hub slug; `""` disables |
 | `WORKSPACE_AGENT_BIN` | `agent` |
-| `WORKSPACE_AGENT_LAUNCHER` | auto: `<slug-prefix>-agent` |
-| `WORKSPACE_HUB_SLUG` | hub folder basename |
+| `WORKSPACE_AGENT_LAUNCHER` | `<slug-prefix>-agent` |
 
 ## Tests
 
 ```bash
 python3 scripts/test_session_binding.py
 ```
-
-## Git
-
-`.hub-launcher` and `.hub-slug` are created by install and gitignored — one launcher per cloned hub.
-
-## Publish as template
-
-Repo maintainers: **Settings → General → Template repository** ✓
 
 ## License
 

@@ -48,7 +48,7 @@ Project launcher (see `.hub-launcher`) shows the interactive picker by default. 
 
 ### Create new (`new-session.sh` + bind)
 
-New directory from `sessions/_template/` (default task + `worktrees/`), codename marked used in local `_codenames.yaml`.
+New directory from `sessions/_template/` (`tasks: []` + `worktrees/`), codename marked used in local `_codenames.yaml`.
 
 ### Edit scope / tasks
 
@@ -77,7 +77,8 @@ Canonical status lives in `session.json`. Run `sync-session.sh` if local `index.
 
 | Command | Purpose |
 |---------|---------|
-| `<launcher>` (`.hub-launcher`) | Session list → bind → ensure worktrees → Cursor agent CLI |
+| `./scripts/repos-status.sh` | Agent bootstrap state (missing/empty/needs_clone/ready) |
+| `<launcher>` (`.hub-launcher`) | Session list → bind → clone/worktrees when ready → agent CLI |
 | `./scripts/resolve-session.sh` | Print codename for this chat/tab |
 | `./scripts/bind-session.sh <name>` | Bind + resume |
 | `./scripts/clone-repos.sh` | Clone/update reference repos from `repos.yaml` |

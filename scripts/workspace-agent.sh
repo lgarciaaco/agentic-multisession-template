@@ -21,8 +21,12 @@ ENSURE_ARGS=()
 tmp="$(mktemp "${TMPDIR:-/tmp}/workspace-codename.XXXXXX")"
 trap 'rm -f "$tmp"' EXIT
 if ! "$ROOT/scripts/ensure-session-interactive.sh" "${ENSURE_ARGS[@]}" >"$tmp"; then
+  code=$?
+  if [[ "$code" == 130 ]]; then
+    exit 130
+  fi
   echo "Error: could not select a session." >&2
-  exit 1
+  exit "$code"
 fi
 CODENAME="$(<"$tmp")"
 if [[ -z "$CODENAME" ]]; then

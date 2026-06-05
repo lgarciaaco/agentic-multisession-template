@@ -14,6 +14,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from session_binding import (  # noqa: E402
+    _read_tty_line,
     bind_session_context,
     codename_from_tmux,
     codename_from_tmux_session,
@@ -103,6 +104,12 @@ class ResolveSessionTests(unittest.TestCase):
     def test_tmux_pane_option_default(self) -> None:
         os.environ.pop("WORKSPACE_TMUX_PANE_OPTION", None)
         self.assertEqual(tmux_pane_option(), "workspace-codename")
+
+    def test_read_tty_line_ctrl_c_exits_130(self) -> None:
+        with patch("session_binding.open", side_effect=KeyboardInterrupt):
+            with self.assertRaises(SystemExit) as ctx:
+                _read_tty_line("Session> ")
+        self.assertEqual(ctx.exception.code, 130)
 
 
 class SessionSyncTests(unittest.TestCase):

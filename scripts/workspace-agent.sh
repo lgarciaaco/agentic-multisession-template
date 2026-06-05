@@ -43,9 +43,13 @@ if ! command -v "$AGENT_BIN" >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ -d "$ROOT/.git" ]] && [[ -f "$ROOT/sessions/$CODENAME/session.json" ]]; then
-  if ! "$ROOT/scripts/ensure-worktrees.sh" "$CODENAME"; then
-    echo "Warning: ensure-worktrees failed — run manually after fixing git remote." >&2
+if [[ -f "$ROOT/repos.yaml" ]]; then
+  if ! "$ROOT/scripts/clone-repos.sh"; then
+    echo "Warning: clone-repos failed — fix repos.yaml / network, then re-run." >&2
+  elif [[ -f "$ROOT/sessions/$CODENAME/session.json" ]]; then
+    if ! "$ROOT/scripts/ensure-worktrees.sh" "$CODENAME"; then
+      echo "Warning: ensure-worktrees failed — run manually after clone-repos." >&2
+    fi
   fi
 fi
 

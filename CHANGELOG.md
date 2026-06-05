@@ -6,20 +6,20 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- **Git worktree isolation** — `scripts/ensure-worktrees.sh`; per-task checkout at `sessions/<codename>/worktrees/<id>/`
-- `scripts/lib/hub_git.py` — fetch + `origin/<base>` for monorepo worktrees (no multi-repo / JIRA)
-- `docs/WORKTREES.md` — task schema, modes, git layout
+- **Git worktree isolation** — art-style `repos.yaml` + `repos/` reference clones + `sessions/<codename>/worktrees/<repo>/`
+- `scripts/clone-repos.sh`, `scripts/lib/repos.py`, `repos.yaml.example`
+- `scripts/ensure-worktrees.sh` — branches from `repos.yaml` via `tasks[].repo`
+- `scripts/lib/hub_git.py` — fetch + `origin/<base>` (no JIRA / fork remotes)
+- `docs/REPOS.md` — registry, one-repo = one entry (no separate monorepo layout)
 - `sessions/_codenames.example.yaml`, `sessions/index.example.json` — bootstrapped by `new-session.sh`
 - Default product task in `sessions/_template/session.json` (`session/CODENAME` branch)
 - Launcher runs `ensure-worktrees.sh` when hub has `.git`
 
 ### Changed
 
-- **Product sessions** — hub root read-only; edits in worktree only (`mode: product`, default)
-- **Hub sessions** — `mode: hub` allows `scripts/`, `.cursor/`, docs at root (template maintenance)
-- Guard hook uses `guard_path_decision()` (art-style, no `repos/` / tickets)
-- Session runtime gitignored: `sessions/*/`, `index.json`, `_codenames.yaml`, `worktrees/*`
-- `BOUNDARIES.md`, `SESSIONS.md`, `AGENTS.md` updated for worktree workflow
+- Guard: `repos/` read-only; writable worktrees + session metadata (optional `mode: hub`)
+- Session runtime gitignored: `sessions/*/`, `repos/*`, `repos.yaml`, `index.json`, `_codenames.yaml`
+- `BOUNDARIES.md`, `SESSIONS.md`, `AGENTS.md` updated for repos registry workflow
 
 ## [0.2.0] - 2026-06-05
 

@@ -1,3 +1,3 @@
-See [SESSIONS.md](../SESSIONS.md) · [docs/WORKTREES.md](../docs/WORKTREES.md).
+See [SESSIONS.md](../SESSIONS.md) · [docs/REPOS.md](../docs/REPOS.md).
 
-New session: `./scripts/new-session.sh` → `./scripts/ensure-worktrees.sh <codename>`.
+Bootstrap: `cp repos.yaml.example repos.yaml` → `./scripts/clone-repos.sh` → `./scripts/new-session.sh` → `./scripts/ensure-worktrees.sh <codename>`.

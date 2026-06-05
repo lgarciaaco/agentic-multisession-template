@@ -15,6 +15,10 @@ sessions/_inbox/*.md
 sessions/index.json
 sessions/_codenames.yaml
 sessions/*/worktrees/*
+repos/*
+!repos/.gitkeep
+
+repos.yaml
 
 # Local env / tooling
 .env

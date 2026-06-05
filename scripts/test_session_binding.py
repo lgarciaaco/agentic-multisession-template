@@ -28,6 +28,7 @@ from session_binding import (  # noqa: E402
     sync_index_from_session,
     sync_session_from_canonical,
     task_worktree_rel,
+    worktree_alias,
     tmux_pane_option,
     tmux_window_label,
     tmux_window_prefix,
@@ -280,11 +281,11 @@ class WorktreeGuardTests(unittest.TestCase):
             json.dumps(
                 {
                     "codename": self.codename,
-                    "mode": "product",
                     "status": "active",
                     "tasks": [
                         {
                             "id": "main",
+                            "repo": "project",
                             "feature_branch": "session/alpha",
                             "base_branch": "main",
                         }
@@ -293,36 +294,37 @@ class WorktreeGuardTests(unittest.TestCase):
             )
             + "\n"
         )
-        wt = session_dir / "worktrees" / "main"
+        wt = session_dir / "worktrees" / "project"
         wt.mkdir(parents=True)
-        (wt / "packages").mkdir()
-        (wt / "packages" / "app.ts").write_text("// ok\n")
+        (wt / "src").mkdir()
+        (wt / "src" / "app.py").write_text("# ok\n")
+        (self.root / "repos" / "project").mkdir(parents=True)
+        (self.root / "repos" / "project" / "README.md").write_text("ref\n")
         (self.root / "scripts").mkdir()
         (self.root / "scripts" / "hub.sh").write_text("#!/bin/sh\n")
 
     def tearDown(self) -> None:
         self._tmpdir.cleanup()
 
-    def test_task_worktree_rel_default(self) -> None:
-        rel = task_worktree_rel(self.codename, {"id": "main"})
-        self.assertEqual(rel, "sessions/alpha/worktrees/main")
+    def test_worktree_alias_uses_repo(self) -> None:
+        self.assertEqual(worktree_alias({"id": "main", "repo": "project"}), "project")
+
+    def test_task_worktree_rel_uses_repo_key(self) -> None:
+        rel = task_worktree_rel(self.codename, {"id": "main", "repo": "project"})
+        self.assertEqual(rel, "sessions/alpha/worktrees/project")
 
     def test_guard_allows_worktree_path(self) -> None:
-        path = str(self.root / "sessions" / "alpha" / "worktrees" / "main" / "packages" / "app.ts")
+        path = str(self.root / "sessions" / "alpha" / "worktrees" / "project" / "src" / "app.py")
         decision = guard_path_decision(self.root, self.codename, path)
         self.assertEqual(decision["permission"], "allow")
 
-    def test_guard_denies_hub_root_for_product(self) -> None:
-        path = str(self.root / "scripts" / "hub.sh")
+    def test_guard_denies_repos_reference_clone(self) -> None:
+        path = str(self.root / "repos" / "project" / "README.md")
         decision = guard_path_decision(self.root, self.codename, path)
         self.assertEqual(decision["permission"], "deny")
-        self.assertIn("worktrees", decision["agent_message"])
+        self.assertIn("repos/", decision["user_message"])
 
-    def test_guard_allows_hub_root_for_hub_mode(self) -> None:
-        session_path = self.root / "sessions" / self.codename / "session.json"
-        session = json.loads(session_path.read_text())
-        session["mode"] = "hub"
-        session_path.write_text(json.dumps(session) + "\n")
+    def test_guard_allows_hub_scripts(self) -> None:
         path = str(self.root / "scripts" / "hub.sh")
         decision = guard_path_decision(self.root, self.codename, path)
         self.assertEqual(decision["permission"], "allow")
@@ -330,8 +332,30 @@ class WorktreeGuardTests(unittest.TestCase):
     def test_context_includes_worktree_section(self) -> None:
         ctx = build_context_markdown(self.root, self.codename, "chat-1")
         self.assertIn("## Worktrees", ctx)
-        self.assertIn("sessions/alpha/worktrees/main", ctx)
-        self.assertIn("**Mode:** product", ctx)
+        self.assertIn("sessions/alpha/worktrees/project", ctx)
+        self.assertIn("`project`", ctx)
+
+
+class ReposYamlTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmpdir.name)
+        (self.root / "repos.yaml").write_text(
+            "repos:\n  project:\n    path: repos/project\n    clone: git@example.com/p.git\n    default_branch: main\n"
+        )
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def test_load_repos(self) -> None:
+        from repos import load_repos, repo_base  # noqa: E402
+
+        repos = load_repos(self.root)
+        self.assertIn("project", repos)
+        self.assertEqual(
+            repo_base(self.root, repos["project"]).resolve(),
+            (self.root / "repos" / "project").resolve(),
+        )
 
 
 if __name__ == "__main__":

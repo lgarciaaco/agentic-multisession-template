@@ -13,9 +13,10 @@ If this hub was just copied from **agentic-multisession-template** and not yet c
 **Cursor chat:** **start work** / **`/start-work`** → `.cursor/skills/session-orchestrator/SKILL.md`
 
 1. `./scripts/resolve-session.sh` or picker → bind codename
-2. `./scripts/ensure-worktrees.sh <codename>` if worktree missing (launcher does this when `.git` exists)
-3. Read `sessions/<codename>/TASKS.md`, `session.json`; edit product code in `sessions/<codename>/worktrees/**`
-4. `./scripts/sync-session.sh <codename>` after metadata edits
+2. `cp repos.yaml.example repos.yaml` once; `./scripts/clone-repos.sh` (launcher runs this)
+3. `./scripts/ensure-worktrees.sh <codename>` when tasks exist
+4. Read `repos.yaml`, `sessions/<codename>/TASKS.md`, `session.json`; edit product in `sessions/<codename>/worktrees/<repo>/`
+5. `./scripts/sync-session.sh <codename>` after metadata edits
 
 ## End
 
@@ -23,13 +24,13 @@ If this hub was just copied from **agentic-multisession-template** and not yet c
 
 ## First read
 
-[SESSIONS.md](SESSIONS.md) · [docs/WORKTREES.md](docs/WORKTREES.md) · bound `BOUNDARIES.md`
+[SESSIONS.md](SESSIONS.md) · [docs/REPOS.md](docs/REPOS.md) · bound `BOUNDARIES.md`
 
 ## Scope
 
-- **Product session (`mode: product`):** `sessions/<codename>/worktrees/**` + session metadata; hub root read-only
-- **Hub session (`mode: hub`):** hub root + `sessions/<codename>/` (template maintenance only)
-- **Forbidden:** other `sessions/<other>/`
+- **Product:** `sessions/<codename>/worktrees/**` + session metadata; `repos/` read-only
+- **Hub session (`mode: hub`):** hub root + `sessions/<codename>/` (optional)
+- **Forbidden:** other `sessions/<other>/`, edits under `repos/`
 
 ## Skills
 

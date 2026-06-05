@@ -1,0 +1,11 @@
+# Canonical repo registry — paths relative to hub root.
+# Copy to repos.yaml and set clone URLs: cp repos.yaml.example repos.yaml
+#
+# One product repo = one entry (multi-repo with N=1). Add more keys for more repos.
+# Optional hub entry (path: .) for hub-only tasks — see docs/REPOS.md.
+
+repos:
+  project:
+    path: repos/project
+    clone: git@github.com:YOU/PROJECT.git
+    default_branch: main

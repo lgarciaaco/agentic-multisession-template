@@ -1,12 +1,12 @@
 {
   "codename": "CODENAME",
   "title": "",
-  "mode": "product",
   "status": "draft",
   "created": "YYYY-MM-DD",
   "tasks": [
     {
       "id": "main",
+      "repo": "project",
       "feature_branch": "session/CODENAME",
       "base_branch": "main",
       "status": "draft"

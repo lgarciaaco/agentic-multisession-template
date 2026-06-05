@@ -5,8 +5,8 @@ alwaysApply: true
 
 After `resolve-session.sh` returns a codename: read `sessions/<codename>/BOUNDARIES.md`.
 
-- **Product (`mode: product`):** edit code only under `sessions/<codename>/worktrees/**`; hub root is read-only.
+- Edit product code only under `sessions/<codename>/worktrees/**`; `repos/` is read-only.
 - **Hub (`mode: hub`):** hub `scripts/`, `.cursor/`, docs + `sessions/<codename>/`.
 - Do not edit other `sessions/<other>/` trees.
 - Cross-session notes: `./scripts/session-inbox.sh write <from> <to> "message"` → `sessions/_inbox/<to>.md`.
-- Worktrees: [docs/WORKTREES.md](../../docs/WORKTREES.md).
+- Registry: [docs/REPOS.md](../../docs/REPOS.md), `repos.yaml`.

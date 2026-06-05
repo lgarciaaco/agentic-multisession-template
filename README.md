@@ -51,15 +51,17 @@ flowchart TD
 
 **Resolution order** (chat/tab → session): chat binding → tmux pane option → sibling tab → window name. See [SESSIONS.md](SESSIONS.md).
 
-**Worktrees:** product sessions edit code in `sessions/<codename>/worktrees/<task-id>/` on an isolated branch — not hub root. See [docs/WORKTREES.md](docs/WORKTREES.md).
+**Repos:** product code in registered repos (`repos.yaml` → `repos/<name>/` read-only, `sessions/<codename>/worktrees/<name>/` writable). One repo = one registry entry. See [docs/REPOS.md](docs/REPOS.md).
 
 ## Layout
 
 ```
 .cursor/          hooks, rules, skills, commands
-sessions/         _template + examples; codename dirs local (gitignored)
-scripts/          bind, sync, ensure-worktrees, new, workspace-agent
-docs/             WORKTREES.md
+repos.yaml.example   registry template → copy to repos.yaml
+repos/               reference clones (gitignored)
+sessions/            _template + examples; codename dirs local (gitignored)
+scripts/             clone-repos, ensure-worktrees, bind, sync, workspace-agent
+docs/                REPOS.md
 AGENTS.md         agent entry
 SESSIONS.md       binding spec
 CUSTOMIZE.md      bootstrap checklist (agents)

@@ -4,29 +4,29 @@ Bound to codename `CODENAME` via `sessions/bindings/` (see `sessions/context/`).
 
 ## Writable
 
-- `sessions/CODENAME/worktrees/**` — product code (monorepo checkout on `feature_branch`)
+- `sessions/CODENAME/worktrees/**` — product code (git worktrees from `repos.yaml`)
 - `sessions/CODENAME/session.json`, `TASKS.md`, `progress.json`
 - Cross-session: `sessions/_inbox/` via `./scripts/session-inbox.sh write`
 
 ## Read-only
 
-- Hub root (this checkout) — `scripts/`, `.cursor/`, docs at repo root when `mode` is `product`
+- `repos/**` — reference clones; search and cite only (refresh: `./scripts/clone-repos.sh`)
 
 ## Forbidden
 
-- Hub-root product edits while `mode` is `product` (use the worktree)
+- Any edit under `repos/`
 - Any path under `sessions/` except `sessions/CODENAME/` and `sessions/_inbox/`
 - `sessions/bindings/`, `sessions/context/`
 
 ## Hub sessions (`mode`: `hub`)
 
-For template/hub maintenance only: set `"mode": "hub"` in `session.json` to allow edits at hub root (`scripts/`, `.cursor/`, docs). Product sessions stay `product`.
+For hub scripts/docs only: set `"mode": "hub"` in `session.json` and use tasks with `repo` pointing at the hub entry in `repos.yaml` (optional `path: .`).
 
 ## On start
 
 1. `./scripts/resolve-session.sh` — must print `CODENAME` for this chat.
-2. Read this file, `session.json`, `TASKS.md`, `progress.json`.
-3. If `tasks` is non-empty: `./scripts/ensure-worktrees.sh CODENAME` — work in `sessions/CODENAME/worktrees/<task-id>/`.
-4. If `tasks` is empty: planning — update `TASKS.md` / `session.json`; run `ensure-worktrees.sh` when tasks are defined.
+2. Read `repos.yaml`, this file, `session.json`, `TASKS.md`, `progress.json`.
+3. `./scripts/clone-repos.sh` if reference clones are missing or stale.
+4. `./scripts/ensure-worktrees.sh CODENAME` when `tasks` is non-empty.
 
-See [docs/WORKTREES.md](../../docs/WORKTREES.md).
+See [docs/REPOS.md](../../docs/REPOS.md).

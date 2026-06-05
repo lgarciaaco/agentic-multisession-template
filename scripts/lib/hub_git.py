@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Minimal git helpers for monorepo session worktrees (no forks / multi-repo)."""
+"""Minimal git helpers for hub session worktrees (fetch + worktree base ref)."""
 
 from __future__ import annotations
 
@@ -43,3 +43,17 @@ def resolve_worktree_start_ref(repo_dir: Path, base_branch: str) -> tuple[str, s
     ref = upstream_ref(repo_dir, base_branch)
     sha = _run(repo_dir, "rev-parse", "--short", ref).stdout.strip()
     return ref, sha
+
+
+def sync_local_branch_to_upstream(repo_dir: Path, branch: str) -> str:
+    """Fetch origin and fast-forward checked-out branch to origin/<branch>. Returns short SHA."""
+    fetch_upstream(repo_dir)
+    ref = upstream_ref(repo_dir, branch)
+    current = _run(repo_dir, "branch", "--show-current", check=False).stdout.strip()
+    if current != branch:
+        _run(repo_dir, "checkout", branch)
+    result = _run(repo_dir, "merge", "--ff-only", ref, check=False)
+    if result.returncode != 0:
+        msg = result.stderr.strip() or result.stdout.strip() or "merge --ff-only failed"
+        raise RuntimeError(f"could not fast-forward {branch} in {repo_dir}: {msg}")
+    return _run(repo_dir, "rev-parse", "--short", branch).stdout.strip()

@@ -2,7 +2,7 @@
 
 Parallel Cursor chats → **codenames** under `sessions/<codename>/`.
 
-**Quick links:** [AGENTS.md](AGENTS.md) · [docs/WORKTREES.md](docs/WORKTREES.md) · `sessions/<codename>/BOUNDARIES.md`
+**Quick links:** [AGENTS.md](AGENTS.md) · [docs/REPOS.md](docs/REPOS.md) · `sessions/<codename>/BOUNDARIES.md`
 
 ---
 
@@ -12,7 +12,8 @@ Parallel Cursor chats → **codenames** under `sessions/<codename>/`.
 |------|---------|
 | **Codename** | Short name for one unit of work (`sessions/<codename>/`) |
 | **Binding** | Link between *this chat* or *this tmux pane* and a codename |
-| **Worktree** | Isolated git checkout at `sessions/<codename>/worktrees/<task-id>/` |
+| **Worktree** | Writable checkout at `sessions/<codename>/worktrees/<repo>/` (from `repos.yaml`) |
+| **Reference clone** | Read-only `repos/<repo>/` — refresh via `clone-repos.sh` |
 | **Canonical metadata** | `sessions/<codename>/session.json` — title, mode, tasks, status |
 | **Derived metadata** | `sessions/index.json`, `sessions/context/*.md`, `progress.json` |
 
@@ -43,7 +44,7 @@ Project launcher (see `.hub-launcher`) shows the interactive picker by default. 
 | `sessions/index.json` | Synced from `session.json` (local) |
 | `progress.json` | `status` → `active`, `last_bound_at` |
 | tmux | Pane option set; window renamed |
-| worktrees | Launcher runs `ensure-worktrees.sh` when hub is a git repo |
+| worktrees | Launcher runs `clone-repos.sh` + `ensure-worktrees.sh` when `repos.yaml` exists |
 
 ### Create new (`new-session.sh` + bind)
 
@@ -79,6 +80,7 @@ Canonical status lives in `session.json`. Run `sync-session.sh` if local `index.
 | `<launcher>` (`.hub-launcher`) | Session list → bind → ensure worktrees → Cursor agent CLI |
 | `./scripts/resolve-session.sh` | Print codename for this chat/tab |
 | `./scripts/bind-session.sh <name>` | Bind + resume |
+| `./scripts/clone-repos.sh` | Clone/update reference repos from `repos.yaml` |
 | `./scripts/ensure-worktrees.sh <name>` | Create git worktrees from `session.json` tasks |
 | `./scripts/sync-session.sh [name]` | Sync index/context from `session.json` |
 | `./scripts/unbind-session.sh` | Clear binding only |
@@ -96,7 +98,7 @@ Implementation: `scripts/lib/session_binding.py` + `scripts/lib/session_cli.py`.
 ## tmux workflow
 
 ```text
-Tab 1: my-agent → pick alpha  →  worktree sessions/alpha/worktrees/main, window alpha
+Tab 1: my-agent → pick alpha  →  worktree sessions/alpha/worktrees/project, window alpha
 Tab 2: my-agent --reuse       →  reuses alpha (picker skipped)
 Tab 3: my-agent → pick bravo  →  separate branch + worktree
 ```
@@ -132,8 +134,8 @@ Files live in `sessions/_inbox/` (shared; any session may write via the script).
 
 | Commit | Do not commit (see `.gitignore`) |
 |--------|----------------------------------|
-| `scripts/`, `.cursor/`, `SESSIONS.md`, `docs/WORKTREES.md` | `sessions/<codename>/` — entire session tree |
-| `sessions/_template/`, `sessions/_codenames.example.yaml`, `sessions/index.example.json` | `sessions/*/worktrees/*` — git worktree checkouts |
+| `scripts/`, `.cursor/`, `SESSIONS.md`, `docs/REPOS.md`, `repos.yaml.example` | `repos.yaml`, `repos/*` — your clone URLs + reference repos |
+| `sessions/_template/`, `sessions/_codenames.example.yaml`, `sessions/index.example.json` | `sessions/<codename>/`, `sessions/*/worktrees/*` |
 | | `sessions/index.json`, `sessions/_codenames.yaml` — local index |
 | | `sessions/bindings/`, `sessions/context/` — per-chat bindings |
 | | `sessions/_inbox/*.md` — inbox bodies |

@@ -577,6 +577,10 @@ def _read_tty_line(prompt: str) -> str:
             line = tty.readline()
     except OSError as exc:
         raise SystemExit(f"Cannot read from /dev/tty: {exc}") from exc
+    except KeyboardInterrupt:
+        sys.stderr.write("\nSession selection cancelled.\n")
+        sys.stderr.flush()
+        raise SystemExit(130) from None
     if not line:
         raise SystemExit(1)
     return line.strip()

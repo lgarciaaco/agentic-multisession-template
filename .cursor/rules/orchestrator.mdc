@@ -1,0 +1,12 @@
+---
+description: Start/end session triggers
+alwaysApply: true
+---
+
+# Session orchestrator
+
+**Bootstrap hub** / **customize template** → load `.cursor/skills/bootstrap-hub/SKILL.md` + [CUSTOMIZE.md](../../CUSTOMIZE.md).
+
+**Start work** / `/start-work` → load `.cursor/skills/session-orchestrator/SKILL.md`. You run `./scripts/*`.
+
+**End session** / `/end-session` → load `.cursor/skills/session-end/SKILL.md`.

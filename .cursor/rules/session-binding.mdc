@@ -1,0 +1,37 @@
+---
+description: Per-chat session binding via conversation_id — resolve before writes
+alwaysApply: true
+---
+
+# Session binding
+
+Each Cursor composer chat has its own codename binding. There is no global `sessions/.active`.
+
+## Before session-scoped work
+
+1. Run `./scripts/resolve-session.sh` from hub root:
+   - **Cursor chat binding** (`WORKSPACE_CONVERSATION_ID` from hooks), else
+   - **tmux pane** `@workspace-codename` (override via `WORKSPACE_TMUX_PANE_OPTION`), else
+   - **tmux session** (exactly one codename on sibling tabs), else
+   - **tmux window name** if it matches an active session codename
+2. If unbound and the user said **start new session**, **start work**, or `/start-work`:
+   - Run `./scripts/prompt-session-start.sh` and **show the output to the user first**.
+   - **Stop** until they reply: an existing **codename** to continue, or **new** / **new session** for a fresh session.
+   - Continue: `./scripts/bind-session.sh <codename>`
+   - New: `./scripts/new-session.sh` → codename on stdout, then `./scripts/bind-session.sh <codename>`
+   - After editing `session.json` / scope: `./scripts/sync-session.sh <codename>`
+   - Manual tmux rename: `./scripts/rename-tmux-session.sh <codename>`
+   - Do **not** call `new-session.sh` until the user confirms **new**.
+3. If `sessions/context/<conversation_id>.md` exists for this chat, read it for codename and goal.
+
+## Rules
+
+- Never read or write `sessions/.active`.
+- Never edit `sessions/<other-codename>/` when resolve-session prints a different codename.
+- Writable: project root + `sessions/<codename>/` only.
+
+## End session
+
+On **end session** or **kill session**, load **session-end** skill and run `./scripts/end-session.sh` (clears binding for this chat only).
+
+Closing the agent with **Ctrl+C** runs `sessionEnd` hooks and clears this chat's binding so the next run shows the session picker again.

@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": ".cursor/hooks/session-start.sh"
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": ".cursor/hooks/before-prompt.sh",
+        "matcher": "UserPromptSubmit"
+      }
+    ],
+    "sessionEnd": [
+      {
+        "command": ".cursor/hooks/session-end.sh"
+      }
+    ],
+    "beforeFileEdit": [
+      {
+        "command": ".cursor/hooks/guard-session-paths.sh"
+      }
+    ]
+  }
+}

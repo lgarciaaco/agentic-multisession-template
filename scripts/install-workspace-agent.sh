@@ -40,6 +40,9 @@ if [[ -z "\$hub" || ! -d "\$hub" ]]; then
   exit 1
 fi
 export WORKSPACE_ROOT="\$hub"
+# shellcheck disable=SC1091
+source "\$hub/scripts/lib/hub-env.sh"
+ensure_tmux_window_prefix "\$(hub_slug_from_root "\$hub")"
 
 exec "\$hub/scripts/workspace-agent.sh" "\$@"
 EOF

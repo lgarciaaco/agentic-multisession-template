@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2] - 2026-06-05
+
+### Added
+
+- Auto tmux window prefix from hub slug (`immo-investor` → `immo-alpha`) via `hub-env.sh` + `session_binding`
+- Re-run `install-workspace-agent.sh` after upgrade so the PATH launcher exports the prefix
+
+### Changed
+
+- `WORKSPACE_TMUX_WINDOW_PREFIX` unset → derived; explicit `""` still disables prefix
+
 ## [0.1.1] - 2026-06-05
 
 ### Added

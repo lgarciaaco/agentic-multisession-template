@@ -24,7 +24,7 @@ There is **no global active session**. Each chat/tab resolves its own codename.
 1. **Cursor chat binding** — `sessions/bindings/<conversation_id>.json` (`WORKSPACE_CONVERSATION_ID`)
 2. **tmux pane** — `@workspace-codename` on this pane (`WORKSPACE_TMUX_PANE_OPTION`)
 3. **tmux session** — exactly one codename on sibling tabs → inherit
-4. **tmux window name** — when renamed to an active codename (optional `WORKSPACE_TMUX_WINDOW_PREFIX`)
+4. **tmux window name** — renamed to `{prefix}{codename}` (default prefix from hub slug: `immo-investor` → `immo-alpha`; override with `WORKSPACE_TMUX_WINDOW_PREFIX`; set to empty to disable)
 
 Project launcher (see `.hub-launcher`) shows the interactive picker by default. Use `<launcher> --reuse` to skip when already bound.
 

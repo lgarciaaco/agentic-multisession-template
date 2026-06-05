@@ -5,6 +5,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 export WORKSPACE_ROOT="$ROOT"
+# shellcheck disable=SC1091
+source "$ROOT/scripts/lib/hub-env.sh"
+ensure_tmux_window_prefix "$(hub_slug_from_root "$ROOT")"
 
 AGENT_ARGS=()
 REUSE=0
@@ -40,10 +43,7 @@ if ! command -v "$AGENT_BIN" >/dev/null 2>&1; then
   exit 1
 fi
 
-WINDOW_LABEL="$CODENAME"
-if [[ -n "${WORKSPACE_TMUX_WINDOW_PREFIX:-}" ]]; then
-  WINDOW_LABEL="${WORKSPACE_TMUX_WINDOW_PREFIX}${CODENAME}"
-fi
+WINDOW_LABEL="${WORKSPACE_TMUX_WINDOW_PREFIX}${CODENAME}"
 echo "Session: $CODENAME (tmux: $WINDOW_LABEL)" >&2
 if [[ -r /dev/tty && -w /dev/tty ]]; then
   exec "$AGENT_BIN" "${AGENT_ARGS[@]}" </dev/tty >/dev/tty 2>&1

@@ -26,6 +26,7 @@ from session_binding import (
     rename_tmux_for_codename,
     resolve_codename,
     resolve_source_label,
+    sync_session_from_canonical,
     tmux_window_label,
     unbind_session_context,
     write_context_file,

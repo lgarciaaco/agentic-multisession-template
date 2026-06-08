@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -392,6 +393,47 @@ class ReposYamlTests(unittest.TestCase):
             repo_base(self.root, repos["project"]).resolve(),
             (self.root / "repos" / "project").resolve(),
         )
+
+
+class SessionCliSyncTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmpdir.name)
+        self.codename = "alpha"
+        session_dir = self.root / "sessions" / self.codename
+        session_dir.mkdir(parents=True)
+        (self.root / "sessions" / "index.json").write_text('{"sessions": {}}\n')
+        (session_dir / "session.json").write_text(
+            json.dumps(
+                {
+                    "codename": self.codename,
+                    "title": "sync test",
+                    "status": "active",
+                    "tasks": [],
+                }
+            )
+            + "\n"
+        )
+        (session_dir / "TASKS.md").write_text("# Session\n\n## Goal\n\nSync CLI test.\n")
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def test_cli_sync_command(self) -> None:
+        env = os.environ.copy()
+        env["WORKSPACE_ROOT"] = str(self.root)
+        cli = Path(__file__).resolve().parent / "lib" / "session_cli.py"
+        result = subprocess.run(
+            [sys.executable, str(cli), "sync", self.codename],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=self.root,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        self.assertEqual(result.stdout.splitlines()[0], self.codename)
+        index = json.loads((self.root / "sessions" / "index.json").read_text())
+        self.assertEqual(index["sessions"][self.codename]["title"], "sync test")
 
 
 if __name__ == "__main__":

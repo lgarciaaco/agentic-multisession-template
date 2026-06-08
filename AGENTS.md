@@ -51,6 +51,7 @@ Hub install if needed: `pip install -r scripts/requirements.txt` && `./scripts/i
 |-|------|
 | Bootstrap | `.cursor/skills/bootstrap-hub` |
 | Start | `.cursor/skills/session-orchestrator` |
+| Code review | `.cursor/skills/code-reviewer` |
 | End | `.cursor/skills/session-end` |
 
 ## Cross-session inbox

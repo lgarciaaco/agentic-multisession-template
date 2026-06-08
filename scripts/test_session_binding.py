@@ -156,10 +156,10 @@ class InboxTests(unittest.TestCase):
         self.assertIn("Feature shipped", content or "")
 
     def test_inbox_injected_in_context(self) -> None:
-        write_inbox(self.root, "bravo", "alpha", "Fix parser before ingest.")
+        write_inbox(self.root, "bravo", "alpha", "Blocked on API review — ping when merged.")
         ctx = build_context_markdown(self.root, "alpha", "test-chat-id")
         self.assertIn("Inbox (from other sessions)", ctx)
-        self.assertIn("Fix parser before ingest.", ctx)
+        self.assertIn("Blocked on API review", ctx)
 
 
 class SessionSyncTests(unittest.TestCase):

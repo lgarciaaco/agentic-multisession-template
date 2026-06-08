@@ -11,24 +11,32 @@ if [[ -z "$CODENAME" ]]; then
 fi
 
 cd "$ROOT"
+export WORKSPACE_ROOT="$ROOT"
+export WORKSPACE_CODENAME="${1:-}"
 
 if [[ ! -f "$ROOT/repos.yaml" ]]; then
   echo "Error: missing repos.yaml — cp repos.yaml.example repos.yaml" >&2
   exit 1
 fi
 
-python3 <<PY
+python3 <<'PY'
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path("scripts/lib").resolve()))
+root = Path(os.environ["WORKSPACE_ROOT"])
+sys.path.insert(0, str(root / "scripts" / "lib"))
 from hub_git import resolve_worktree_start_ref
-from repos import load_repos, repo_base, workspace_root
+from repos import load_repos, repo_base
+from session_binding import validate_codename
 
-root = workspace_root()
-codename = "$CODENAME"
+try:
+    codename = validate_codename(os.environ.get("WORKSPACE_CODENAME", ""))
+except ValueError as exc:
+    print(f"Error: {exc}", file=sys.stderr)
+    sys.exit(1)
 session_path = root / "sessions" / codename / "session.json"
 
 if not session_path.exists():

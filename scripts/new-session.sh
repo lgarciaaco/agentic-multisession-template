@@ -5,10 +5,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-NAME="${1:-}"
+export WORKSPACE_ROOT="$ROOT"
+export WORKSPACE_NEW_SESSION_NAME="${1:-}"
 
-python3 <<PY
+python3 <<'PY'
 import json
+import os
 import sys
 from datetime import date
 from pathlib import Path
@@ -19,8 +21,11 @@ except ImportError:
     print("PyYAML required: pip install pyyaml", file=sys.stderr)
     sys.exit(1)
 
-root = Path("$ROOT")
-name = "$NAME".strip()
+root = Path(os.environ["WORKSPACE_ROOT"])
+sys.path.insert(0, str(root / "scripts" / "lib"))
+from session_binding import validate_codename
+
+name = os.environ.get("WORKSPACE_NEW_SESSION_NAME", "").strip()
 
 codenames_path = root / "sessions" / "_codenames.yaml"
 example_codenames = root / "sessions" / "_codenames.example.yaml"
@@ -48,10 +53,14 @@ data = yaml.safe_load(codenames_path.read_text())
 used = set(data.get("used", []))
 
 if name:
-    if name in used:
-        print(f"Error: codename '{name}' already used.", file=sys.stderr)
+    try:
+        codename = validate_codename(name)
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
-    codename = name
+    if codename in used:
+        print(f"Error: codename '{codename}' already used.", file=sys.stderr)
+        sys.exit(1)
 else:
     codename = None
     for pool in data.get("pools", {}).values():

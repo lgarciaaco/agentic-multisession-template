@@ -29,12 +29,44 @@ from session_binding import (  # noqa: E402
     sync_index_from_session,
     sync_session_from_canonical,
     task_worktree_rel,
+    validate_codename,
     worktree_alias,
     tmux_pane_option,
     tmux_window_label,
     tmux_window_prefix,
     write_inbox,
 )
+
+
+class CodenameValidationTests(unittest.TestCase):
+    def test_accepts_valid_codenames(self) -> None:
+        for name in ("alpha", "a1", "test-sync-codename"):
+            self.assertEqual(validate_codename(name), name)
+
+    def test_rejects_path_traversal(self) -> None:
+        for bad in ("../evil", "..", "foo/bar", "/alpha"):
+            with self.subTest(bad=bad):
+                with self.assertRaises(ValueError):
+                    validate_codename(bad)
+
+    def test_rejects_reserved_and_empty(self) -> None:
+        for bad in ("", "  ", "_inbox", "bindings", "context", "UPPER"):
+            with self.subTest(bad=bad):
+                with self.assertRaises(ValueError):
+                    validate_codename(bad)
+
+    def test_bind_rejects_invalid_codename(self) -> None:
+        env = os.environ.copy()
+        env["WORKSPACE_ROOT"] = str(hub_root())
+        cli = Path(__file__).resolve().parent / "lib" / "session_cli.py"
+        result = subprocess.run(
+            [sys.executable, str(cli), "bind", "../evil"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("invalid session codename", result.stderr)
 
 
 class ResolveSessionTests(unittest.TestCase):

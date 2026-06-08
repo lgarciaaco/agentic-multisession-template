@@ -29,9 +29,17 @@ from session_binding import (
     sync_session_from_canonical,
     tmux_window_label,
     unbind_session_context,
+    validate_codename,
     write_context_file,
     write_inbox,
 )
+
+
+def _require_codename(value: str) -> str:
+    try:
+        return validate_codename(value)
+    except ValueError as exc:
+        raise SystemExit(f"Error: {exc}") from exc
 
 
 def _load_hook_payload() -> dict:
@@ -61,13 +69,14 @@ def cmd_resolve(_args: argparse.Namespace) -> int:
 
 def cmd_bind(args: argparse.Namespace) -> int:
     root = hub_root()
-    bind_session_context(root, args.codename, conversation_id())
-    print(args.codename)
+    codename = _require_codename(args.codename)
+    bind_session_context(root, codename, conversation_id())
+    print(codename)
     cid = conversation_id()
     if cid:
-        print(f"Bound conversation {cid} -> {args.codename}")
+        print(f"Bound conversation {cid} -> {codename}")
     else:
-        print(f"Bound tmux pane -> {args.codename}")
+        print(f"Bound tmux pane -> {codename}")
     return 0
 
 
@@ -106,7 +115,9 @@ def cmd_ensure(args: argparse.Namespace) -> int:
 def cmd_sync(args: argparse.Namespace) -> int:
     root = hub_root()
     codename = args.codename
-    if not codename:
+    if codename:
+        codename = _require_codename(codename)
+    else:
         codename, _ = resolve_codename(root)
     if not codename:
         print("Usage: sync [codename]  (or bind a session first)", file=sys.stderr)
@@ -125,7 +136,9 @@ def cmd_sync(args: argparse.Namespace) -> int:
 
 def cmd_rename(args: argparse.Namespace) -> int:
     codename = args.codename
-    if not codename:
+    if codename:
+        codename = _require_codename(codename)
+    else:
         codename, _ = resolve_codename(hub_root())
     if not codename:
         print("Usage: rename <codename>  (or bind a session first)", file=sys.stderr)
@@ -143,7 +156,9 @@ def cmd_rename(args: argparse.Namespace) -> int:
 def cmd_close(args: argparse.Namespace) -> int:
     root = hub_root()
     codename = args.codename
-    if not codename:
+    if codename:
+        codename = _require_codename(codename)
+    else:
         codename, _ = resolve_codename(root)
     if not codename:
         print("Usage: close [codename] [note]", file=sys.stderr)
@@ -233,16 +248,19 @@ def cmd_hook_session_end(_args: argparse.Namespace) -> int:
 def cmd_inbox(args: argparse.Namespace) -> int:
     root = hub_root()
     if args.inbox_command == "read":
-        content = read_inbox(root, args.codename)
+        codename = _require_codename(args.codename)
+        content = read_inbox(root, codename)
         if not content:
-            print(f"No inbox for {args.codename}.")
+            print(f"No inbox for {codename}.")
             return 0
         print(content)
         return 0
 
     if args.inbox_command == "write":
         try:
-            path = write_inbox(root, args.from_session, args.to_session, args.message)
+            from_session = _require_codename(args.from_session)
+            to_session = _require_codename(args.to_session)
+            path = write_inbox(root, from_session, to_session, args.message)
         except ValueError as exc:
             print(f"Error: {exc}", file=sys.stderr)
             return 1

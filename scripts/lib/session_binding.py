@@ -13,6 +13,7 @@ from pathlib import Path
 
 CLOSED_STATUSES = frozenset({"completed", "closed", "cancelled"})
 RESERVED_SESSION_DIRS = frozenset({"bindings", "context", "_inbox"})
+CODENAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 RESOLVE_SOURCE_LABELS = {
     "binding": "this chat",
     "tmux-pane": "tmux tab",
@@ -23,6 +24,21 @@ RESOLVE_SOURCE_LABELS = {
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def validate_codename(codename: str) -> str:
+    """Return a safe session codename or raise ValueError."""
+    name = codename.strip()
+    if not name:
+        raise ValueError("codename must not be empty")
+    if name.startswith("_") or name in RESERVED_SESSION_DIRS:
+        raise ValueError(f"invalid session codename: {name}")
+    if not CODENAME_RE.fullmatch(name):
+        raise ValueError(
+            f"invalid session codename: {name!r} "
+            "(use lowercase letters, digits, hyphens; no slashes or ..)"
+        )
+    return name
 
 
 def hub_root() -> Path:
@@ -113,8 +129,9 @@ def get_tmux_pane_codename() -> str | None:
 
 
 def set_tmux_pane_codename(codename: str) -> bool:
-    name = codename.strip()
-    if not name:
+    try:
+        name = validate_codename(codename)
+    except ValueError:
         return False
     return _run_tmux("set-option", "-p", f"@{tmux_pane_option()}", name) is not None
 
@@ -258,9 +275,9 @@ def write_inbox(root: Path, from_codename: str, to_codename: str, message: str) 
     message = message.strip()
     if not message:
         raise ValueError("inbox message must not be empty")
-    for name in (from_codename, to_codename):
-        session_dir = root / "sessions" / name
-        if not session_dir.is_dir() or name.startswith("_") or name in RESERVED_SESSION_DIRS:
+    for raw in (from_codename, to_codename):
+        name = validate_codename(raw)
+        if not (root / "sessions" / name).is_dir():
             raise ValueError(f"invalid session codename: {name}")
 
     path = inbox_path(root, to_codename)
@@ -439,17 +456,22 @@ def sync_session_from_canonical(
     conversation_id: str | None = None,
 ) -> None:
     """Sync derived session references from sessions/<codename>/session.json."""
+    name = validate_codename(codename)
     if resume:
-        resume_session_on_bind(root, codename)
+        resume_session_on_bind(root, name)
     else:
-        sync_index_from_session(root, codename)
+        sync_index_from_session(root, name)
     if refresh_context:
-        refresh_binding_contexts(root, codename, conversation_id=conversation_id)
+        refresh_binding_contexts(root, name, conversation_id=conversation_id)
 
 
 def is_active_session(root: Path, codename: str, index_entry: dict | None = None) -> bool:
-    session_dir = root / "sessions" / codename
-    if not session_dir.is_dir() or codename.startswith("_") or codename in RESERVED_SESSION_DIRS:
+    try:
+        name = validate_codename(codename)
+    except ValueError:
+        return False
+    session_dir = root / "sessions" / name
+    if not session_dir.is_dir():
         return False
     if not (session_dir / "session.json").exists():
         return False
@@ -464,12 +486,16 @@ def is_active_session(root: Path, codename: str, index_entry: dict | None = None
 
 
 def validate_active_codename(root: Path, codename: str) -> None:
-    session_dir = root / "sessions" / codename
+    try:
+        name = validate_codename(codename)
+    except ValueError as exc:
+        raise SystemExit(f"Error: {exc}") from exc
+    session_dir = root / "sessions" / name
     if not session_dir.is_dir():
-        raise SystemExit(f"Error: sessions/{codename}/ does not exist")
+        raise SystemExit(f"Error: sessions/{name}/ does not exist")
     index_sessions = _index_sessions(root)
-    if not is_active_session(root, codename, index_sessions.get(codename, {})):
-        raise SystemExit(f"Error: session {codename} is not active (ended or missing session.json)")
+    if not is_active_session(root, name, index_sessions.get(name, {})):
+        raise SystemExit(f"Error: session {name} is not active (ended or missing session.json)")
 
 
 def _codename_from_name(root: Path, name: str | None) -> str | None:
@@ -799,6 +825,10 @@ def run_interactive_session_picker(root: Path | None = None) -> str:
             continue
         if choice in codenames:
             return choice
+        try:
+            return validate_codename(choice)
+        except ValueError:
+            pass
         print(f"Unknown session: {choice}", file=sys.stderr)
 
 
@@ -911,7 +941,8 @@ def format_session_start_required(root: Path | None = None) -> str:
 
 def close_session_work(root: Path, codename: str, note: str = "") -> None:
     """Mark session completed in session.json, index, progress, TASKS."""
-    session_dir = root / "sessions" / codename
+    name = validate_codename(codename)
+    session_dir = root / "sessions" / name
     today = date.today().isoformat()
     ended_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
@@ -933,7 +964,7 @@ def close_session_work(root: Path, codename: str, note: str = "") -> None:
     progress_path.write_text(json.dumps(progress, indent=2) + "\n")
 
     tasks_md = session_dir / "TASKS.md"
-    footer = f"\n\n## Session closed ({today})\n\n- Codename: `{codename}`\n- Status: completed\n"
+    footer = f"\n\n## Session closed ({today})\n\n- Codename: `{name}`\n- Status: completed\n"
     if note:
         footer += f"- Note: {note}\n"
     if tasks_md.exists():
@@ -941,11 +972,11 @@ def close_session_work(root: Path, codename: str, note: str = "") -> None:
         if "## Session closed" not in text:
             tasks_md.write_text(text.rstrip() + footer + "\n")
     else:
-        tasks_md.write_text(f"# Session {codename}\n{footer}\n")
+        tasks_md.write_text(f"# Session {name}\n{footer}\n")
 
     index_path = root / "sessions" / "index.json"
     index = json.loads(index_path.read_text())
-    entry = index.setdefault("sessions", {}).get(codename, {})
+    entry = index.setdefault("sessions", {}).get(name, {})
     entry.update(
         {
             "title": session.get("title") or entry.get("title", ""),
@@ -954,5 +985,5 @@ def close_session_work(root: Path, codename: str, note: str = "") -> None:
             "ended": today,
         }
     )
-    index["sessions"][codename] = entry
+    index["sessions"][name] = entry
     index_path.write_text(json.dumps(index, indent=2) + "\n")

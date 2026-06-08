@@ -17,7 +17,7 @@ Run from the **new project root** (not the template repo path unless that is the
 | 3 | `./scripts/install-workspace-agent.sh` | `which $(cat .hub-launcher)` |
 | 4 | Create/edit `repos.yaml`; `./scripts/clone-repos.sh` when user gave URLs | `state: ready` |
 | 5 | Update `README.md` with project name when user cares | Human-readable |
-| 6 | `python3 scripts/test_session_binding.py` | All tests pass |
+| 6 | `python3 scripts/test_session_binding.py` && `python3 scripts/test_git_remotes.py` | All tests pass |
 
 **Do not** skip install after copy — each hub gets its own command (e.g. `my-app` → `my-agent`) and config `~/.config/<project-slug>/hub`.
 
@@ -30,6 +30,8 @@ Run from the **new project root** (not the template repo path unless that is the
 | Tmux window prefix | `WORKSPACE_TMUX_WINDOW_PREFIX` | Auto from `.hub-slug` (`my-app` → `my-alpha`); `""` = bare codename |
 | Tmux pane option | `WORKSPACE_TMUX_PANE_OPTION` | `workspace-codename` |
 | Launcher name | `WORKSPACE_AGENT_LAUNCHER=my-agent ./scripts/install-workspace-agent.sh` | `<first-segment>-agent` (e.g. `my-app` → `my-agent`; long slug `agentic-multisession-template` → `agentic-agent` — override if undesired) |
+| GitHub fork workflow | `github_fork_user` + `remote: github` in `repos.yaml`; `./scripts/configure-git-remotes.sh` | Push to `origin` on your own repos |
+| Editor workspace | `./scripts/generate-workspace.sh` | Open hub + `repos/*` as multi-root in Cursor/VS Code |
 | Codename pool | Edit `sessions/_codenames.example.yaml` before first `new-session.sh`, or local `_codenames.yaml` after | NATO `alpha`…`hotel` |
 | Session template | `sessions/_template/` | New sessions start with `tasks: []` until agent adds tasks + repos |
 | Domain skills | Add `.cursor/skills/<name>/SKILL.md`, register in `.cursor/skills/README.md` | See `.cursor/skills/README.md` (bootstrap, orchestrator, hub-upgrade, code-reviewer, session-end) |

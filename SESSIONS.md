@@ -14,7 +14,7 @@ Parallel Cursor chats → **codenames** under `sessions/<codename>/`.
 | **Binding** | Link between *this chat* or *this tmux pane* and a codename |
 | **Worktree** | Writable checkout at `sessions/<codename>/worktrees/<repo>/` (from `repos.yaml`) |
 | **Reference clone** | Read-only `repos/<repo>/` — refresh via `clone-repos.sh` |
-| **Canonical metadata** | `sessions/<codename>/session.json` — title, mode, tasks, status |
+| **Canonical metadata** | `sessions/<codename>/session.json` — title, mode, tasks, status, optional `next`; tasks may include `pr`, `ci`, `note` |
 | **Derived metadata** | `sessions/index.json`, `sessions/context/*.md`, `progress.json` |
 
 There is **no global active session**. Each chat/tab resolves its own codename.
@@ -59,6 +59,27 @@ Update **`session.json`** and **`TASKS.md`**, then:
 ./scripts/sync-session.sh <codename>
 ```
 
+Optional **`session.json`** fields (synced into context on bind):
+
+| Field | Purpose |
+|-------|---------|
+| `next` | One-line resume hint (session picker + chat context) |
+| `tasks[].pr` | Pull request URL |
+| `tasks[].ci` | CI/build URL |
+| `tasks[].note` | Free-text task status |
+
+---
+
+## GitHub fork workflow (optional)
+
+When `repos.yaml` sets `github_fork_user` and `remote: github` on a repo entry:
+
+- `clone-repos.sh` / `ensure-worktrees.sh` configure **origin** (upstream fetch) + **fork** (push default)
+- Repair remotes: `./scripts/configure-git-remotes.sh [alias]`
+- Agent rule: `.cursor/rules/git-fork-pr.mdc`
+
+Details: [docs/REPOS.md](docs/REPOS.md).
+
 ### End session (`end-session.sh`)
 
 Marks completed; clears **this chat's** binding only. Session folder and worktree stay on disk.
@@ -84,6 +105,8 @@ Canonical status lives in `session.json`. Run `sync-session.sh` if local `index.
 | `./scripts/resolve-session.sh` | Print codename for this chat/tab |
 | `./scripts/bind-session.sh <name>` | Bind + resume |
 | `./scripts/clone-repos.sh` | Clone/update reference repos from `repos.yaml` |
+| `./scripts/configure-git-remotes.sh [alias]` | Repair upstream/fork remotes (GitHub fork workflow) |
+| `./scripts/generate-workspace.sh [path]` | Write multi-root `.code-workspace` from `repos.yaml` |
 | `./scripts/ensure-worktrees.sh <name>` | Create git worktrees from `session.json` tasks |
 | `./scripts/sync-session.sh [name]` | Sync index/context from `session.json` |
 | `./scripts/unbind-session.sh` | Clear binding only |
@@ -145,6 +168,7 @@ Files live in `sessions/_inbox/` (shared; any session may write via the script).
 | | `sessions/<codename>/reviews/`, `checkpoints.json` — local review/checkpoint artifacts |
 | | `.hub-upstream`, `.hub-upstream-cache/`, `.hub-upgrade-staging/` — upstream override and upgrade cache |
 | | `.hub-launcher`, `.hub-slug` — local install paths |
+| | `*.code-workspace` — generated editor workspace |
 
 Track milestones in product `CURRENT.md` instead of committing `progress.json`.
 

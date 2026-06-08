@@ -23,6 +23,27 @@ root = Path("$ROOT")
 name = "$NAME".strip()
 
 codenames_path = root / "sessions" / "_codenames.yaml"
+example_codenames = root / "sessions" / "_codenames.example.yaml"
+if not codenames_path.exists():
+    if example_codenames.exists():
+        codenames_path.write_text(example_codenames.read_text())
+    else:
+        codenames_path.write_text(
+            yaml.dump(
+                {
+                    "pools": {
+                        "default": [
+                            "alpha", "bravo", "charlie", "delta",
+                            "echo", "foxtrot", "golf", "hotel",
+                        ]
+                    },
+                    "used": [],
+                },
+                default_flow_style=False,
+                sort_keys=False,
+            )
+        )
+
 data = yaml.safe_load(codenames_path.read_text())
 used = set(data.get("used", []))
 
@@ -57,6 +78,7 @@ for item in ("session.json", "BOUNDARIES.md", "TASKS.md", "progress.json"):
         sys.exit(1)
 
 session_dir.mkdir(parents=True)
+(session_dir / "worktrees").mkdir(parents=True)
 today = date.today().isoformat()
 
 for item in ("session.json", "BOUNDARIES.md", "TASKS.md", "progress.json"):
@@ -64,8 +86,14 @@ for item in ("session.json", "BOUNDARIES.md", "TASKS.md", "progress.json"):
     text = text.replace("CODENAME", codename).replace("YYYY-MM-DD", today)
     (session_dir / item).write_text(text)
 
-# Update index
 index_path = root / "sessions" / "index.json"
+if not index_path.exists():
+    example_index = root / "sessions" / "index.example.json"
+    if example_index.exists():
+        index_path.write_text(example_index.read_text())
+    else:
+        index_path.write_text('{"sessions": {}}\n')
+
 index = json.loads(index_path.read_text())
 index.setdefault("sessions", {})[codename] = {
     "title": "",
@@ -74,7 +102,6 @@ index.setdefault("sessions", {})[codename] = {
 }
 index_path.write_text(json.dumps(index, indent=2) + "\n")
 
-# Mark codename used
 if codename not in used:
     used.add(codename)
     data["used"] = sorted(used)

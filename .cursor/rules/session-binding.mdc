@@ -28,7 +28,7 @@ Each Cursor composer chat has its own codename binding. There is no global `sess
 
 - Never read or write `sessions/.active`.
 - Never edit `sessions/<other-codename>/` when resolve-session prints a different codename.
-- Writable: project root + `sessions/<codename>/` only.
+- Writable: `sessions/<codename>/worktrees/**` + session metadata; `repos/` read-only. Run `./scripts/repos-status.sh` if repos unset.
 
 ## End session
 

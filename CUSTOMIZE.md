@@ -2,7 +2,7 @@
 
 **When:** User copies `agentic-multisession-template` to a new project directory and asks you to set it up or "bootstrap the hub."
 
-**Goal:** Turn the generic skeleton into a named project hub. Session binding, hooks, and scripts work out of the box — customization is mostly naming, install, and optional domain additions.
+**Goal:** Agent bootstraps after user clones template and starts Cursor. User does not run a manual checklist — the agent runs `./scripts/repos-status.sh`, asks for repos when needed, and executes scripts.
 
 ---
 
@@ -12,11 +12,11 @@ Run from the **new project root** (not the template repo path unless that is the
 
 | Step | Action | Verify |
 |------|--------|--------|
-| 1 | Confirm hub root = directory containing `sessions/_codenames.yaml` and `scripts/install-workspace-agent.sh` | `pwd` |
+| 1 | `./scripts/repos-status.sh` — act on `state` (ask user if `no_repos_yaml` / `empty_registry`) | JSON printed |
 | 2 | `pip install -r scripts/requirements.txt` | `python3 -c "import yaml"` |
-| 3 | `./scripts/install-workspace-agent.sh` | `which $(cat .hub-launcher)` and `cat ~/.config/$(cat .hub-slug)/hub` equals this project root |
-| 4 | Update `README.md` — replace template title with **project name** and one-line purpose | Human-readable |
-| 5 | Update `AGENTS.md` — remove "template bootstrap" block; add project-specific first-read links if any | Agent entry |
+| 3 | `./scripts/install-workspace-agent.sh` | `which $(cat .hub-launcher)` |
+| 4 | Create/edit `repos.yaml`; `./scripts/clone-repos.sh` when user gave URLs | `state: ready` |
+| 5 | Update `README.md` with project name when user cares | Human-readable |
 | 6 | `python3 scripts/test_session_binding.py` | All tests pass |
 
 **Do not** skip install after copy — each hub gets its own command (e.g. `my-app` → `my-agent`) and config `~/.config/<project-slug>/hub`.
@@ -27,14 +27,14 @@ Run from the **new project root** (not the template repo path unless that is the
 
 | Topic | What to change | Default (no action) |
 |-------|----------------|---------------------|
-| Tmux window prefix | `WORKSPACE_TMUX_WINDOW_PREFIX` | Auto from `.hub-slug` (`immo-investor` → `immo-alpha`); `""` = bare codename |
+| Tmux window prefix | `WORKSPACE_TMUX_WINDOW_PREFIX` | Auto from `.hub-slug` (`my-app` → `my-alpha`); `""` = bare codename |
 | Tmux pane option | `WORKSPACE_TMUX_PANE_OPTION` | `workspace-codename` |
 | Launcher name | `WORKSPACE_AGENT_LAUNCHER=my-agent ./scripts/install-workspace-agent.sh` | `<first-segment>-agent` (e.g. `my-app` → `my-agent`; long slug `agentic-multisession-template` → `agentic-agent` — override if undesired) |
-| Codename pool | `sessions/_codenames.yaml` — add pools or names | NATO `alpha`…`hotel` |
-| Session template | `sessions/_template/BOUNDARIES.md`, `TASKS.md` | Generic placeholders |
+| Codename pool | Edit `sessions/_codenames.example.yaml` before first `new-session.sh`, or local `_codenames.yaml` after | NATO `alpha`…`hotel` |
+| Session template | `sessions/_template/` | New sessions start with `tasks: []` until agent adds tasks + repos |
 | Domain skills | Add `.cursor/skills/<name>/SKILL.md`, register in `.cursor/skills/README.md` | session-orchestrator + session-end only |
 | Domain rules | Add `.cursor/rules/*.mdc` | session-binding + orchestrator + session-boundary |
-| Writable scope | `guard-session-paths` + `session-boundary.mdc` if scope ≠ project root + `sessions/<codename>/` | Current defaults |
+| Writable scope | Product: worktrees only; `repos/` read-only | default guard |
 
 ---
 
@@ -57,7 +57,7 @@ Run from the **new project root** (not the template repo path unless that is the
 ## After bootstrap
 
 1. Delete or archive this file (`CUSTOMIZE.md`) if the user wants a clean repo — or keep it as reference.
-2. First real session: `$(cat .hub-launcher)` → pick **new** → work under `sessions/<codename>/`.
+2. When user gave repos and `repos-status` is `ready`: `$(cat .hub-launcher)` → **new** session → add tasks → `ensure-worktrees` → work under `sessions/<codename>/worktrees/<repo>/`.
 3. Mark template task **done** when mandatory steps pass and docs name the project.
 
 ---

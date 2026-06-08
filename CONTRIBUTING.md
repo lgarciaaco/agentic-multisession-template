@@ -11,7 +11,10 @@ This repository is a **generic template** for multi-session Cursor agent hubs. C
 
 - Keep examples generic (`my-app`, `my-agent`) — no real project names
 - Run `python3 scripts/test_session_binding.py` before opening a PR
-- Scope: session binding, hooks, docs, install — not domain features
+- Scope: session binding, repos registry, worktrees, hooks, docs, install — not domain features
+- Open PRs from feature branches; wait for CI (`test` workflow) to pass
+- **Do not** use `gh pr merge --auto` or enable auto-merge on the repo
+- **Do not** merge PRs unless the maintainer explicitly asks — user merges on GitHub, or asks for `gh pr merge <n> --merge` (without `--auto`)
 
 ## Report issues
 

@@ -20,12 +20,15 @@ from session_binding import (  # noqa: E402
     codename_from_tmux,
     codename_from_tmux_session,
     default_tmux_window_prefix,
+    guard_path_decision,
     hub_root,
     read_inbox,
     resolve_codename,
     resume_session_on_bind,
     sync_index_from_session,
     sync_session_from_canonical,
+    task_worktree_rel,
+    worktree_alias,
     tmux_pane_option,
     tmux_window_label,
     tmux_window_prefix,
@@ -101,8 +104,8 @@ class ResolveSessionTests(unittest.TestCase):
         self.assertEqual(source, "tmux-session")
 
     def test_default_tmux_window_prefix_from_slug(self) -> None:
-        self.assertEqual(default_tmux_window_prefix("immo-investor"), "immo-")
         self.assertEqual(default_tmux_window_prefix("my-app"), "my-")
+        self.assertEqual(default_tmux_window_prefix("acme-corp-hub"), "acme-")
         self.assertEqual(default_tmux_window_prefix("agentic-multisession-template"), "agentic-")
 
     def test_tmux_window_prefix_explicit(self) -> None:
@@ -111,9 +114,9 @@ class ResolveSessionTests(unittest.TestCase):
 
     def test_tmux_window_prefix_from_hub_slug(self) -> None:
         os.environ.pop("WORKSPACE_TMUX_WINDOW_PREFIX", None)
-        with patch("session_binding.hub_slug", return_value="immo-investor"):
-            self.assertEqual(tmux_window_prefix(), "immo-")
-            self.assertEqual(tmux_window_label("alpha"), "immo-alpha")
+        with patch("session_binding.hub_slug", return_value="my-app"):
+            self.assertEqual(tmux_window_prefix(), "my-")
+            self.assertEqual(tmux_window_label("alpha"), "my-alpha")
 
     def test_tmux_window_prefix_disabled(self) -> None:
         os.environ["WORKSPACE_TMUX_WINDOW_PREFIX"] = ""
@@ -146,11 +149,11 @@ class InboxTests(unittest.TestCase):
         self._tmpdir.cleanup()
 
     def test_write_and_read_inbox(self) -> None:
-        path = write_inbox(self.root, "bravo", "alpha", "M1-0 schema done.")
+        path = write_inbox(self.root, "bravo", "alpha", "Feature shipped — ready for review.")
         self.assertTrue(path.exists())
         content = read_inbox(self.root, "alpha")
         self.assertIn("bravo", content or "")
-        self.assertIn("M1-0 schema done.", content or "")
+        self.assertIn("Feature shipped", content or "")
 
     def test_inbox_injected_in_context(self) -> None:
         write_inbox(self.root, "bravo", "alpha", "Fix parser before ingest.")
@@ -265,6 +268,130 @@ class SessionSyncTests(unittest.TestCase):
         session = json.loads((self.test_root / "sessions" / self.codename / "session.json").read_text())
         self.assertEqual(index["title"], "canonical title")
         self.assertEqual(index["status"], session["status"])
+
+
+class WorktreeGuardTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmpdir.name)
+        self.codename = "alpha"
+        session_dir = self.root / "sessions" / self.codename
+        session_dir.mkdir(parents=True)
+        (session_dir / "session.json").write_text(
+            json.dumps(
+                {
+                    "codename": self.codename,
+                    "status": "active",
+                    "tasks": [
+                        {
+                            "id": "main",
+                            "repo": "project",
+                            "feature_branch": "session/alpha",
+                            "base_branch": "main",
+                        }
+                    ],
+                }
+            )
+            + "\n"
+        )
+        wt = session_dir / "worktrees" / "project"
+        wt.mkdir(parents=True)
+        (wt / "src").mkdir()
+        (wt / "src" / "app.py").write_text("# ok\n")
+        (self.root / "repos" / "project").mkdir(parents=True)
+        (self.root / "repos" / "project" / "README.md").write_text("ref\n")
+        (self.root / "scripts").mkdir()
+        (self.root / "scripts" / "hub.sh").write_text("#!/bin/sh\n")
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def test_worktree_alias_uses_repo(self) -> None:
+        self.assertEqual(worktree_alias({"id": "main", "repo": "project"}), "project")
+
+    def test_task_worktree_rel_uses_repo_key(self) -> None:
+        rel = task_worktree_rel(self.codename, {"id": "main", "repo": "project"})
+        self.assertEqual(rel, "sessions/alpha/worktrees/project")
+
+    def test_guard_allows_worktree_path(self) -> None:
+        path = str(self.root / "sessions" / "alpha" / "worktrees" / "project" / "src" / "app.py")
+        decision = guard_path_decision(self.root, self.codename, path)
+        self.assertEqual(decision["permission"], "allow")
+
+    def test_guard_denies_repos_reference_clone(self) -> None:
+        path = str(self.root / "repos" / "project" / "README.md")
+        decision = guard_path_decision(self.root, self.codename, path)
+        self.assertEqual(decision["permission"], "deny")
+        self.assertIn("repos/", decision["user_message"])
+
+    def test_guard_allows_hub_scripts(self) -> None:
+        path = str(self.root / "scripts" / "hub.sh")
+        decision = guard_path_decision(self.root, self.codename, path)
+        self.assertEqual(decision["permission"], "allow")
+
+    def test_context_includes_worktree_section(self) -> None:
+        ctx = build_context_markdown(self.root, self.codename, "chat-1")
+        self.assertIn("## Worktrees", ctx)
+        self.assertIn("sessions/alpha/worktrees/project", ctx)
+        self.assertIn("`project`", ctx)
+
+
+class BootstrapStatusTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmpdir.name)
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def test_no_repos_yaml(self) -> None:
+        from repos import bootstrap_status  # noqa: E402
+
+        status = bootstrap_status(self.root)
+        self.assertEqual(status["state"], "no_repos_yaml")
+        self.assertIn("Ask", status["agent_action"])
+
+    def test_empty_registry(self) -> None:
+        from repos import bootstrap_status  # noqa: E402
+
+        (self.root / "repos.yaml").write_text("repos: {}\n")
+        status = bootstrap_status(self.root)
+        self.assertEqual(status["state"], "empty_registry")
+
+    def test_ready_when_cloned(self) -> None:
+        from repos import bootstrap_status  # noqa: E402
+
+        (self.root / "repos.yaml").write_text(
+            "repos:\n  project:\n    path: repos/project\n    clone: git@example.com/p.git\n    default_branch: main\n"
+        )
+        repo = self.root / "repos" / "project"
+        repo.mkdir(parents=True)
+        (repo / ".git").mkdir()
+        status = bootstrap_status(self.root)
+        self.assertEqual(status["state"], "ready")
+        self.assertEqual(status["repos"], ["project"])
+
+
+class ReposYamlTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmpdir.name)
+        (self.root / "repos.yaml").write_text(
+            "repos:\n  project:\n    path: repos/project\n    clone: git@example.com/p.git\n    default_branch: main\n"
+        )
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def test_load_repos(self) -> None:
+        from repos import load_repos, repo_base  # noqa: E402
+
+        repos = load_repos(self.root)
+        self.assertIn("project", repos)
+        self.assertEqual(
+            repo_base(self.root, repos["project"]).resolve(),
+            (self.root / "repos" / "project").resolve(),
+        )
 
 
 if __name__ == "__main__":

@@ -3,4 +3,10 @@ description: Per-session writable scope
 alwaysApply: true
 ---
 
-After `resolve-session.sh` returns a codename: read `sessions/<codename>/BOUNDARIES.md`. Do not edit other `sessions/<other>/` trees. Cross-session notes: `./scripts/session-inbox.sh write <from> <to> "message"` → `sessions/_inbox/<to>.md`.
+After `resolve-session.sh` returns a codename: read `sessions/<codename>/BOUNDARIES.md`.
+
+- Edit product code only under `sessions/<codename>/worktrees/**`; `repos/` is read-only.
+- **Hub (`mode: hub`):** hub `scripts/`, `.cursor/`, docs + `sessions/<codename>/`.
+- Do not edit other `sessions/<other>/` trees.
+- Cross-session notes: `./scripts/session-inbox.sh write <from> <to> "message"` → `sessions/_inbox/<to>.md`.
+- Registry: [docs/REPOS.md](../../docs/REPOS.md), `repos.yaml`.

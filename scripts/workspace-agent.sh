@@ -43,13 +43,17 @@ if ! command -v "$AGENT_BIN" >/dev/null 2>&1; then
   exit 1
 fi
 
-REPOS_STATE="$(python3 -c "
+export WORKSPACE_CODENAME="$CODENAME"
+REPOS_STATE="$(python3 <<'PY' 2>/dev/null || echo "unknown"
+import os
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path('$ROOT/scripts/lib')))
+root = Path(os.environ["WORKSPACE_ROOT"])
+sys.path.insert(0, str(root / "scripts" / "lib"))
 from repos import bootstrap_status
-print(bootstrap_status()['state'])
-" 2>/dev/null || echo "unknown")"
+print(bootstrap_status(root)["state"])
+PY
+)"
 
 case "$REPOS_STATE" in
   needs_clone|ready)
@@ -67,14 +71,17 @@ case "$REPOS_STATE" in
 esac
 
 WINDOW_LABEL="${WORKSPACE_TMUX_WINDOW_PREFIX}${CODENAME}"
-WT="$(python3 -c "
+WT="$(python3 <<'PY' 2>/dev/null || true
+import os
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path('$ROOT/scripts/lib')))
+root = Path(os.environ["WORKSPACE_ROOT"])
+sys.path.insert(0, str(root / "scripts" / "lib"))
 from session_binding import primary_worktree
-wt = primary_worktree(Path('$ROOT'), '$CODENAME')
-print(wt if wt else '')
-" 2>/dev/null || true)"
+wt = primary_worktree(root, os.environ.get("WORKSPACE_CODENAME", ""))
+print(wt if wt else "")
+PY
+)"
 if [[ -n "$WT" ]]; then
   echo "Session: $CODENAME | worktree: $WT (tmux: $WINDOW_LABEL)" >&2
 else

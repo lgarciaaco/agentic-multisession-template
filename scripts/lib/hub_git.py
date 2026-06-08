@@ -3,8 +3,19 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 from pathlib import Path
+
+_BRANCH_RE = re.compile(r"^[a-zA-Z0-9._/-]+$")
+_GIT_TIMEOUT_SEC = 300
+
+
+def _validate_branch(branch: str) -> str:
+    name = branch.strip()
+    if not name or ".." in name or not _BRANCH_RE.fullmatch(name):
+        raise ValueError(f"invalid git branch name: {branch!r}")
+    return name
 
 
 def _run(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess:
@@ -13,6 +24,7 @@ def _run(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProc
         capture_output=True,
         text=True,
         check=check,
+        timeout=_GIT_TIMEOUT_SEC,
     )
 
 
@@ -29,6 +41,7 @@ def fetch_upstream(repo_dir: Path) -> None:
 
 def upstream_ref(repo_dir: Path, branch: str) -> str:
     """Return origin/<branch> when present after fetch."""
+    branch = _validate_branch(branch)
     ref = f"origin/{branch}"
     if _run(repo_dir, "rev-parse", "--verify", ref, check=False).returncode != 0:
         raise RuntimeError(
@@ -47,6 +60,7 @@ def resolve_worktree_start_ref(repo_dir: Path, base_branch: str) -> tuple[str, s
 
 def sync_local_branch_to_upstream(repo_dir: Path, branch: str) -> str:
     """Fetch origin and fast-forward checked-out branch to origin/<branch>. Returns short SHA."""
+    branch = _validate_branch(branch)
     fetch_upstream(repo_dir)
     ref = upstream_ref(repo_dir, branch)
     current = _run(repo_dir, "branch", "--show-current", check=False).stdout.strip()

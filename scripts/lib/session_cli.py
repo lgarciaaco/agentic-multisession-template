@@ -44,13 +44,15 @@ def _require_codename(value: str) -> str:
 
 def _load_hook_payload() -> dict:
     raw = os.environ.get("HOOK_INPUT", "")
-    if raw:
-        return json.loads(raw)
-    if not sys.stdin.isatty():
+    if not raw and not sys.stdin.isatty():
         raw = sys.stdin.read()
-        if raw.strip():
-            return json.loads(raw)
-    return {}
+    if not raw.strip():
+        return {}
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def cmd_resolve(_args: argparse.Namespace) -> int:
@@ -277,17 +279,19 @@ def cmd_hook_guard_paths(_args: argparse.Namespace) -> int:
     cid = conversation_id() or payload.get("conversation_id", "")
     file_path = payload.get("file_path", "") or ""
 
-    if not cid or not file_path:
+    if not file_path:
         print(json.dumps({"permission": "allow"}))
         return 0
 
-    os.environ["WORKSPACE_CONVERSATION_ID"] = cid
+    if cid:
+        os.environ["WORKSPACE_CONVERSATION_ID"] = cid
+
+    from session_binding import guard_path_decision, guard_unbound_path_decision
+
     codename, _ = resolve_codename(root)
     if not codename:
-        print(json.dumps({"permission": "allow"}))
+        print(json.dumps(guard_unbound_path_decision(root, file_path)))
         return 0
-
-    from session_binding import guard_path_decision
 
     print(json.dumps(guard_path_decision(root, codename, file_path)))
     return 0

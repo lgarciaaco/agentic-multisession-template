@@ -165,18 +165,28 @@ def rename_tmux_for_codename(codename: str) -> bool:
     return renamed
 
 
+def _load_json_file(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def _index_sessions(root: Path) -> dict:
     index_path = root / "sessions" / "index.json"
-    if not index_path.exists():
-        return {}
-    return json.loads(index_path.read_text()).get("sessions", {})
+    sessions = _load_json_file(index_path).get("sessions")
+    return sessions if isinstance(sessions, dict) else {}
 
 
 def _load_session_json(root: Path, codename: str) -> dict | None:
     path = root / "sessions" / codename / "session.json"
     if not path.exists():
         return None
-    return json.loads(path.read_text())
+    data = _load_json_file(path)
+    return data if data else None
 
 
 def _write_session_json(root: Path, codename: str, session: dict) -> None:
@@ -208,8 +218,10 @@ def sync_index_from_session(root: Path, codename: str, session: dict | None = No
     """Copy canonical fields from session.json into sessions/index.json."""
     session = session or _load_session_json(root, codename) or {}
     index_path = root / "sessions" / "index.json"
-    index = json.loads(index_path.read_text())
-    entry = index.setdefault("sessions", {}).get(codename, {})
+    index = _load_json_file(index_path)
+    if not isinstance(index.get("sessions"), dict):
+        index["sessions"] = {}
+    entry = index["sessions"].get(codename, {})
     entry.update(
         {
             "title": session.get("title") or entry.get("title", ""),
@@ -341,41 +353,163 @@ def format_worktree_section(root: Path, codename: str, session: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+_GUARD_ALLOW = {"permission": "allow"}
+_HUB_WRITABLE_DIRS = ("scripts", ".cursor", "docs")
+_HUB_WRITABLE_ROOT_FILES = frozenset(
+    {
+        "AGENTS.md",
+        "SESSIONS.md",
+        "CONTRIBUTING.md",
+        "CHANGELOG.md",
+        "repos.yaml",
+        "repos.yaml.example",
+        "README.md",
+    }
+)
+
+
+def _guard_deny(user_message: str, agent_message: str) -> dict:
+    return {
+        "permission": "deny",
+        "user_message": user_message,
+        "agent_message": agent_message,
+    }
+
+
+def _path_is_within(child: Path, parent: Path) -> bool:
+    try:
+        child.resolve().relative_to(parent.resolve())
+        return True
+    except (ValueError, OSError):
+        return False
+
+
+def _session_codename_from_path(root: Path, resolved: Path) -> str | None:
+    sessions_root = root / "sessions"
+    if not _path_is_within(resolved, sessions_root) and resolved != sessions_root:
+        return None
+    rel = resolved.relative_to(sessions_root)
+    if not rel.parts:
+        return None
+    first = rel.parts[0]
+    if first in RESERVED_SESSION_DIRS or first.startswith("_"):
+        return None
+    session_dir = sessions_root / first
+    if not session_dir.is_dir():
+        return None
+    try:
+        validate_codename(first)
+    except ValueError:
+        return None
+    return first
+
+
+def _guard_protected_session_paths(root: Path, resolved: Path) -> dict | None:
+    repos_dir = root / "repos"
+    if _path_is_within(resolved, repos_dir) or resolved == repos_dir:
+        return _guard_deny(
+            "repos/ is read-only (reference clones).",
+            "Edit only under sessions/<codename>/worktrees/. Run ./scripts/clone-repos.sh to refresh refs.",
+        )
+
+    for sub in ("bindings", "context"):
+        protected = root / "sessions" / sub
+        if _path_is_within(resolved, protected) or resolved == protected:
+            return _guard_deny(
+                "sessions/bindings and sessions/context are hook-protected.",
+                "Do not edit binding or context files.",
+            )
+
+    index_json = root / "sessions" / "index.json"
+    if resolved == index_json:
+        return _guard_deny(
+            "sessions/index.json is hook-protected.",
+            "Use sync-session.sh to update index.",
+        )
+    return None
+
+
+def guard_unbound_path_decision(root: Path, file_path: str) -> dict:
+    """Cursor hook when no session is bound: fail-closed on sensitive hub paths."""
+    if not file_path:
+        return _GUARD_ALLOW
+
+    root = root.resolve()
+    try:
+        resolved = Path(file_path).resolve()
+    except OSError:
+        return _guard_deny("Invalid path.", "Could not resolve file path.")
+
+    if not _path_is_within(resolved, root):
+        return _GUARD_ALLOW
+
+    protected = _guard_protected_session_paths(root, resolved)
+    if protected:
+        return protected
+
+    other = _session_codename_from_path(root, resolved)
+    if other:
+        return _guard_deny(
+            f"No session bound; cannot edit sessions/{other}/.",
+            "Bind a session first (./scripts/bind-session.sh <codename>).",
+        )
+
+    return _GUARD_ALLOW
+
+
 def guard_path_decision(root: Path, codename: str, file_path: str) -> dict:
     """Cursor hook: allow/deny edits — repos/ read-only, worktrees writable."""
-    allow = {"permission": "allow"}
-    if not codename or not file_path:
-        return allow
+    if not file_path:
+        return _GUARD_ALLOW
+    if not codename:
+        return _GUARD_ALLOW
 
-    norm = file_path.replace("\\", "/")
-    hub = str(root).replace("\\", "/")
-    if not norm.startswith(hub):
-        return allow
+    try:
+        name = validate_codename(codename)
+    except ValueError:
+        return _guard_deny("Invalid session binding.", "Bind a valid session codename.")
 
-    if f"/sessions/{codename}/" in norm or norm.endswith(f"/sessions/{codename}"):
-        return allow
+    root = root.resolve()
+    try:
+        resolved = Path(file_path).resolve()
+    except OSError:
+        return _guard_deny("Invalid path.", "Could not resolve file path.")
 
-    if "/sessions/_inbox/" in norm:
-        return allow
+    if not _path_is_within(resolved, root):
+        return _GUARD_ALLOW
 
-    if "/repos/" in norm and "/sessions/" not in norm:
-        return {
-            "permission": "deny",
-            "user_message": "repos/ is read-only (reference clones).",
-            "agent_message": f"Edit only under sessions/{codename}/worktrees/. Run ./scripts/clone-repos.sh to refresh refs.",
-        }
+    protected = _guard_protected_session_paths(root, resolved)
+    if protected:
+        return protected
 
-    match = re.search(r"/sessions/([a-z0-9-]+)/", norm)
-    if match and match.group(1) != codename:
-        other = match.group(1)
-        if other not in RESERVED_SESSION_DIRS and (root / "sessions" / other).is_dir():
-            return {
-                "permission": "deny",
-                "user_message": f"This chat is bound to session {codename}, not {other}.",
-                "agent_message": f"Do not edit sessions/{other}/. This chat is bound to {codename}.",
-            }
+    inbox_dir = root / "sessions" / "_inbox"
+    if _path_is_within(resolved, inbox_dir) or resolved == inbox_dir:
+        return _GUARD_ALLOW
 
-    return allow
+    session_dir = root / "sessions" / name
+    if _path_is_within(resolved, session_dir) or resolved == session_dir:
+        return _GUARD_ALLOW
+
+    other = _session_codename_from_path(root, resolved)
+    if other and other != name:
+        return _guard_deny(
+            f"This chat is bound to session {name}, not {other}.",
+            f"Do not edit sessions/{other}/. This chat is bound to {name}.",
+        )
+
+    session = _load_session_json(root, name) or {}
+    if session_mode(session) == "hub":
+        for sub in _HUB_WRITABLE_DIRS:
+            base = root / sub
+            if _path_is_within(resolved, base) or resolved == base:
+                return _GUARD_ALLOW
+        if resolved.parent == root and resolved.name in _HUB_WRITABLE_ROOT_FILES:
+            return _GUARD_ALLOW
+
+    return _guard_deny(
+        f"Bound to session {name}; edits only under sessions/{name}/.",
+        f"Edit only under sessions/{name}/worktrees/ and session metadata.",
+    )
 
 
 def format_inbox_section(root: Path, codename: str) -> str:
@@ -947,7 +1081,11 @@ def close_session_work(root: Path, codename: str, note: str = "") -> None:
     ended_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
     session_json_path = session_dir / "session.json"
-    session = json.loads(session_json_path.read_text())
+    if not session_json_path.exists():
+        raise FileNotFoundError(f"Missing {session_json_path}")
+    session = _load_json_file(session_json_path)
+    if not session:
+        raise ValueError(f"Invalid or empty session.json for {name}")
     session["status"] = "completed"
     session["ended"] = today
     session["ended_at"] = ended_at
@@ -957,7 +1095,7 @@ def close_session_work(root: Path, codename: str, note: str = "") -> None:
     session_json_path.write_text(json.dumps(session, indent=2) + "\n")
 
     progress_path = session_dir / "progress.json"
-    progress = json.loads(progress_path.read_text()) if progress_path.exists() else {}
+    progress = _load_json_file(progress_path) if progress_path.exists() else {}
     progress.update({"status": "completed", "ended": today, "ended_at": ended_at})
     if note and not progress.get("description"):
         progress["description"] = note
@@ -975,8 +1113,10 @@ def close_session_work(root: Path, codename: str, note: str = "") -> None:
         tasks_md.write_text(f"# Session {name}\n{footer}\n")
 
     index_path = root / "sessions" / "index.json"
-    index = json.loads(index_path.read_text())
-    entry = index.setdefault("sessions", {}).get(name, {})
+    index = _load_json_file(index_path)
+    if not isinstance(index.get("sessions"), dict):
+        index["sessions"] = {}
+    entry = index["sessions"].get(name, {})
     entry.update(
         {
             "title": session.get("title") or entry.get("title", ""),

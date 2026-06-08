@@ -33,7 +33,15 @@ def load_repos(root: Path | None = None) -> dict:
 
 def repo_base(root: Path, cfg: dict) -> Path:
     path = cfg.get("path", ".")
-    return (root / path).resolve() if path != "." else root.resolve()
+    root = root.resolve()
+    if path == ".":
+        return root
+    base = (root / path).resolve()
+    try:
+        base.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"repo path must stay under hub root: {path!r}") from exc
+    return base
 
 
 def bootstrap_status(root: Path | None = None) -> dict:

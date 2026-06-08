@@ -18,10 +18,12 @@ from session_binding import (  # noqa: E402
     _read_tty_line,
     bind_session_context,
     build_context_markdown,
+    close_session_work,
     codename_from_tmux,
     codename_from_tmux_session,
     default_tmux_window_prefix,
     guard_path_decision,
+    guard_unbound_path_decision,
     hub_root,
     read_inbox,
     resolve_codename,
@@ -357,10 +359,77 @@ class WorktreeGuardTests(unittest.TestCase):
         self.assertEqual(decision["permission"], "deny")
         self.assertIn("repos/", decision["user_message"])
 
-    def test_guard_allows_hub_scripts(self) -> None:
+    def test_guard_default_mode_denies_hub_scripts(self) -> None:
+        path = str(self.root / "scripts" / "hub.sh")
+        decision = guard_path_decision(self.root, self.codename, path)
+        self.assertEqual(decision["permission"], "deny")
+
+    def test_guard_hub_mode_allows_scripts(self) -> None:
+        session_path = self.root / "sessions" / "alpha" / "session.json"
+        session = json.loads(session_path.read_text())
+        session["mode"] = "hub"
+        session_path.write_text(json.dumps(session, indent=2) + "\n")
         path = str(self.root / "scripts" / "hub.sh")
         decision = guard_path_decision(self.root, self.codename, path)
         self.assertEqual(decision["permission"], "allow")
+
+    def test_guard_denies_bindings_and_context(self) -> None:
+        for sub in ("bindings", "context"):
+            target = self.root / "sessions" / sub / "x.json"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("{}\n")
+            decision = guard_path_decision(self.root, self.codename, str(target))
+            self.assertEqual(decision["permission"], "deny", sub)
+
+    def test_guard_denies_index_json(self) -> None:
+        path = str(self.root / "sessions" / "index.json")
+        (self.root / "sessions" / "index.json").write_text('{"sessions": {}}\n')
+        decision = guard_path_decision(self.root, self.codename, path)
+        self.assertEqual(decision["permission"], "deny")
+
+    def test_guard_denies_traversal_into_repos(self) -> None:
+        traversal = self.root / "sessions" / "alpha" / ".." / ".." / "repos" / "project" / "README.md"
+        decision = guard_path_decision(self.root, self.codename, str(traversal))
+        self.assertEqual(decision["permission"], "deny")
+
+    def test_guard_denies_other_session(self) -> None:
+        other = self.root / "sessions" / "bravo"
+        other.mkdir(parents=True)
+        (other / "session.json").write_text('{"codename": "bravo", "status": "active"}\n')
+        path = str(other / "TASKS.md")
+        (other / "TASKS.md").write_text("# bravo\n")
+        decision = guard_path_decision(self.root, self.codename, path)
+        self.assertEqual(decision["permission"], "deny")
+        self.assertIn("bravo", decision["user_message"])
+
+    def test_guard_unbound_denies_repos(self) -> None:
+        path = str(self.root / "repos" / "project" / "README.md")
+        decision = guard_unbound_path_decision(self.root, path)
+        self.assertEqual(decision["permission"], "deny")
+
+    def test_guard_unbound_denies_other_session(self) -> None:
+        other = self.root / "sessions" / "bravo"
+        other.mkdir(parents=True)
+        (other / "TASKS.md").write_text("# bravo\n")
+        decision = guard_unbound_path_decision(self.root, str(other / "TASKS.md"))
+        self.assertEqual(decision["permission"], "deny")
+
+    def test_guard_unbound_allows_scripts(self) -> None:
+        path = str(self.root / "scripts" / "hub.sh")
+        decision = guard_unbound_path_decision(self.root, path)
+        self.assertEqual(decision["permission"], "allow")
+
+    def test_sync_index_creates_missing_sessions_key(self) -> None:
+        (self.root / "sessions" / "index.json").write_text("{}\n")
+        sync_index_from_session(self.root, self.codename)
+        index = json.loads((self.root / "sessions" / "index.json").read_text())
+        self.assertIn(self.codename, index["sessions"])
+
+    def test_close_session_work_with_missing_index(self) -> None:
+        (self.root / "sessions" / "index.json").unlink(missing_ok=True)
+        close_session_work(self.root, self.codename, "done")
+        index = json.loads((self.root / "sessions" / "index.json").read_text())
+        self.assertEqual(index["sessions"][self.codename]["status"], "completed")
 
     def test_context_includes_worktree_section(self) -> None:
         ctx = build_context_markdown(self.root, self.codename, "chat-1")
@@ -425,6 +494,12 @@ class ReposYamlTests(unittest.TestCase):
             repo_base(self.root, repos["project"]).resolve(),
             (self.root / "repos" / "project").resolve(),
         )
+
+    def test_repo_base_rejects_escape(self) -> None:
+        from repos import repo_base  # noqa: E402
+
+        with self.assertRaises(ValueError):
+            repo_base(self.root, {"path": "../outside"})
 
 
 class SessionCliSyncTests(unittest.TestCase):

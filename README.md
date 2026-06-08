@@ -31,6 +31,8 @@ cd my-hub
 
 Hub-only (no product repos yet) is valid — `repos: {}` until you tell the agent what to add.
 
+**Staying current:** ask the agent *"Is there a new template version?"* then *"Upgrade"* when ready — refreshes scripts/hooks/docs without rebuilding sessions or repos. See [CHANGELOG.md](CHANGELOG.md) session notes per release.
+
 Optional manual install before tmux:
 
 ```bash
@@ -57,11 +59,13 @@ flowchart TD
 ## Layout
 
 ```
+.hub-version            installed template semver (committed)
+.hub-upstream.example   optional upstream URL template
 .cursor/              hooks, rules, skills
 repos.yaml.example    agent copies → repos.yaml (local)
 repos/                reference clones (gitignored)
 sessions/             codename dirs (gitignored)
-scripts/              repos-status, clone-repos, ensure-worktrees, bind, …
+scripts/              repos-status, hub-status, hub-upgrade, clone-repos, ensure-worktrees, bind, …
 docs/REPOS.md         registry spec
 AGENTS.md             agent entry (read first)
 ```
@@ -72,6 +76,8 @@ AGENTS.md             agent entry (read first)
 |------|-----|
 | First run / bootstrap | [AGENTS.md](AGENTS.md) · `.cursor/skills/bootstrap-hub` |
 | Daily work | `.cursor/skills/session-orchestrator` · [SESSIONS.md](SESSIONS.md) |
+| Hub upgrade | `.cursor/skills/hub-upgrade` · `./scripts/hub-status.sh` |
+| End session | `.cursor/skills/session-end` |
 
 ## Env (optional)
 
@@ -86,6 +92,7 @@ AGENTS.md             agent entry (read first)
 
 ```bash
 python3 scripts/test_session_binding.py
+python3 scripts/test_hub_upgrade.py
 ```
 
 ## License

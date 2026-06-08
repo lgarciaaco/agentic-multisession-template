@@ -10,3 +10,5 @@ alwaysApply: true
 **Start work** / `/start-work` → load `.cursor/skills/session-orchestrator/SKILL.md`. You run `./scripts/*`.
 
 **End session** / `/end-session` → load `.cursor/skills/session-end/SKILL.md`.
+
+**Template version / upgrade hub** → load `.cursor/skills/hub-upgrade/SKILL.md`. Run `./scripts/hub-status.sh` first; upgrade only when user says so.

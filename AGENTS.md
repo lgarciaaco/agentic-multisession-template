@@ -36,6 +36,14 @@ Hub install if needed: `pip install -r scripts/requirements.txt` && `./scripts/i
 
 **end session** / **`/end-session`** → `.cursor/skills/session-end/SKILL.md` → `./scripts/end-session.sh`
 
+## Hub template upgrade
+
+Ask **"Is there a new template version?"** → `./scripts/hub-status.sh` → explain hub changes + session notes in plain language.
+
+Say **"Upgrade"** → `.cursor/skills/hub-upgrade/SKILL.md` → `./scripts/hub-upgrade.sh --yes` (hub layer only; keeps `repos.yaml` and session folders).
+
+Installed version: `.hub-version` · upstream check: `./scripts/hub-status.sh`
+
 ## Reference
 
 [SESSIONS.md](SESSIONS.md) · [docs/REPOS.md](docs/REPOS.md) · bound `BOUNDARIES.md`
@@ -52,6 +60,7 @@ Hub install if needed: `pip install -r scripts/requirements.txt` && `./scripts/i
 | Bootstrap | `.cursor/skills/bootstrap-hub` |
 | Start | `.cursor/skills/session-orchestrator` |
 | Code review | `.cursor/skills/code-reviewer` |
+| Hub upgrade | `.cursor/skills/hub-upgrade` |
 | End | `.cursor/skills/session-end` |
 
 ## Cross-session inbox

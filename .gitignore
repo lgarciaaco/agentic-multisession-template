@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 .hub-launcher
 .hub-slug
+.hub-upstream
+.hub-upstream-cache/
+.hub-upgrade-staging/
 sessions/bindings/
 sessions/context/
 

@@ -76,6 +76,7 @@ AGENTS.md             agent entry (read first)
 |------|-----|
 | First run / bootstrap | [AGENTS.md](AGENTS.md) · `.cursor/skills/bootstrap-hub` |
 | Daily work | `.cursor/skills/session-orchestrator` · [SESSIONS.md](SESSIONS.md) |
+| Coding guidelines | `.cursor/rules/agent-guidelines.mdc` · `docs/PROJECT.md` (from example) |
 | Hub upgrade | `.cursor/skills/hub-upgrade` · `./scripts/hub-status.sh` |
 | End session | `.cursor/skills/session-end` |
 

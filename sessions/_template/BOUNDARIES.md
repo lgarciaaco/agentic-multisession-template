@@ -30,7 +30,8 @@ For hub scripts/docs only: set `"mode": "hub"` in `session.json` and use tasks w
 
 1. `./scripts/resolve-session.sh` — must print `CODENAME` for this chat.
 2. Read `repos.yaml`, this file, `session.json`, `TASKS.md`, `progress.json`.
-3. `./scripts/clone-repos.sh` if reference clones are missing or stale.
-4. `./scripts/ensure-worktrees.sh CODENAME` when `tasks` is non-empty.
+3. Read `docs/PROJECT.md` if present (project coding guidelines).
+4. `./scripts/clone-repos.sh` if reference clones are missing or stale.
+5. `./scripts/ensure-worktrees.sh CODENAME` when `tasks` is non-empty.
 
 See [docs/REPOS.md](../../docs/REPOS.md).

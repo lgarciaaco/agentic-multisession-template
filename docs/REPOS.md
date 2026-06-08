@@ -105,6 +105,35 @@ See `.cursor/rules/git-fork-pr.mdc` when using fork workflow.
 
 ---
 
+## Guidelines (optional)
+
+Template rules live in `.cursor/rules/agent-guidelines.mdc` (always applied). Each hub may add project-specific docs:
+
+| File | Role |
+|------|------|
+| [docs/PROJECT.md.example](../docs/PROJECT.md.example) | Committed scaffold — copy to `docs/PROJECT.md` (local) |
+| `docs/PROJECT.md` | Project doc sync map, test commands, stack conventions |
+| Worktree `CONTRIBUTING.md` | Product PR flow in primary worktree |
+
+Optional pointers in `repos.yaml`:
+
+```yaml
+guidelines:
+  project: docs/PROJECT.md       # canonical hub-relative path
+  # doc: docs/PROJECT.md        # alias for project (accepted)
+  worktree: CONTRIBUTING.md      # relative to primary worktree root
+```
+
+| Key | Meaning |
+|-----|---------|
+| `project` | Hub-relative path to project guidelines (canonical) |
+| `doc` | Alias for `project` |
+| `worktree` | Path relative to primary worktree root (e.g. `CONTRIBUTING.md`) |
+
+On session bind, `sessions/context/<chat>.md` lists which guideline files exist. See [AGENTS.md](../AGENTS.md) **Coding guidelines**.
+
+---
+
 ## Agent-first bootstrap
 
 User clones template and starts the agent. Agent runs:
@@ -140,6 +169,7 @@ Launcher runs `clone-repos` + `ensure-worktrees` when `repos.yaml` exists and st
 |--------|----------------------|
 | `repos.yaml.example` | `repos.yaml` (your URLs) |
 | `docs/REPOS.md`, `scripts/clone-repos.sh` | `repos/*` |
+| `docs/PROJECT.md.example` | `docs/PROJECT.md` (your project guidelines) |
 | | `sessions/<codename>/`, `worktrees/*` |
 | | `*.code-workspace` (generated locally) |
 

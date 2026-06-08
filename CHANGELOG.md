@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-06-08
+
+### Added
+
+- **Agent coding guidelines** — `.cursor/rules/agent-guidelines.mdc` (docs sync + test minimum) and `.cursor/rules/hub-contributing.mdc` (hub-mode PR checklist)
+- [docs/PROJECT.md.example](docs/PROJECT.md.example) — project-specific guideline scaffold (copy to local `docs/PROJECT.md`)
+- Optional `guidelines:` pointers in `repos.yaml` — `load_guidelines()` in `scripts/lib/repos.py`
+- Session context **Guidelines** section on bind — lists template, project, and worktree doc paths when present
+
+### Changed
+
+- [AGENTS.md](AGENTS.md), [SESSIONS.md](SESSIONS.md), [CUSTOMIZE.md](CUSTOMIZE.md), [docs/REPOS.md](docs/REPOS.md) — document two-level guideline hierarchy
+- `sessions/_template/BOUNDARIES.md` — read `docs/PROJECT.md` on start when present
+
+### Session notes
+
+**Impact:** optional
+
+- Existing sessions keep working; copy `docs/PROJECT.md.example` → `docs/PROJECT.md` when you want project-level guidelines
+- Hub upgrade delivers new rules and docs; local `docs/PROJECT.md` is not overwritten
+
 ## [0.4.0] - 2026-06-08
 
 ### Added

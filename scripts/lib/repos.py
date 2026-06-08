@@ -36,6 +36,37 @@ def load_repos(root: Path | None = None) -> dict:
     return repos if isinstance(repos, dict) else {}
 
 
+def load_guidelines(root: Path | None = None) -> dict:
+    """Optional guidelines pointers from repos.yaml (project doc, worktree CONTRIBUTING)."""
+    try:
+        data = load_hub_config(root)
+    except FileNotFoundError:
+        return {}
+    guidelines = data.get("guidelines")
+    return guidelines if isinstance(guidelines, dict) else {}
+
+
+def _path_under_root(root: Path, rel: str) -> Path | None:
+    """Resolve rel under hub root; None if it escapes."""
+    if not rel or not isinstance(rel, str):
+        return None
+    candidate = (root / rel).resolve()
+    try:
+        candidate.relative_to(root.resolve())
+    except ValueError:
+        return None
+    return candidate
+
+
+def project_guideline_rel(guidelines: dict) -> str:
+    """Hub-relative project guidelines path from repos.yaml (project canonical; doc alias)."""
+    for key in ("project", "doc"):
+        val = guidelines.get(key)
+        if isinstance(val, str) and val.strip():
+            return val.strip()
+    return "docs/PROJECT.md"
+
+
 def repo_base(root: Path, cfg: dict) -> Path:
     path = cfg.get("path", ".")
     root = root.resolve()

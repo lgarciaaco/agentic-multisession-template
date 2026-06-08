@@ -377,6 +377,30 @@ def format_worktree_section(root: Path, codename: str, session: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def format_guidelines_section(root: Path, codename: str, session: dict) -> str:
+    """Agent guideline pointers for session context (template + optional project/worktree docs)."""
+    from repos import _path_under_root, load_guidelines, project_guideline_rel
+
+    lines = ["\n## Guidelines\n", "- Template: `.cursor/rules/agent-guidelines.mdc`"]
+    guidelines = load_guidelines(root)
+    project_rel = project_guideline_rel(guidelines)
+    project_path = _path_under_root(root, project_rel)
+    if project_path and project_path.is_file():
+        lines.append(f"- Project: `{project_rel}`")
+    worktree_rel = guidelines.get("worktree")
+    if isinstance(worktree_rel, str) and worktree_rel.strip():
+        wt = primary_worktree(root, codename, session)
+        if wt:
+            contrib = (wt / worktree_rel).resolve()
+            try:
+                contrib.relative_to(wt.resolve())
+                if contrib.is_file():
+                    lines.append(f"- Worktree: `{contrib.relative_to(root.resolve())}`")
+            except ValueError:
+                pass
+    return "\n".join(lines) + "\n"
+
+
 _GUARD_ALLOW = {"permission": "allow"}
 _HUB_WRITABLE_DIRS = ("scripts", ".cursor", "docs")
 _HUB_WRITABLE_ROOT_FILES = frozenset(
@@ -590,6 +614,7 @@ def build_context_markdown(root: Path, codename: str, chat_id: str) -> str:
 {progress_note}
 {worktree_section}{inbox_section}
 {goal}
+{format_guidelines_section(root, codename, session)}
 
 See [SESSIONS.md](../../SESSIONS.md), [docs/REPOS.md](../../docs/REPOS.md), `sessions/{codename}/BOUNDARIES.md`, `session.json`, `repos.yaml`.
 """

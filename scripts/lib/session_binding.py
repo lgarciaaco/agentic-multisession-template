@@ -361,9 +361,12 @@ _HUB_WRITABLE_ROOT_FILES = frozenset(
         "SESSIONS.md",
         "CONTRIBUTING.md",
         "CHANGELOG.md",
+        "CUSTOMIZE.md",
         "repos.yaml",
         "repos.yaml.example",
         "README.md",
+        ".hub-version",
+        ".hub-upstream.example",
     }
 )
 

@@ -1,0 +1,3 @@
+# Optional: upstream template git URL (single line, no comments when copied).
+# Copy to .hub-upstream when this hub's origin is not the template repo.
+https://github.com/lgarciaaco/agentic-multisession-template.git

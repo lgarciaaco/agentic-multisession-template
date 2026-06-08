@@ -78,6 +78,8 @@ Canonical status lives in `session.json`. Run `sync-session.sh` if local `index.
 | Command | Purpose |
 |---------|---------|
 | `./scripts/repos-status.sh` | Agent bootstrap state (missing/empty/needs_clone/ready) |
+| `./scripts/hub-status.sh` | Installed vs upstream template version (JSON; `--cached-only` skips fetch) |
+| `./scripts/hub-upgrade.sh` | Refresh hub scripts/hooks/docs in place (`--dry-run`, `--yes`, `--to VERSION`, `--allow-untrusted-upstream`) |
 | `<launcher>` (`.hub-launcher`) | Session list → bind → clone/worktrees when ready → agent CLI |
 | `./scripts/resolve-session.sh` | Print codename for this chat/tab |
 | `./scripts/bind-session.sh <name>` | Bind + resume |
@@ -135,12 +137,13 @@ Files live in `sessions/_inbox/` (shared; any session may write via the script).
 
 | Commit | Do not commit (see `.gitignore`) |
 |--------|----------------------------------|
-| `scripts/`, `.cursor/`, `SESSIONS.md`, `docs/REPOS.md`, `repos.yaml.example` | `repos.yaml`, `repos/*` — your clone URLs + reference repos |
+| `scripts/`, `.cursor/`, `SESSIONS.md`, `docs/REPOS.md`, `repos.yaml.example`, `.hub-version`, `.hub-upstream.example` | `repos.yaml`, `repos/*` — your clone URLs + reference repos |
 | `sessions/_template/`, `sessions/_codenames.example.yaml`, `sessions/index.example.json` | `sessions/<codename>/`, `sessions/*/worktrees/*` |
 | | `sessions/index.json`, `sessions/_codenames.yaml` — local index |
 | | `sessions/bindings/`, `sessions/context/` — per-chat bindings |
 | | `sessions/_inbox/*.md` — inbox bodies |
 | | `sessions/<codename>/reviews/`, `checkpoints.json` — local review/checkpoint artifacts |
+| | `.hub-upstream`, `.hub-upstream-cache/`, `.hub-upgrade-staging/` — upstream override and upgrade cache |
 | | `.hub-launcher`, `.hub-slug` — local install paths |
 
 Track milestones in product `CURRENT.md` instead of committing `progress.json`.

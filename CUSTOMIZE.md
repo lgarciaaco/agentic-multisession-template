@@ -32,7 +32,7 @@ Run from the **new project root** (not the template repo path unless that is the
 | Launcher name | `WORKSPACE_AGENT_LAUNCHER=my-agent ./scripts/install-workspace-agent.sh` | `<first-segment>-agent` (e.g. `my-app` → `my-agent`; long slug `agentic-multisession-template` → `agentic-agent` — override if undesired) |
 | Codename pool | Edit `sessions/_codenames.example.yaml` before first `new-session.sh`, or local `_codenames.yaml` after | NATO `alpha`…`hotel` |
 | Session template | `sessions/_template/` | New sessions start with `tasks: []` until agent adds tasks + repos |
-| Domain skills | Add `.cursor/skills/<name>/SKILL.md`, register in `.cursor/skills/README.md` | session-orchestrator + session-end only |
+| Domain skills | Add `.cursor/skills/<name>/SKILL.md`, register in `.cursor/skills/README.md` | See `.cursor/skills/README.md` (bootstrap, orchestrator, hub-upgrade, code-reviewer, session-end) |
 | Domain rules | Add `.cursor/rules/*.mdc` | session-binding + orchestrator + session-boundary |
 | Writable scope | Product: worktrees only; `repos/` read-only | default guard |
 

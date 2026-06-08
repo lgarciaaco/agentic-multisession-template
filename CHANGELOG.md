@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-06-08
+
+### Added
+
+- **In-place hub upgrade** — `.hub-version`, `./scripts/hub-status.sh`, `./scripts/hub-upgrade.sh`
+- `scripts/lib/hub_upgrade.py` — compare installed vs upstream template; refresh hub layer without touching product repos or session history
+- `.hub-upstream.example` — optional override when this hub's git origin is not the template repo
+- `hub-upgrade` agent skill — plain-language version check and upgrade-on-request flow
+
+### Changed
+
+- `CHANGELOG.md` — each release includes **Session notes** with impact (`none` / `optional` / `required`)
+
+### Session notes
+
+**Impact:** none
+
+- Existing sessions keep working; no session folder edits required for this release
+- After upgrade, re-run `./scripts/install-workspace-agent.sh` if the launcher or tmux prefix behavior changed
+
 ## [0.3.0] - 2026-06-03
 
 ### Added
@@ -21,12 +41,27 @@ All notable changes to this project will be documented in this file.
 - Launcher runs `clone-repos` + `ensure-worktrees` only when `repos-status` is `needs_clone` or `ready`
 - `AGENTS.md`, skills, hooks, `SESSIONS.md` aligned to agentic bootstrap
 
+### Session notes
+
+**Impact:** optional
+
+- Older sessions may still assume edits at project root — product work now belongs under `sessions/<codename>/worktrees/<repo>/`
+- Add `"repo": "<alias>"` to each task in `session.json`, then run `./scripts/ensure-worktrees.sh <codename>`
+- Refresh `BOUNDARIES.md` from `sessions/_template/BOUNDARIES.md` if your session copy predates worktrees
+
 ## [0.2.0] - 2026-06-05
 
 ### Added
 
 - **Session inbox** — `sessions/_inbox/<target>.md`; `session-inbox.sh write/read`; injected on bind
 - Guard allows `sessions/_inbox/` for all bound sessions
+
+### Session notes
+
+**Impact:** optional
+
+- Sessions created before inbox existed won't mention cross-session notes in their boundaries — no breakage
+- Use `./scripts/session-inbox.sh write alpha bravo "message"` when coordinating across Cursor windows
 
 ## [0.1.2] - 2026-06-05
 
@@ -39,6 +74,12 @@ All notable changes to this project will be documented in this file.
 
 - `WORKSPACE_TMUX_WINDOW_PREFIX` unset → derived; explicit `""` still disables prefix
 
+### Session notes
+
+**Impact:** none
+
+- tmux window naming only; session folders unchanged
+
 ## [0.1.1] - 2026-06-05
 
 ### Added
@@ -50,6 +91,12 @@ All notable changes to this project will be documented in this file.
 
 - Session picker exits cleanly on Ctrl+C (exit 130, no traceback)
 
+### Session notes
+
+**Impact:** none
+
+- Documentation and picker behavior only
+
 ## [0.1.0] - 2026-06-05
 
 ### Added
@@ -59,3 +106,9 @@ All notable changes to this project will be documented in this file.
 - Session binding: chat, tmux pane, sibling inheritance, interactive picker
 - Bootstrap playbook (`CUSTOMIZE.md`, `bootstrap-hub` skill)
 - Smoke tests (`scripts/test_session_binding.py`)
+
+### Session notes
+
+**Impact:** none
+
+- Initial template; no prior sessions to migrate

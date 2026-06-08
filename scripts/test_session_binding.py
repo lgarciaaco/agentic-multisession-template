@@ -16,23 +16,33 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from session_binding import (  # noqa: E402
     _read_tty_line,
+    active_pool_list,
+    allocate_codename,
     bind_session_context,
     build_context_markdown,
     close_session_work,
+    CodenameAllocationError,
     codename_from_tmux,
     codename_from_tmux_session,
+    create_new_session,
     default_tmux_window_prefix,
+    DEFAULT_CODENAME_POOL,
     format_session_start_prompt,
     guard_path_decision,
     guard_unbound_path_decision,
     hub_root,
+    load_codenames,
+    prompt_new_session_title,
     read_inbox,
     resolve_codename,
     resume_session_on_bind,
+    run_interactive_session_picker,
     sanitize_context_text,
+    set_session_title,
     sync_index_from_session,
     sync_session_from_canonical,
     task_worktree_rel,
+    used_codenames,
     validate_codename,
     worktree_alias,
     tmux_pane_option,
@@ -710,6 +720,223 @@ class SessionCliSyncTests(unittest.TestCase):
         self.assertEqual(result.stdout.splitlines()[0], self.codename)
         index = json.loads((self.root / "sessions" / "index.json").read_text())
         self.assertEqual(index["sessions"][self.codename]["title"], "sync test")
+
+
+class CodenamePoolTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmpdir.name)
+        template_src = Path(__file__).resolve().parent.parent / "sessions" / "_template"
+        shutil.copytree(template_src, self.root / "sessions" / "_template")
+        (self.root / "sessions" / "index.example.json").write_text('{"sessions": {}}\n')
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def _write_codenames(self, data: dict) -> None:
+        try:
+            import yaml
+        except ImportError:
+            self.skipTest("PyYAML not installed")
+        path = self.root / "sessions" / "_codenames.yaml"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(yaml.dump(data, default_flow_style=False, sort_keys=False))
+
+    def test_auto_pick_from_active_pool(self) -> None:
+        self._write_codenames(
+            {
+                "active_pool": "bg3",
+                "pools": {
+                    "default": ["alpha"],
+                    "bg3": ["astarion", "shadowheart"],
+                },
+                "used": [],
+            }
+        )
+        codename = allocate_codename(self.root)
+        self.assertEqual(codename, "astarion")
+        data = load_codenames(self.root)
+        self.assertEqual(active_pool_list(data), ["astarion", "shadowheart"])
+
+    def test_expand_when_pool_exhausted(self) -> None:
+        self._write_codenames(
+            {
+                "pools": {
+                    "default": [
+                        "alpha",
+                        "bravo",
+                        "charlie",
+                        "delta",
+                        "echo",
+                        "foxtrot",
+                        "golf",
+                        "hotel",
+                    ]
+                },
+                "used": [
+                    "alpha",
+                    "bravo",
+                    "charlie",
+                    "delta",
+                    "echo",
+                    "foxtrot",
+                    "golf",
+                    "hotel",
+                ],
+            }
+        )
+        codename = allocate_codename(self.root)
+        self.assertEqual(codename, "india")
+        data = load_codenames(self.root)
+        self.assertIn("india", data["pools"]["default"])
+
+    def test_explicit_name_bypasses_pool(self) -> None:
+        self._write_codenames(
+            {
+                "pools": {"default": ["alpha"]},
+                "used": ["alpha"],
+            }
+        )
+        codename = create_new_session(self.root, "custom-name")
+        self.assertEqual(codename, "custom-name")
+        session = json.loads(
+            (self.root / "sessions" / "custom-name" / "session.json").read_text()
+        )
+        self.assertEqual(session["title"], "custom-name")
+        index = json.loads((self.root / "sessions" / "index.json").read_text())
+        self.assertEqual(index["sessions"]["custom-name"]["title"], "custom-name")
+
+    def test_create_session_with_explicit_title(self) -> None:
+        self._write_codenames({"pools": {"default": ["alpha"]}, "used": []})
+        codename = create_new_session(self.root, title="Rent ingest M1-2")
+        self.assertEqual(codename, "alpha")
+        session = json.loads((self.root / "sessions" / "alpha" / "session.json").read_text())
+        self.assertEqual(session["title"], "Rent ingest M1-2")
+
+    def test_set_session_title_updates_index(self) -> None:
+        self._write_codenames({"pools": {"default": ["alpha"]}, "used": []})
+        create_new_session(self.root)
+        set_session_title(self.root, "alpha", "Updated title")
+        session = json.loads((self.root / "sessions" / "alpha" / "session.json").read_text())
+        index = json.loads((self.root / "sessions" / "index.json").read_text())
+        self.assertEqual(session["title"], "Updated title")
+        self.assertEqual(index["sessions"]["alpha"]["title"], "Updated title")
+
+    def test_explicit_rejects_used(self) -> None:
+        self._write_codenames(
+            {
+                "pools": {"default": ["alpha"]},
+                "used": ["alpha"],
+            }
+        )
+        with self.assertRaises(CodenameAllocationError) as ctx:
+            allocate_codename(self.root, "alpha")
+        self.assertIn("already used", str(ctx.exception))
+
+    def test_missing_active_pool_defaults(self) -> None:
+        self._write_codenames(
+            {
+                "pools": {"default": ["alpha", "bravo"]},
+                "used": ["alpha"],
+            }
+        )
+        codename = allocate_codename(self.root)
+        self.assertEqual(codename, "bravo")
+        data = load_codenames(self.root)
+        self.assertEqual(active_pool_list(data), ["alpha", "bravo"])
+
+    def test_scalar_pool_falls_back_to_default(self) -> None:
+        self._write_codenames(
+            {
+                "active_pool": "default",
+                "pools": {"default": "alpha"},
+                "used": [],
+            }
+        )
+        data = load_codenames(self.root)
+        self.assertEqual(active_pool_list(data), list(DEFAULT_CODENAME_POOL))
+
+    def test_scalar_used_normalized(self) -> None:
+        self._write_codenames({"pools": {"default": ["alpha"]}, "used": "alpha"})
+        data = load_codenames(self.root)
+        self.assertEqual(data["used"], [])
+        self.assertEqual(used_codenames(data), set())
+
+    def test_create_session_title_sanitized(self) -> None:
+        self._write_codenames({"pools": {"default": ["alpha"]}, "used": []})
+        create_new_session(self.root, title="Line1\nLine2 **bold**")
+        session = json.loads((self.root / "sessions" / "alpha" / "session.json").read_text())
+        self.assertNotIn("\n", session["title"])
+        self.assertIn("Line1", session["title"])
+
+    def test_new_session_sh_smoke(self) -> None:
+        self._write_codenames({"pools": {"default": ["alpha"]}, "used": []})
+        lib_src = Path(__file__).resolve().parent / "lib"
+        shutil.copytree(lib_src, self.root / "scripts" / "lib")
+        env = os.environ.copy()
+        env["WORKSPACE_ROOT"] = str(self.root)
+        env["WORKSPACE_NEW_SESSION_TITLE"] = "Smoke title"
+        script = Path(__file__).resolve().parent / "new-session.sh"
+        result = subprocess.run(
+            [str(script)],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=Path(__file__).resolve().parent.parent,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        self.assertEqual(result.stdout.strip(), "alpha")
+        session = json.loads((self.root / "sessions" / "alpha" / "session.json").read_text())
+        self.assertEqual(session["title"], "Smoke title")
+
+
+class SessionPickerTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmpdir.name)
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    @patch("session_binding.subprocess.run")
+    @patch("session_binding._read_tty_line")
+    def test_picker_new_retries_after_subprocess_failure(self, mock_tty, mock_run) -> None:
+        mock_run.return_value = subprocess.CompletedProcess(
+            [], 1, "", "Error: no codenames left in pool.\n"
+        )
+        mock_tty.side_effect = ["new", "alpha"]
+        sessions = [
+            {
+                "codename": "alpha",
+                "title": "Alpha",
+                "status": "active",
+                "created": "2026-06-08",
+                "next": "",
+                "bound_chats": 0,
+                "bound_this_chat": False,
+                "bound_this_tmux": False,
+                "bound_this_session": False,
+                "tasks_in_progress": [],
+            }
+        ]
+        with patch("session_binding.list_active_sessions", return_value=sessions):
+            codename = run_interactive_session_picker(self.root)
+        self.assertEqual(codename, "alpha")
+        self.assertEqual(mock_run.call_count, 1)
+        self.assertEqual(mock_tty.call_count, 2)
+
+    @patch("session_binding.prompt_new_session_title")
+    @patch("session_binding.subprocess.run")
+    @patch("session_binding._read_tty_line")
+    def test_picker_new_prompts_for_title(
+        self, mock_tty, mock_run, mock_prompt
+    ) -> None:
+        mock_run.return_value = subprocess.CompletedProcess([], 0, "echo\n", "")
+        mock_tty.return_value = "new"
+        with patch("session_binding.list_active_sessions", return_value=[]):
+            codename = run_interactive_session_picker(self.root)
+        self.assertEqual(codename, "echo")
+        mock_prompt.assert_called_once_with(self.root, "echo")
 
 
 if __name__ == "__main__":

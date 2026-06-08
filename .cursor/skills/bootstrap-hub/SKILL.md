@@ -53,6 +53,21 @@ Then `./scripts/clone-repos.sh`.
 
 ---
 
+## 2b. Codename theme (optional)
+
+When the user cares about session naming, ask:
+
+> Do you want a codename theme for new sessions? Default is NATO (`alpha`, `bravo`, …). Example: `bg3` uses companion names from [`sessions/_codenames.example.yaml`](../../../sessions/_codenames.example.yaml).
+
+If they choose a theme:
+
+1. Ensure `sessions/_codenames.yaml` exists (created on first `new-session.sh`, or copy from example).
+2. Set `active_pool: <theme>` and confirm the pool exists under `pools:` (add custom names if needed).
+
+Pools **auto-expand** with NATO continuation (`india`, `juliet`, …) when all names are used — no manual yaml edits required.
+
+---
+
 ## 3. User adds a repo later
 
 When user says “add repo X” / “clone … into repos”:

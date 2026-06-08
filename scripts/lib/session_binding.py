@@ -41,6 +41,295 @@ def validate_codename(codename: str) -> str:
     return name
 
 
+NATO_CODENAMES: tuple[str, ...] = (
+    "alpha",
+    "bravo",
+    "charlie",
+    "delta",
+    "echo",
+    "foxtrot",
+    "golf",
+    "hotel",
+    "india",
+    "juliet",
+    "kilo",
+    "lima",
+    "mike",
+    "november",
+    "oscar",
+    "papa",
+    "quebec",
+    "romeo",
+    "sierra",
+    "tango",
+    "uniform",
+    "victor",
+    "whiskey",
+    "xray",
+    "yankee",
+    "zulu",
+)
+DEFAULT_CODENAME_POOL: tuple[str, ...] = NATO_CODENAMES[:8]
+
+
+class CodenameAllocationError(Exception):
+    """Failed to pick or create a session codename."""
+
+
+def _require_yaml():
+    try:
+        import yaml
+    except ImportError as exc:
+        raise SystemExit("PyYAML required: pip install pyyaml") from exc
+    return yaml
+
+
+def _codenames_path(root: Path) -> Path:
+    return root / "sessions" / "_codenames.yaml"
+
+
+def _codenames_example_path(root: Path) -> Path:
+    return root / "sessions" / "_codenames.example.yaml"
+
+
+def _default_codenames_data() -> dict:
+    return {
+        "active_pool": "default",
+        "pools": {"default": list(DEFAULT_CODENAME_POOL)},
+        "used": [],
+    }
+
+
+def load_codenames(root: Path | None = None) -> dict:
+    root = root or hub_root()
+    yaml = _require_yaml()
+    codenames_path = _codenames_path(root)
+    example_path = _codenames_example_path(root)
+    if not codenames_path.exists():
+        if example_path.exists():
+            codenames_path.write_text(example_path.read_text())
+        else:
+            codenames_path.parent.mkdir(parents=True, exist_ok=True)
+            codenames_path.write_text(
+                yaml.dump(_default_codenames_data(), default_flow_style=False, sort_keys=False)
+            )
+    data = yaml.safe_load(codenames_path.read_text()) or {}
+    if not isinstance(data.get("pools"), dict):
+        data["pools"] = {"default": list(DEFAULT_CODENAME_POOL)}
+    used = data.get("used")
+    if not isinstance(used, list):
+        data["used"] = []
+    return data
+
+
+def save_codenames(root: Path, data: dict) -> None:
+    yaml = _require_yaml()
+    _codenames_path(root).write_text(
+        yaml.dump(data, default_flow_style=False, sort_keys=False)
+    )
+
+
+def active_pool_name(data: dict) -> str:
+    return (data.get("active_pool") or "default").strip() or "default"
+
+
+def active_pool_list(data: dict) -> list[str]:
+    pool_name = active_pool_name(data)
+    pools = data.get("pools") or {}
+
+    def _pool_list(name: str) -> list[str] | None:
+        raw = pools.get(name)
+        if isinstance(raw, list):
+            return list(raw)
+        return None
+
+    pool = _pool_list(pool_name) or _pool_list("default")
+    if pool is None:
+        return list(DEFAULT_CODENAME_POOL)
+    return pool
+
+
+def used_codenames(data: dict) -> set[str]:
+    used = data.get("used")
+    if not isinstance(used, list):
+        return set()
+    return set(used)
+
+
+def codename_available(root: Path, name: str, used: set[str]) -> bool:
+    if name in used:
+        return False
+    return not (root / "sessions" / name).exists()
+
+
+def first_available_in_pool(root: Path, pool: list[str], used: set[str]) -> str | None:
+    for candidate in pool:
+        try:
+            name = validate_codename(candidate)
+        except ValueError:
+            continue
+        if codename_available(root, name, used):
+            return name
+    return None
+
+
+def _nato_start_index(pool: list[str]) -> int:
+    """Index in NATO_CODENAMES to start overflow after the last pool member."""
+    if not pool:
+        return len(DEFAULT_CODENAME_POOL)
+    nato_index = {name: idx for idx, name in enumerate(NATO_CODENAMES)}
+    max_idx = -1
+    for name in pool:
+        idx = nato_index.get(name)
+        if idx is not None:
+            max_idx = max(max_idx, idx)
+    if max_idx >= 0:
+        return max_idx + 1
+    return len(DEFAULT_CODENAME_POOL)
+
+
+def expand_active_pool(root: Path, data: dict, *, min_add: int = 8) -> dict:
+    pool_name = active_pool_name(data)
+    pools = data.setdefault("pools", {})
+    pool = list(active_pool_list(data))
+    existing = set(pool)
+    start = _nato_start_index(pool)
+    added = 0
+    idx = start
+    while added < min_add and idx < len(NATO_CODENAMES):
+        candidate = NATO_CODENAMES[idx]
+        if candidate not in existing:
+            pool.append(candidate)
+            existing.add(candidate)
+            added += 1
+        idx += 1
+    pools[pool_name] = pool
+    save_codenames(root, data)
+    return data
+
+
+def allocate_codename(root: Path | None = None, explicit: str | None = None) -> str:
+    root = root or hub_root()
+    data = load_codenames(root)
+    used = used_codenames(data)
+
+    if explicit and explicit.strip():
+        try:
+            codename = validate_codename(explicit.strip())
+        except ValueError as exc:
+            raise CodenameAllocationError(str(exc)) from exc
+        if codename in used:
+            raise CodenameAllocationError(f"codename '{codename}' already used.")
+        if (root / "sessions" / codename).exists():
+            raise CodenameAllocationError(f"sessions/{codename}/ already exists.")
+        return codename
+
+    pool = active_pool_list(data)
+    codename = first_available_in_pool(root, pool, used)
+    if not codename:
+        expand_active_pool(root, data, min_add=8)
+        data = load_codenames(root)
+        used = used_codenames(data)
+        pool = active_pool_list(data)
+        codename = first_available_in_pool(root, pool, used)
+    if not codename:
+        raise CodenameAllocationError("no codenames left in pool.")
+    return codename
+
+
+def mark_codename_used(root: Path, data: dict, codename: str) -> None:
+    used = used_codenames(data)
+    if codename not in used:
+        used.add(codename)
+        data["used"] = sorted(used)
+        save_codenames(root, data)
+
+
+def create_session_tree(root: Path, codename: str, title: str | None = None) -> None:
+    name = validate_codename(codename)
+    session_dir = root / "sessions" / name
+    if session_dir.exists():
+        raise CodenameAllocationError(f"sessions/{name}/ already exists.")
+
+    template = root / "sessions" / "_template"
+    for item in ("session.json", "BOUNDARIES.md", "TASKS.md", "progress.json"):
+        src = template / item
+        if not src.exists():
+            raise CodenameAllocationError(f"missing template {src}")
+
+    session_dir.mkdir(parents=True)
+    (session_dir / "worktrees").mkdir(parents=True)
+    today = date.today().isoformat()
+    session_title = sanitize_context_text((title or name).strip() or name, max_len=200) or name
+
+    for item in ("session.json", "BOUNDARIES.md", "TASKS.md", "progress.json"):
+        text = (template / item).read_text()
+        text = text.replace("CODENAME", name).replace("YYYY-MM-DD", today)
+        (session_dir / item).write_text(text)
+
+    session_path = session_dir / "session.json"
+    session = json.loads(session_path.read_text())
+    session["title"] = session_title
+    session_path.write_text(json.dumps(session, indent=2) + "\n")
+
+    index_path = root / "sessions" / "index.json"
+    if not index_path.exists():
+        example_index = root / "sessions" / "index.example.json"
+        if example_index.exists():
+            index_path.write_text(example_index.read_text())
+        else:
+            index_path.write_text('{"sessions": {}}\n')
+
+    index = json.loads(index_path.read_text())
+    index.setdefault("sessions", {})[name] = {
+        "title": session_title,
+        "status": "draft",
+        "created": today,
+    }
+    index_path.write_text(json.dumps(index, indent=2) + "\n")
+
+    data = load_codenames(root)
+    mark_codename_used(root, data, name)
+
+
+def set_session_title(root: Path, codename: str, title: str) -> None:
+    name = validate_codename(codename)
+    session_title = sanitize_context_text(title, max_len=200)
+    if not session_title:
+        raise ValueError("session title must not be empty")
+    session = _load_session_json(root, name)
+    if not session:
+        raise FileNotFoundError(f"sessions/{name}/session.json not found")
+    session["title"] = session_title
+    _write_session_json(root, name, session)
+    sync_index_from_session(root, name, session)
+
+
+def prompt_new_session_title(root: Path, codename: str) -> None:
+    """Ask on /dev/tty for a display title; Enter keeps the codename default."""
+    name = validate_codename(codename)
+    default = name
+    session = _load_session_json(root, name) or {}
+    current = (session.get("title") or default).strip() or default
+    try:
+        entered = _read_tty_line(f"Session title [{current}]> ")
+    except SystemExit:
+        return
+    if entered.strip() and entered.strip() != current:
+        set_session_title(root, name, entered.strip())
+
+
+def create_new_session(
+    root: Path | None = None,
+    explicit: str | None = None,
+    title: str | None = None,
+) -> str:
+    root = root or hub_root()
+    codename = allocate_codename(root, explicit)
+    create_session_tree(root, codename, title)
+    return codename
+
+
 def sanitize_context_text(value: str, *, max_len: int = 500) -> str:
     """Single-line safe text for injected session context (no newlines or markdown breaks)."""
     if value is None:
@@ -1006,9 +1295,23 @@ def run_interactive_session_picker(root: Path | None = None) -> str:
                 cwd=root,
                 capture_output=True,
                 text=True,
-                check=True,
+                check=False,
             )
-            return result.stdout.strip().splitlines()[0]
+            if result.returncode != 0:
+                msg = (result.stderr or result.stdout or "new session failed").strip()
+                print(msg, file=sys.stderr)
+                continue
+            stdout = result.stdout.strip()
+            if not stdout:
+                print("Error: new session returned no codename.", file=sys.stderr)
+                continue
+            try:
+                codename = validate_codename(stdout.splitlines()[0])
+            except ValueError as exc:
+                print(f"Error: {exc}", file=sys.stderr)
+                continue
+            prompt_new_session_title(root, codename)
+            return codename
         if choice.isdigit():
             idx = int(choice)
             if 1 <= idx <= len(sessions):

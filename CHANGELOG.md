@@ -10,11 +10,19 @@ All notable changes to this project will be documented in this file.
 - [docs/PROJECT.md.example](docs/PROJECT.md.example) — project-specific guideline scaffold (copy to local `docs/PROJECT.md`)
 - Optional `guidelines:` pointers in `repos.yaml` — `load_guidelines()` in `scripts/lib/repos.py`
 - Session context **Guidelines** section on bind — lists template, project, and worktree doc paths when present
+- **Themed codename pools** — `active_pool` in `sessions/_codenames.yaml`; example `bg3` pool in `sessions/_codenames.example.yaml`
 
 ### Changed
 
 - [AGENTS.md](AGENTS.md), [SESSIONS.md](SESSIONS.md), [CUSTOMIZE.md](CUSTOMIZE.md), [docs/REPOS.md](docs/REPOS.md) — document two-level guideline hierarchy
 - `sessions/_template/BOUNDARIES.md` — read `docs/PROJECT.md` on start when present
+- `new-session.sh` — codename allocation moved to `scripts/lib/session_binding.py` (testable)
+
+### Fixed
+
+- **Exhausted codename pool** — auto-expand active pool with NATO continuation (`india`, `juliet`, …) instead of failing when all starter names are used
+- **Session picker traceback** — `new` choice shows script error message and re-prompts instead of `CalledProcessError`
+- **Empty session title** — new sessions default `title` to codename; interactive picker prompts to customize
 
 ### Session notes
 

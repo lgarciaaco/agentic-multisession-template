@@ -29,7 +29,7 @@ Corpus review: consistency, duplication, coherence. Doc findings default to **RE
 
 ## Hub template (full scope)
 
-Always include in corpus: `AGENTS.md`, `SESSIONS.md`, `CONTRIBUTING.md`, `docs/REPOS.md`, `.cursor/skills/**/SKILL.md`, `sessions/_template/BOUNDARIES.md`.
+Always include in corpus: `AGENTS.md`, `SESSIONS.md`, `CONTRIBUTING.md`, `docs/REPOS.md`, `docs/PROJECT.md.example`, `.cursor/rules/agent-guidelines.mdc`, `.cursor/rules/hub-contributing.mdc`, `.cursor/skills/**/SKILL.md`, `sessions/_template/BOUNDARIES.md`.
 
 ## Severity
 

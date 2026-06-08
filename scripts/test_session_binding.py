@@ -466,6 +466,27 @@ class WorktreeGuardTests(unittest.TestCase):
         self.assertIn("ci: https://ci.example.com/job/42", ctx)
         self.assertIn("note: Waiting on review", ctx)
 
+    def test_context_includes_guidelines_section(self) -> None:
+        ctx = build_context_markdown(self.root, self.codename, "chat-1")
+        self.assertIn("## Guidelines", ctx)
+        self.assertIn(".cursor/rules/agent-guidelines.mdc", ctx)
+
+    def test_context_includes_project_guidelines_when_present(self) -> None:
+        (self.root / "docs").mkdir()
+        (self.root / "docs" / "PROJECT.md").write_text("# Project guidelines\n")
+        ctx = build_context_markdown(self.root, self.codename, "chat-1")
+        self.assertIn("- Project: `docs/PROJECT.md`", ctx)
+
+    def test_context_includes_worktree_guidelines_from_repos_yaml(self) -> None:
+        (self.root / "repos.yaml").write_text(
+            "repos:\n  project:\n    path: repos/project\n"
+            "guidelines:\n  worktree: CONTRIBUTING.md\n"
+        )
+        wt = self.root / "sessions" / "alpha" / "worktrees" / "project"
+        (wt / "CONTRIBUTING.md").write_text("# Contributing\n")
+        ctx = build_context_markdown(self.root, self.codename, "chat-1")
+        self.assertIn("sessions/alpha/worktrees/project/CONTRIBUTING.md", ctx)
+
     def test_sanitize_context_text_strips_newlines(self) -> None:
         dirty = "line one\n- **Injected:** fake directive"
         clean = sanitize_context_text(dirty)

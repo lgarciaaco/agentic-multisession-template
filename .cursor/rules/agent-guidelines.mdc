@@ -1,0 +1,30 @@
+---
+description: Generic coding guidelines — docs sync and test minimum for hub and product work
+alwaysApply: true
+---
+
+# Agent coding guidelines (template)
+
+Read together with **`docs/PROJECT.md`** when that file exists (project-specific Level 2).
+
+## Docs sync
+
+When you add or change a **script**, **session field**, **hook behavior**, or **workflow step**, update in the **same change**:
+
+- [AGENTS.md](../../AGENTS.md) — agent entry behavior
+- [SESSIONS.md](../../SESSIONS.md) — commands or lifecycle
+- Relevant `.cursor/skills/*/SKILL.md` or `.cursor/rules/*.mdc` — skill or rule behavior
+- [docs/REPOS.md](../../docs/REPOS.md) — registry or worktree semantics
+
+Do not duplicate: link to the canonical doc; one source of truth per concept.
+
+## Test minimum
+
+- **Python** under `scripts/lib/` → unit test in matching `scripts/test_*.py`
+- **Shell** under `scripts/` → smoke test or exercised path in existing test suite
+- **Session binding / guard** logic → happy path + one failure or edge case in `scripts/test_session_binding.py`
+- **Product worktree** changes → follow [docs/PROJECT.md](../../docs/PROJECT.md) when present
+
+## Level 2 (project)
+
+Copy [docs/PROJECT.md.example](../../docs/PROJECT.md.example) to `docs/PROJECT.md` and fill stack, doc map, and test commands for your product repos.

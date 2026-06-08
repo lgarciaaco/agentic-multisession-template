@@ -59,6 +59,18 @@ Installed version: `.hub-version` · upstream check: `./scripts/hub-status.sh`
 - **Product:** `sessions/<codename>/worktrees/**` + session metadata; `repos/` read-only
 - **Forbidden:** other `sessions/<other>/`, edits under `repos/`
 
+## Coding guidelines
+
+Two levels — read together:
+
+| Level | Source |
+|-------|--------|
+| **Template** | `.cursor/rules/agent-guidelines.mdc` — docs sync + test minimum (always on) |
+| **Hub PRs** | `.cursor/rules/hub-contributing.mdc` when `session.json` `"mode": "hub"` |
+| **Project** | `docs/PROJECT.md` — copy from [docs/PROJECT.md.example](docs/PROJECT.md.example) and fill stack, doc map, test commands |
+
+Session context lists which guideline files exist on bind. Optional `guidelines:` in `repos.yaml` — see [docs/REPOS.md](docs/REPOS.md).
+
 ## Skills
 
 | | Path |

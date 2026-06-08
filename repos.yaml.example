@@ -7,6 +7,11 @@
 
 repos: {}
 
+# Optional: agent guideline doc pointers (read with .cursor/rules/agent-guidelines.mdc)
+# guidelines:
+#   project: docs/PROJECT.md              # hub-relative
+#   worktree: CONTRIBUTING.md             # relative to primary worktree root
+
 # Example (one repo — direct push to origin):
 # repos:
 #   project:

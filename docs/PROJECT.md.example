@@ -1,0 +1,66 @@
+# Project guidelines
+
+Project-specific coding guidelines for this hub. Read together with template rule [`.cursor/rules/agent-guidelines.mdc`](../.cursor/rules/agent-guidelines.mdc).
+
+Copy this file to `docs/PROJECT.md` and fill in your project details. `docs/PROJECT.md` is local to your hub (not committed).
+
+---
+
+## Doc sync map
+
+When code changes, update these docs in the same change:
+
+| Change type | Update |
+|-------------|--------|
+| New API endpoint | `docs/my-api.md`, worktree README |
+| Schema / migration | migration comment, milestone doc under `docs/` |
+| Domain rule or formula | domain doc + golden fixture README |
+| Config or env var | README, `.env.example` in worktree |
+
+Add your project-specific rows above.
+
+---
+
+## Test minimum
+
+Before opening a product PR from a worktree:
+
+```bash
+# Example — replace with your stack
+cd sessions/<codename>/worktrees/<repo>
+pnpm test && pnpm build
+# or: pytest, cargo test, etc.
+```
+
+| Change type | Minimum test |
+|-------------|--------------|
+| Domain logic | unit test or golden fixture |
+| API route | validation test + error path |
+| Docker / env | smoke command documented in README |
+
+---
+
+## Stack conventions
+
+Fill per project:
+
+- **Language / runtime:** (e.g. TypeScript 5, Python 3.12)
+- **Package manager:** (e.g. pnpm, pip)
+- **Linter / formatter:** (e.g. eslint, ruff)
+- **Branch naming:** (e.g. `feat/`, `fix/`)
+
+---
+
+## Worktree PR flow
+
+Product code lives in `sessions/<codename>/worktrees/<repo>/`.
+
+See **`CONTRIBUTING.md`** in the primary worktree for PR and review conventions.
+
+Optional: set in `repos.yaml`:
+
+```yaml
+guidelines:
+  project: docs/PROJECT.md
+  worktree: CONTRIBUTING.md
+```

@@ -160,8 +160,9 @@ Files live in `sessions/_inbox/` (shared; any session may write via the script).
 
 | Commit | Do not commit (see `.gitignore`) |
 |--------|----------------------------------|
-| `scripts/`, `.cursor/`, `SESSIONS.md`, `docs/REPOS.md`, `repos.yaml.example`, `.hub-version`, `.hub-upstream.example` | `repos.yaml`, `repos/*` — your clone URLs + reference repos |
+| `scripts/`, `.cursor/`, `SESSIONS.md`, `docs/REPOS.md`, `docs/PROJECT.md.example`, `repos.yaml.example`, `.hub-version`, `.hub-upstream.example` | `repos.yaml`, `repos/*` — your clone URLs + reference repos |
 | `sessions/_template/`, `sessions/_codenames.example.yaml`, `sessions/index.example.json` | `sessions/<codename>/`, `sessions/*/worktrees/*` |
+| | `docs/PROJECT.md` — your project coding guidelines |
 | | `sessions/index.json`, `sessions/_codenames.yaml` — local index |
 | | `sessions/bindings/`, `sessions/context/` — per-chat bindings |
 | | `sessions/_inbox/*.md` — inbox bodies |

@@ -140,6 +140,7 @@ Files live in `sessions/_inbox/` (shared; any session may write via the script).
 | | `sessions/index.json`, `sessions/_codenames.yaml` — local index |
 | | `sessions/bindings/`, `sessions/context/` — per-chat bindings |
 | | `sessions/_inbox/*.md` — inbox bodies |
+| | `sessions/<codename>/reviews/`, `checkpoints.json` — local review/checkpoint artifacts |
 | | `.hub-launcher`, `.hub-slug` — local install paths |
 
 Track milestones in product `CURRENT.md` instead of committing `progress.json`.

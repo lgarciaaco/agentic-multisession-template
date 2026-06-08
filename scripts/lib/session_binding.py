@@ -13,6 +13,7 @@ from pathlib import Path
 
 CLOSED_STATUSES = frozenset({"completed", "closed", "cancelled"})
 RESERVED_SESSION_DIRS = frozenset({"bindings", "context", "_inbox"})
+CODENAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 RESOLVE_SOURCE_LABELS = {
     "binding": "this chat",
     "tmux-pane": "tmux tab",
@@ -23,6 +24,21 @@ RESOLVE_SOURCE_LABELS = {
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def validate_codename(codename: str) -> str:
+    """Return a safe session codename or raise ValueError."""
+    name = codename.strip()
+    if not name:
+        raise ValueError("codename must not be empty")
+    if name.startswith("_") or name in RESERVED_SESSION_DIRS:
+        raise ValueError(f"invalid session codename: {name}")
+    if not CODENAME_RE.fullmatch(name):
+        raise ValueError(
+            f"invalid session codename: {name!r} "
+            "(use lowercase letters, digits, hyphens; no slashes or ..)"
+        )
+    return name
 
 
 def hub_root() -> Path:
@@ -113,8 +129,9 @@ def get_tmux_pane_codename() -> str | None:
 
 
 def set_tmux_pane_codename(codename: str) -> bool:
-    name = codename.strip()
-    if not name:
+    try:
+        name = validate_codename(codename)
+    except ValueError:
         return False
     return _run_tmux("set-option", "-p", f"@{tmux_pane_option()}", name) is not None
 
@@ -148,18 +165,28 @@ def rename_tmux_for_codename(codename: str) -> bool:
     return renamed
 
 
+def _load_json_file(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def _index_sessions(root: Path) -> dict:
     index_path = root / "sessions" / "index.json"
-    if not index_path.exists():
-        return {}
-    return json.loads(index_path.read_text()).get("sessions", {})
+    sessions = _load_json_file(index_path).get("sessions")
+    return sessions if isinstance(sessions, dict) else {}
 
 
 def _load_session_json(root: Path, codename: str) -> dict | None:
     path = root / "sessions" / codename / "session.json"
     if not path.exists():
         return None
-    return json.loads(path.read_text())
+    data = _load_json_file(path)
+    return data if data else None
 
 
 def _write_session_json(root: Path, codename: str, session: dict) -> None:
@@ -191,8 +218,10 @@ def sync_index_from_session(root: Path, codename: str, session: dict | None = No
     """Copy canonical fields from session.json into sessions/index.json."""
     session = session or _load_session_json(root, codename) or {}
     index_path = root / "sessions" / "index.json"
-    index = json.loads(index_path.read_text())
-    entry = index.setdefault("sessions", {}).get(codename, {})
+    index = _load_json_file(index_path)
+    if not isinstance(index.get("sessions"), dict):
+        index["sessions"] = {}
+    entry = index["sessions"].get(codename, {})
     entry.update(
         {
             "title": session.get("title") or entry.get("title", ""),
@@ -258,9 +287,9 @@ def write_inbox(root: Path, from_codename: str, to_codename: str, message: str) 
     message = message.strip()
     if not message:
         raise ValueError("inbox message must not be empty")
-    for name in (from_codename, to_codename):
-        session_dir = root / "sessions" / name
-        if not session_dir.is_dir() or name.startswith("_") or name in RESERVED_SESSION_DIRS:
+    for raw in (from_codename, to_codename):
+        name = validate_codename(raw)
+        if not (root / "sessions" / name).is_dir():
             raise ValueError(f"invalid session codename: {name}")
 
     path = inbox_path(root, to_codename)
@@ -324,41 +353,163 @@ def format_worktree_section(root: Path, codename: str, session: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+_GUARD_ALLOW = {"permission": "allow"}
+_HUB_WRITABLE_DIRS = ("scripts", ".cursor", "docs")
+_HUB_WRITABLE_ROOT_FILES = frozenset(
+    {
+        "AGENTS.md",
+        "SESSIONS.md",
+        "CONTRIBUTING.md",
+        "CHANGELOG.md",
+        "repos.yaml",
+        "repos.yaml.example",
+        "README.md",
+    }
+)
+
+
+def _guard_deny(user_message: str, agent_message: str) -> dict:
+    return {
+        "permission": "deny",
+        "user_message": user_message,
+        "agent_message": agent_message,
+    }
+
+
+def _path_is_within(child: Path, parent: Path) -> bool:
+    try:
+        child.resolve().relative_to(parent.resolve())
+        return True
+    except (ValueError, OSError):
+        return False
+
+
+def _session_codename_from_path(root: Path, resolved: Path) -> str | None:
+    sessions_root = root / "sessions"
+    if not _path_is_within(resolved, sessions_root) and resolved != sessions_root:
+        return None
+    rel = resolved.relative_to(sessions_root)
+    if not rel.parts:
+        return None
+    first = rel.parts[0]
+    if first in RESERVED_SESSION_DIRS or first.startswith("_"):
+        return None
+    session_dir = sessions_root / first
+    if not session_dir.is_dir():
+        return None
+    try:
+        validate_codename(first)
+    except ValueError:
+        return None
+    return first
+
+
+def _guard_protected_session_paths(root: Path, resolved: Path) -> dict | None:
+    repos_dir = root / "repos"
+    if _path_is_within(resolved, repos_dir) or resolved == repos_dir:
+        return _guard_deny(
+            "repos/ is read-only (reference clones).",
+            "Edit only under sessions/<codename>/worktrees/. Run ./scripts/clone-repos.sh to refresh refs.",
+        )
+
+    for sub in ("bindings", "context"):
+        protected = root / "sessions" / sub
+        if _path_is_within(resolved, protected) or resolved == protected:
+            return _guard_deny(
+                "sessions/bindings and sessions/context are hook-protected.",
+                "Do not edit binding or context files.",
+            )
+
+    index_json = root / "sessions" / "index.json"
+    if resolved == index_json:
+        return _guard_deny(
+            "sessions/index.json is hook-protected.",
+            "Use sync-session.sh to update index.",
+        )
+    return None
+
+
+def guard_unbound_path_decision(root: Path, file_path: str) -> dict:
+    """Cursor hook when no session is bound: fail-closed on sensitive hub paths."""
+    if not file_path:
+        return _GUARD_ALLOW
+
+    root = root.resolve()
+    try:
+        resolved = Path(file_path).resolve()
+    except OSError:
+        return _guard_deny("Invalid path.", "Could not resolve file path.")
+
+    if not _path_is_within(resolved, root):
+        return _GUARD_ALLOW
+
+    protected = _guard_protected_session_paths(root, resolved)
+    if protected:
+        return protected
+
+    other = _session_codename_from_path(root, resolved)
+    if other:
+        return _guard_deny(
+            f"No session bound; cannot edit sessions/{other}/.",
+            "Bind a session first (./scripts/bind-session.sh <codename>).",
+        )
+
+    return _GUARD_ALLOW
+
+
 def guard_path_decision(root: Path, codename: str, file_path: str) -> dict:
     """Cursor hook: allow/deny edits — repos/ read-only, worktrees writable."""
-    allow = {"permission": "allow"}
-    if not codename or not file_path:
-        return allow
+    if not file_path:
+        return _GUARD_ALLOW
+    if not codename:
+        return _GUARD_ALLOW
 
-    norm = file_path.replace("\\", "/")
-    hub = str(root).replace("\\", "/")
-    if not norm.startswith(hub):
-        return allow
+    try:
+        name = validate_codename(codename)
+    except ValueError:
+        return _guard_deny("Invalid session binding.", "Bind a valid session codename.")
 
-    if f"/sessions/{codename}/" in norm or norm.endswith(f"/sessions/{codename}"):
-        return allow
+    root = root.resolve()
+    try:
+        resolved = Path(file_path).resolve()
+    except OSError:
+        return _guard_deny("Invalid path.", "Could not resolve file path.")
 
-    if "/sessions/_inbox/" in norm:
-        return allow
+    if not _path_is_within(resolved, root):
+        return _GUARD_ALLOW
 
-    if "/repos/" in norm and "/sessions/" not in norm:
-        return {
-            "permission": "deny",
-            "user_message": "repos/ is read-only (reference clones).",
-            "agent_message": f"Edit only under sessions/{codename}/worktrees/. Run ./scripts/clone-repos.sh to refresh refs.",
-        }
+    protected = _guard_protected_session_paths(root, resolved)
+    if protected:
+        return protected
 
-    match = re.search(r"/sessions/([a-z0-9-]+)/", norm)
-    if match and match.group(1) != codename:
-        other = match.group(1)
-        if other not in RESERVED_SESSION_DIRS and (root / "sessions" / other).is_dir():
-            return {
-                "permission": "deny",
-                "user_message": f"This chat is bound to session {codename}, not {other}.",
-                "agent_message": f"Do not edit sessions/{other}/. This chat is bound to {codename}.",
-            }
+    inbox_dir = root / "sessions" / "_inbox"
+    if _path_is_within(resolved, inbox_dir) or resolved == inbox_dir:
+        return _GUARD_ALLOW
 
-    return allow
+    session_dir = root / "sessions" / name
+    if _path_is_within(resolved, session_dir) or resolved == session_dir:
+        return _GUARD_ALLOW
+
+    other = _session_codename_from_path(root, resolved)
+    if other and other != name:
+        return _guard_deny(
+            f"This chat is bound to session {name}, not {other}.",
+            f"Do not edit sessions/{other}/. This chat is bound to {name}.",
+        )
+
+    session = _load_session_json(root, name) or {}
+    if session_mode(session) == "hub":
+        for sub in _HUB_WRITABLE_DIRS:
+            base = root / sub
+            if _path_is_within(resolved, base) or resolved == base:
+                return _GUARD_ALLOW
+        if resolved.parent == root and resolved.name in _HUB_WRITABLE_ROOT_FILES:
+            return _GUARD_ALLOW
+
+    return _guard_deny(
+        f"Bound to session {name}; edits only under sessions/{name}/.",
+        f"Edit only under sessions/{name}/worktrees/ and session metadata.",
+    )
 
 
 def format_inbox_section(root: Path, codename: str) -> str:
@@ -439,17 +590,22 @@ def sync_session_from_canonical(
     conversation_id: str | None = None,
 ) -> None:
     """Sync derived session references from sessions/<codename>/session.json."""
+    name = validate_codename(codename)
     if resume:
-        resume_session_on_bind(root, codename)
+        resume_session_on_bind(root, name)
     else:
-        sync_index_from_session(root, codename)
+        sync_index_from_session(root, name)
     if refresh_context:
-        refresh_binding_contexts(root, codename, conversation_id=conversation_id)
+        refresh_binding_contexts(root, name, conversation_id=conversation_id)
 
 
 def is_active_session(root: Path, codename: str, index_entry: dict | None = None) -> bool:
-    session_dir = root / "sessions" / codename
-    if not session_dir.is_dir() or codename.startswith("_") or codename in RESERVED_SESSION_DIRS:
+    try:
+        name = validate_codename(codename)
+    except ValueError:
+        return False
+    session_dir = root / "sessions" / name
+    if not session_dir.is_dir():
         return False
     if not (session_dir / "session.json").exists():
         return False
@@ -464,12 +620,16 @@ def is_active_session(root: Path, codename: str, index_entry: dict | None = None
 
 
 def validate_active_codename(root: Path, codename: str) -> None:
-    session_dir = root / "sessions" / codename
+    try:
+        name = validate_codename(codename)
+    except ValueError as exc:
+        raise SystemExit(f"Error: {exc}") from exc
+    session_dir = root / "sessions" / name
     if not session_dir.is_dir():
-        raise SystemExit(f"Error: sessions/{codename}/ does not exist")
+        raise SystemExit(f"Error: sessions/{name}/ does not exist")
     index_sessions = _index_sessions(root)
-    if not is_active_session(root, codename, index_sessions.get(codename, {})):
-        raise SystemExit(f"Error: session {codename} is not active (ended or missing session.json)")
+    if not is_active_session(root, name, index_sessions.get(name, {})):
+        raise SystemExit(f"Error: session {name} is not active (ended or missing session.json)")
 
 
 def _codename_from_name(root: Path, name: str | None) -> str | None:
@@ -799,6 +959,10 @@ def run_interactive_session_picker(root: Path | None = None) -> str:
             continue
         if choice in codenames:
             return choice
+        try:
+            return validate_codename(choice)
+        except ValueError:
+            pass
         print(f"Unknown session: {choice}", file=sys.stderr)
 
 
@@ -911,12 +1075,17 @@ def format_session_start_required(root: Path | None = None) -> str:
 
 def close_session_work(root: Path, codename: str, note: str = "") -> None:
     """Mark session completed in session.json, index, progress, TASKS."""
-    session_dir = root / "sessions" / codename
+    name = validate_codename(codename)
+    session_dir = root / "sessions" / name
     today = date.today().isoformat()
     ended_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
     session_json_path = session_dir / "session.json"
-    session = json.loads(session_json_path.read_text())
+    if not session_json_path.exists():
+        raise FileNotFoundError(f"Missing {session_json_path}")
+    session = _load_json_file(session_json_path)
+    if not session:
+        raise ValueError(f"Invalid or empty session.json for {name}")
     session["status"] = "completed"
     session["ended"] = today
     session["ended_at"] = ended_at
@@ -926,14 +1095,14 @@ def close_session_work(root: Path, codename: str, note: str = "") -> None:
     session_json_path.write_text(json.dumps(session, indent=2) + "\n")
 
     progress_path = session_dir / "progress.json"
-    progress = json.loads(progress_path.read_text()) if progress_path.exists() else {}
+    progress = _load_json_file(progress_path) if progress_path.exists() else {}
     progress.update({"status": "completed", "ended": today, "ended_at": ended_at})
     if note and not progress.get("description"):
         progress["description"] = note
     progress_path.write_text(json.dumps(progress, indent=2) + "\n")
 
     tasks_md = session_dir / "TASKS.md"
-    footer = f"\n\n## Session closed ({today})\n\n- Codename: `{codename}`\n- Status: completed\n"
+    footer = f"\n\n## Session closed ({today})\n\n- Codename: `{name}`\n- Status: completed\n"
     if note:
         footer += f"- Note: {note}\n"
     if tasks_md.exists():
@@ -941,11 +1110,13 @@ def close_session_work(root: Path, codename: str, note: str = "") -> None:
         if "## Session closed" not in text:
             tasks_md.write_text(text.rstrip() + footer + "\n")
     else:
-        tasks_md.write_text(f"# Session {codename}\n{footer}\n")
+        tasks_md.write_text(f"# Session {name}\n{footer}\n")
 
     index_path = root / "sessions" / "index.json"
-    index = json.loads(index_path.read_text())
-    entry = index.setdefault("sessions", {}).get(codename, {})
+    index = _load_json_file(index_path)
+    if not isinstance(index.get("sessions"), dict):
+        index["sessions"] = {}
+    entry = index["sessions"].get(name, {})
     entry.update(
         {
             "title": session.get("title") or entry.get("title", ""),
@@ -954,5 +1125,5 @@ def close_session_work(root: Path, codename: str, note: str = "") -> None:
             "ended": today,
         }
     )
-    index["sessions"][codename] = entry
+    index["sessions"][name] = entry
     index_path.write_text(json.dumps(index, indent=2) + "\n")

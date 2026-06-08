@@ -16,7 +16,11 @@ Bound to codename `CODENAME` via `sessions/bindings/` (see `sessions/context/`).
 
 - Any edit under `repos/`
 - Any path under `sessions/` except `sessions/CODENAME/` and `sessions/_inbox/`
-- `sessions/bindings/`, `sessions/context/`
+- `sessions/bindings/`, `sessions/context/`, `sessions/index.json`
+
+## Enforced by hooks
+
+Cursor path guards deny edits to `repos/`, `sessions/bindings/`, `sessions/context/`, `sessions/index.json`, and other sessions' directories. Default sessions may edit only `sessions/CODENAME/`. Hub-mode sessions (`mode: hub`) may also edit `scripts/`, `.cursor/`, `docs/`, and hub root docs (`AGENTS.md`, `SESSIONS.md`, etc.).
 
 ## Hub sessions (`mode`: `hub`)
 

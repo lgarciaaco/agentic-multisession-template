@@ -30,10 +30,10 @@ Skip unless requested: `node_modules/`, `.venv/`, `venv/`, `dist/`, `build/`, `c
 
 - Flag N+1 queries, unbounded fetches, sync blocking on concurrent paths, hot-loop string concat
 
-## Tests (changeset/task)
+## Tests (light pass — test agent owns deep review on changeset/task)
 
-- Flag new behavior without test changes in delta
-- Flag tests asserting only "no throw"; flag removed/weakened tests without reason
+- Flag obvious missing tests on new public behavior in touched files
+- Defer coverage/acceptance checks to test reviewer agent
 
 ## Dependencies (changeset)
 

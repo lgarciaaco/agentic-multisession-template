@@ -1,39 +1,34 @@
 # Session persistence
 
-Implementing agents do not write diffs. Reviewer writes review artifacts.
+Review workspace is transient — see [workspace.md](workspace.md). Final artifacts persist here.
 
 | File | Writer | Role |
 |------|--------|------|
-| `session.json` | implementer | `tasks[].acceptance`, `files_in_scope` |
-| `TASKS.md` | implementer | goal, notes |
-| `checkpoints.json` | reviewer | baseline SHAs (auto on first review) |
-| `reviews/r-NNN.json` | reviewer | append-only history |
-| `progress.json` | reviewer | `last_review` pointer |
-
-## checkpoints.json (auto if missing)
-
-```json
-{"worktrees":{"project":{"path":"sessions/<codename>/worktrees/project","baseline_sha":"<sha>","baseline_ref":"main","captured_at":"<iso>"}}}
-```
-
-Capture: `git merge-base <base_branch> HEAD || git rev-parse HEAD` in worktree.
+| `reviews/workspace/<review-id>/` | orchestrator + agents | handoff (may prune after synthesize) |
+| `reviews/r-NNN.json` | synthesizer | append-only summary |
+| `checkpoints.json` | synthesizer | baseline SHAs |
+| `progress.json` | synthesizer | `last_review` pointer |
 
 ## reviews/r-NNN.json
 
 ```json
-{"id":"r-001","at":"<iso>","scope":"full|changeset","target":"<path>","range":"abc..def|null","head_sha":"<sha>","delta_strategy":"<name>","verdict":"FAIL","findings_count":{"blocker":0,"required":0,"suggestion":0,"nit":0},"intent":{"task":"<id>","acceptance_met":false,"notes":""}}
+{
+  "id": "r-001",
+  "at": "<iso>",
+  "review_id": "review-20260608-120000",
+  "workspace": "sessions/alpha/reviews/workspace/review-20260608-120000",
+  "scope": "full",
+  "target": "<path>",
+  "verdict": "INCOMPLETE",
+  "agents": ["code-python", "docs", "security"],
+  "findings_count": {"blocker": 0, "required": 3, "suggestion": 5, "nit": 1}
+}
 ```
 
-## progress.json
+## checkpoints.json
 
-```json
-{"last_review":{"id":"r-001","at":"<iso>","verdict":"FAIL","scope":"full","blockers":0}}
-```
-
-## Optional task fields
-
-`acceptance`: string[] — intent pass. `files_in_scope`: string[] — flag out-of-scope delta files as SUGGESTION.
+Unchanged — auto-capture on first review per [scope-and-delta.md](scope-and-delta.md).
 
 ## Writable
 
-`sessions/<codename>/` only: `checkpoints.json`, `reviews/`, `progress.json`. Then `./scripts/sync-session.sh <codename>`.
+`sessions/<codename>/` only for session-bound runs. Then `./scripts/sync-session.sh <codename>`.

@@ -9,7 +9,8 @@ repos: {}
 
 # Optional: agent guideline doc pointers (read with .cursor/rules/agent-guidelines.mdc)
 # guidelines:
-#   project: docs/PROJECT.md              # hub-relative
+#   project: docs/PROJECT.md              # hub-relative (canonical)
+#   doc: docs/PROJECT.md                  # alias for project
 #   worktree: CONTRIBUTING.md             # relative to primary worktree root
 
 # Example (one repo — direct push to origin):

@@ -379,15 +379,14 @@ def format_worktree_section(root: Path, codename: str, session: dict) -> str:
 
 def format_guidelines_section(root: Path, codename: str, session: dict) -> str:
     """Agent guideline pointers for session context (template + optional project/worktree docs)."""
-    from repos import _path_under_root, load_guidelines
+    from repos import _path_under_root, load_guidelines, project_guideline_rel
 
     lines = ["\n## Guidelines\n", "- Template: `.cursor/rules/agent-guidelines.mdc`"]
     guidelines = load_guidelines(root)
-    project_rel = guidelines.get("project") if guidelines.get("project") else "docs/PROJECT.md"
-    if isinstance(project_rel, str):
-        project_path = _path_under_root(root, project_rel)
-        if project_path and project_path.is_file():
-            lines.append(f"- Project: `{project_rel}`")
+    project_rel = project_guideline_rel(guidelines)
+    project_path = _path_under_root(root, project_rel)
+    if project_path and project_path.is_file():
+        lines.append(f"- Project: `{project_rel}`")
     worktree_rel = guidelines.get("worktree")
     if isinstance(worktree_rel, str) and worktree_rel.strip():
         wt = primary_worktree(root, codename, session)

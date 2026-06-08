@@ -58,6 +58,15 @@ def _path_under_root(root: Path, rel: str) -> Path | None:
     return candidate
 
 
+def project_guideline_rel(guidelines: dict) -> str:
+    """Hub-relative project guidelines path from repos.yaml (project canonical; doc alias)."""
+    for key in ("project", "doc"):
+        val = guidelines.get(key)
+        if isinstance(val, str) and val.strip():
+            return val.strip()
+    return "docs/PROJECT.md"
+
+
 def repo_base(root: Path, cfg: dict) -> Path:
     path = cfg.get("path", ".")
     root = root.resolve()

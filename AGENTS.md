@@ -66,7 +66,7 @@ Two levels — read together:
 | Level | Source |
 |-------|--------|
 | **Template** | `.cursor/rules/agent-guidelines.mdc` — docs sync + test minimum (always on) |
-| **Hub PRs** | `.cursor/rules/hub-contributing.mdc` when `session.json` `"mode": "hub"` |
+| **Hub PRs** | `.cursor/rules/hub-contributing.mdc` — always injected (`alwaysApply: true`); follow only when `session.json` `"mode": "hub"` |
 | **Project** | `docs/PROJECT.md` — copy from [docs/PROJECT.md.example](docs/PROJECT.md.example) and fill stack, doc map, test commands |
 
 Session context lists which guideline files exist on bind. Optional `guidelines:` in `repos.yaml` — see [docs/REPOS.md](docs/REPOS.md).

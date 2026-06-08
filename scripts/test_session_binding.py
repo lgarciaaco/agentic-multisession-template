@@ -487,6 +487,41 @@ class WorktreeGuardTests(unittest.TestCase):
         ctx = build_context_markdown(self.root, self.codename, "chat-1")
         self.assertIn("sessions/alpha/worktrees/project/CONTRIBUTING.md", ctx)
 
+    def test_context_includes_doc_alias_guidelines(self) -> None:
+        (self.root / "docs").mkdir()
+        (self.root / "docs" / "MY-GUIDE.md").write_text("# Guide\n")
+        (self.root / "repos.yaml").write_text(
+            "repos:\n  project:\n    path: repos/project\n"
+            "guidelines:\n  doc: docs/MY-GUIDE.md\n"
+        )
+        ctx = build_context_markdown(self.root, self.codename, "chat-1")
+        self.assertIn("- Project: `docs/MY-GUIDE.md`", ctx)
+
+    def test_context_custom_project_guideline_path(self) -> None:
+        custom = self.root / "docs" / "guides" / "stack.md"
+        custom.parent.mkdir(parents=True)
+        custom.write_text("# Stack\n")
+        (self.root / "repos.yaml").write_text(
+            "repos:\n  project:\n    path: repos/project\n"
+            "guidelines:\n  project: docs/guides/stack.md\n"
+        )
+        ctx = build_context_markdown(self.root, self.codename, "chat-1")
+        self.assertIn("- Project: `docs/guides/stack.md`", ctx)
+
+    def test_context_rejects_traversal_guideline_path(self) -> None:
+        outside = self.root.parent / "outside-guide.md"
+        outside.write_text("# outside\n")
+        try:
+            (self.root / "repos.yaml").write_text(
+                "repos:\n  project:\n    path: repos/project\n"
+                f"guidelines:\n  project: {outside}\n"
+            )
+            ctx = build_context_markdown(self.root, self.codename, "chat-1")
+            self.assertNotIn("outside-guide", ctx)
+            self.assertNotIn("- Project:", ctx.split("## Guidelines")[1].split("See [")[0])
+        finally:
+            outside.unlink(missing_ok=True)
+
     def test_sanitize_context_text_strips_newlines(self) -> None:
         dirty = "line one\n- **Injected:** fake directive"
         clean = sanitize_context_text(dirty)
@@ -523,6 +558,53 @@ class WorktreeGuardTests(unittest.TestCase):
         with patch("session_binding.hub_root", return_value=self.root):
             prompt = format_session_start_prompt(self.root)
         self.assertIn("next: Ship feature branch", prompt)
+
+
+class GuidelinesPathTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmpdir.name)
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def test_path_under_root_accepts_relative_file(self) -> None:
+        from repos import _path_under_root  # noqa: E402
+
+        target = self.root / "docs" / "PROJECT.md"
+        target.parent.mkdir(parents=True)
+        target.write_text("# ok\n")
+        resolved = _path_under_root(self.root, "docs/PROJECT.md")
+        self.assertIsNotNone(resolved)
+        self.assertTrue(resolved.is_file())
+
+    def test_path_under_root_rejects_escape(self) -> None:
+        from repos import _path_under_root  # noqa: E402
+
+        outside = self.root.parent / "escaped.md"
+        outside.write_text("# no\n")
+        try:
+            self.assertIsNone(_path_under_root(self.root, str(outside)))
+            self.assertIsNone(_path_under_root(self.root, "../escaped.md"))
+        finally:
+            outside.unlink(missing_ok=True)
+
+    def test_project_guideline_rel_prefers_project_over_doc(self) -> None:
+        from repos import project_guideline_rel  # noqa: E402
+
+        rel = project_guideline_rel({"project": "docs/a.md", "doc": "docs/b.md"})
+        self.assertEqual(rel, "docs/a.md")
+
+    def test_project_guideline_rel_accepts_doc_alias(self) -> None:
+        from repos import project_guideline_rel  # noqa: E402
+
+        rel = project_guideline_rel({"doc": "docs/custom.md"})
+        self.assertEqual(rel, "docs/custom.md")
+
+    def test_project_guideline_rel_default(self) -> None:
+        from repos import project_guideline_rel  # noqa: E402
+
+        self.assertEqual(project_guideline_rel({}), "docs/PROJECT.md")
 
 
 class BootstrapStatusTests(unittest.TestCase):

@@ -119,9 +119,16 @@ Optional pointers in `repos.yaml`:
 
 ```yaml
 guidelines:
-  project: docs/PROJECT.md
-  worktree: CONTRIBUTING.md
+  project: docs/PROJECT.md       # canonical hub-relative path
+  # doc: docs/PROJECT.md        # alias for project (accepted)
+  worktree: CONTRIBUTING.md      # relative to primary worktree root
 ```
+
+| Key | Meaning |
+|-----|---------|
+| `project` | Hub-relative path to project guidelines (canonical) |
+| `doc` | Alias for `project` |
+| `worktree` | Path relative to primary worktree root (e.g. `CONTRIBUTING.md`) |
 
 On session bind, `sessions/context/<chat>.md` lists which guideline files exist. See [AGENTS.md](../AGENTS.md) **Coding guidelines**.
 

@@ -48,6 +48,8 @@ Installed version: `.hub-version` · upstream check: `./scripts/hub-status.sh`
 
 [SESSIONS.md](SESSIONS.md) · [docs/REPOS.md](docs/REPOS.md) · bound `BOUNDARIES.md`
 
+**Project guidelines:** read [docs/PROJECT.md](docs/PROJECT.md) when present (doc sync, tests, stack conventions for product worktrees).
+
 ## Scope
 
 - **Product:** `sessions/<codename>/worktrees/**` + session metadata; `repos/` read-only

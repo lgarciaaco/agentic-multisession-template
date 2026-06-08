@@ -22,6 +22,8 @@ repos/*
 !repos/.gitkeep
 
 repos.yaml
+docs/PROJECT.md
+*.code-workspace
 
 # Local env / tooling
 .env

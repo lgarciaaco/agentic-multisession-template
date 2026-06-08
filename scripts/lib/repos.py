@@ -20,13 +20,18 @@ def repos_yaml_path(root: Path | None = None) -> Path:
     return root / "repos.yaml"
 
 
-def load_repos(root: Path | None = None) -> dict:
+def load_hub_config(root: Path | None = None) -> dict:
     path = repos_yaml_path(root)
     if not path.exists():
         example = path.parent / "repos.yaml.example"
         hint = f" Copy {example.name} to repos.yaml." if example.exists() else ""
         raise FileNotFoundError(f"Missing {path}.{hint}")
     data = yaml.safe_load(path.read_text()) or {}
+    return data if isinstance(data, dict) else {}
+
+
+def load_repos(root: Path | None = None) -> dict:
+    data = load_hub_config(root)
     repos = data.get("repos")
     return repos if isinstance(repos, dict) else {}
 

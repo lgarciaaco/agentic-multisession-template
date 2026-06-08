@@ -2,21 +2,31 @@
 # Agent: copy to repos.yaml and fill from user input (alias, clone URL, default_branch).
 # Empty registry is valid — agent should ask the user before product work.
 
+# Optional: GitHub fork workflow (fetch upstream org, push to your fork).
+# github_fork_user: YOUR_GITHUB_USER
+
 repos: {}
 
-# Example (one repo):
+# Example (one repo — direct push to origin):
 # repos:
 #   project:
 #     path: repos/project
 #     clone: git@github.com:YOU/PROJECT.git
 #     default_branch: main
 #
-# Example (several repos):
-#   api-service:
-#     path: repos/api-service
-#     clone: git@github.com:YOU/api-service.git
+# Example (GitHub org upstream + personal fork):
+#   upstream-app:
+#     path: repos/upstream-app
+#     clone: git@github.com:ORG/upstream-app.git
+#     remote: github
+#     name: upstream-app
 #     default_branch: main
-#   web-ui:
-#     path: repos/web-ui
-#     clone: git@github.com:YOU/web-ui.git
+#   # fork URL derived as git@github.com:YOUR_GITHUB_USER/upstream-app.git
+#   # or set fork: git@github.com:YOU/upstream-app.git explicitly
+#
+# Example (GitLab — push origin, no fork):
+#   gitlab-service:
+#     path: repos/gitlab-service
+#     clone: git@gitlab.com:GROUP/service.git
+#     remote: gitlab
 #     default_branch: main

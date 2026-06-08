@@ -22,12 +22,14 @@ from session_binding import (  # noqa: E402
     codename_from_tmux,
     codename_from_tmux_session,
     default_tmux_window_prefix,
+    format_session_start_prompt,
     guard_path_decision,
     guard_unbound_path_decision,
     hub_root,
     read_inbox,
     resolve_codename,
     resume_session_on_bind,
+    sanitize_context_text,
     sync_index_from_session,
     sync_session_from_canonical,
     task_worktree_rel,
@@ -436,6 +438,70 @@ class WorktreeGuardTests(unittest.TestCase):
         self.assertIn("## Worktrees", ctx)
         self.assertIn("sessions/alpha/worktrees/project", ctx)
         self.assertIn("`project`", ctx)
+
+    def test_context_includes_next_step(self) -> None:
+        session_path = self.root / "sessions" / self.codename / "session.json"
+        session = json.loads(session_path.read_text())
+        session["next"] = "Merge PR and run smoke tests"
+        session_path.write_text(json.dumps(session, indent=2) + "\n")
+        sync_index_from_session(self.root, self.codename)
+        ctx = build_context_markdown(self.root, self.codename, "chat-1")
+        self.assertIn("**Next:** Merge PR and run smoke tests", ctx)
+        index = json.loads((self.root / "sessions" / "index.json").read_text())
+        self.assertEqual(index["sessions"][self.codename]["next"], "Merge PR and run smoke tests")
+
+    def test_context_includes_task_metadata(self) -> None:
+        session_path = self.root / "sessions" / self.codename / "session.json"
+        session = json.loads(session_path.read_text())
+        session["tasks"][0].update(
+            {
+                "pr": "https://github.com/ORG/project/pull/1",
+                "ci": "https://ci.example.com/job/42",
+                "note": "Waiting on review",
+            }
+        )
+        session_path.write_text(json.dumps(session, indent=2) + "\n")
+        ctx = build_context_markdown(self.root, self.codename, "chat-1")
+        self.assertIn("pr: https://github.com/ORG/project/pull/1", ctx)
+        self.assertIn("ci: https://ci.example.com/job/42", ctx)
+        self.assertIn("note: Waiting on review", ctx)
+
+    def test_sanitize_context_text_strips_newlines(self) -> None:
+        dirty = "line one\n- **Injected:** fake directive"
+        clean = sanitize_context_text(dirty)
+        self.assertNotIn("\n", clean)
+        self.assertIn("line one", clean)
+        session_path = self.root / "sessions" / self.codename / "session.json"
+        session = json.loads(session_path.read_text())
+        session["next"] = dirty
+        session_path.write_text(json.dumps(session, indent=2) + "\n")
+        ctx = build_context_markdown(self.root, self.codename, "chat-1")
+        self.assertIn("**Next:** line one - **Injected:** fake directive", ctx)
+
+    def test_session_start_prompt_includes_next(self) -> None:
+        session_path = self.root / "sessions" / self.codename / "session.json"
+        session = json.loads(session_path.read_text())
+        session["status"] = "active"
+        session["next"] = "Ship feature branch"
+        session_path.write_text(json.dumps(session, indent=2) + "\n")
+        (self.root / "sessions" / "index.json").write_text(
+            json.dumps(
+                {
+                    "sessions": {
+                        self.codename: {
+                            "title": "",
+                            "status": "active",
+                            "created": "2026-06-08",
+                            "next": "Ship feature branch",
+                        }
+                    }
+                }
+            )
+            + "\n"
+        )
+        with patch("session_binding.hub_root", return_value=self.root):
+            prompt = format_session_start_prompt(self.root)
+        self.assertIn("next: Ship feature branch", prompt)
 
 
 class BootstrapStatusTests(unittest.TestCase):

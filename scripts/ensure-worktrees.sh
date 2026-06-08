@@ -28,6 +28,7 @@ from pathlib import Path
 
 root = Path(os.environ["WORKSPACE_ROOT"])
 sys.path.insert(0, str(root / "scripts" / "lib"))
+from git_remotes import configure_repo_remotes, default_fork_user_from_yaml
 from hub_git import resolve_worktree_start_ref
 from repos import load_repos, repo_base
 from session_binding import validate_codename
@@ -51,6 +52,7 @@ except FileNotFoundError as exc:
 
 session = json.loads(session_path.read_text())
 tasks = session.get("tasks", [])
+fork_user = default_fork_user_from_yaml(root)
 
 if not tasks:
     print("No tasks in session.json — add tasks first.")
@@ -80,6 +82,7 @@ for task in tasks:
 
     if wt_dest.exists():
         print(f"[skip] worktree exists: {wt_dest}")
+        configure_repo_remotes(wt_dest, cfg, default_fork_user=fork_user)
         continue
 
     wt_dest.parent.mkdir(parents=True, exist_ok=True)
@@ -98,6 +101,7 @@ for task in tasks:
     label = branch or base_branch
     print(f"[add] {alias} -> {wt_dest} (branch: {label}, base: {start_ref} @ {base_sha})")
     subprocess.run(cmd, check=True)
+    configure_repo_remotes(wt_dest, cfg, default_fork_user=fork_user)
 
 session_path.write_text(json.dumps(session, indent=2) + "\n")
 print("Done.")

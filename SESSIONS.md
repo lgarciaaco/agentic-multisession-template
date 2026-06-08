@@ -50,6 +50,20 @@ Project launcher (see `.hub-launcher`) shows the interactive picker by default. 
 
 New directory from `sessions/_template/` (`tasks: []` + `worktrees/`), codename marked used in local `_codenames.yaml`.
 
+**Codename pools** (`sessions/_codenames.yaml`, gitignored):
+
+| Field | Purpose |
+|-------|---------|
+| `active_pool` | Which named pool to auto-pick from (default: `default`) |
+| `pools.<name>` | List of codenames for that theme (e.g. NATO `default`, example `bg3`) |
+| `used` | Codenames already assigned (never reused for auto-pick) |
+
+When the active pool is exhausted, `new-session.sh` **auto-expands** it with the next NATO names (`india`, `juliet`, …) and persists the longer list. Explicit names still work: `./scripts/new-session.sh my-custom-name`.
+
+New sessions default **`title`** to the codename (shown in the picker). The interactive launcher prompts `Session title [codename]>` so you can set a topic; `./scripts/new-session.sh [codename] [title]` works non-interactively.
+
+Set `active_pool: bg3` (or add your own pool under `pools:`) before the first session, or edit local `_codenames.yaml` anytime. See [`sessions/_codenames.example.yaml`](sessions/_codenames.example.yaml).
+
 ### Edit scope / tasks
 
 Update **`session.json`** and **`TASKS.md`**, then:
@@ -113,7 +127,7 @@ Canonical status lives in `session.json`. Run `sync-session.sh` if local `index.
 | `./scripts/end-session.sh [name]` | Close work + unbind this chat |
 | `./scripts/list-active-sessions.sh` | Table of open sessions |
 | `./scripts/prompt-session-start.sh` | Agent-facing picker text |
-| `./scripts/new-session.sh [name]` | Create new codename directory |
+| `./scripts/new-session.sh [name] [title]` | Create new codename directory |
 | `./scripts/rename-tmux-session.sh [name]` | Rename tmux window |
 | `./scripts/session-inbox.sh write/read` | Cross-session messages |
 

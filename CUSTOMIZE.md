@@ -33,7 +33,7 @@ Run from the **new project root** (not the template repo path unless that is the
 | Launcher name | `WORKSPACE_AGENT_LAUNCHER=my-agent ./scripts/install-workspace-agent.sh` | `<first-segment>-agent` (e.g. `my-app` → `my-agent`; long slug `agentic-multisession-template` → `agentic-agent` — override if undesired) |
 | GitHub fork workflow | `github_fork_user` + `remote: github` in `repos.yaml`; `./scripts/configure-git-remotes.sh` | Push to `origin` on your own repos |
 | Editor workspace | `./scripts/generate-workspace.sh` | Open hub + `repos/*` as multi-root in Cursor/VS Code |
-| Codename pool | Edit `sessions/_codenames.example.yaml` before first `new-session.sh`, or local `_codenames.yaml` after | NATO `alpha`…`hotel` |
+| Codename pool | Edit `sessions/_codenames.example.yaml` before first `new-session.sh`, or local `_codenames.yaml` after. Set `active_pool` to a theme (e.g. `bg3`); pools auto-expand with NATO overflow when exhausted | NATO `alpha`…`hotel` in `default` pool |
 | Session template | `sessions/_template/` | New sessions start with `tasks: []` until agent adds tasks + repos |
 | Domain skills | Add `.cursor/skills/<name>/SKILL.md`, register in `.cursor/skills/README.md` | See `.cursor/skills/README.md` (bootstrap, orchestrator, hub-upgrade, code-reviewer, session-end) |
 | Domain rules | Add `.cursor/rules/*.mdc` | session-binding + orchestrator + session-boundary + agent-guidelines |

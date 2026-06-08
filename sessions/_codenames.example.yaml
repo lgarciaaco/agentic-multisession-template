@@ -1,3 +1,5 @@
+active_pool: default
+
 pools:
   default:
   - alpha
@@ -8,4 +10,13 @@ pools:
   - foxtrot
   - golf
   - hotel
+  bg3:
+  - astarion
+  - shadowheart
+  - laezel
+  - gale
+  - karlach
+  - wyll
+  - jaheira
+  - minthara
 used: []

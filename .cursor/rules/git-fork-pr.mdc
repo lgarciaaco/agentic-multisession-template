@@ -1,0 +1,39 @@
+---
+description: Git push and PR rules when repos.yaml uses GitHub fork workflow (github_fork_user or fork URL)
+alwaysApply: true
+---
+
+# Git push and pull requests (fork workflow)
+
+When `repos.yaml` sets **`github_fork_user`** (or a repo entry has **`fork`**) and **`remote: github`**:
+
+- Read [repos.yaml](../../repos.yaml) and run `./scripts/configure-git-remotes.sh` after clone/worktree if remotes look wrong.
+- **`origin`** = upstream org repo (fetch). Do **not** `git push origin` for feature branches.
+- **`fork`** = your GitHub fork — **only** remote for pushes (`remote.pushDefault` should be `fork`).
+- Worktrees under `sessions/<codename>/worktrees/**` must have remotes configured (see `scripts/lib/git_remotes.py`).
+
+When fork workflow is **not** configured (no `github_fork_user`, no `fork` URL), push to **`origin`** as usual.
+
+## Pull requests (GitHub fork workflow)
+
+1. Push: `git push -u fork HEAD` (or `git push -u fork <branch>`).
+2. Create PR with head **`{github_fork_user}:<branch>`** (or the configured fork user).
+3. Never push a feature branch to upstream `origin` on org repos.
+
+## GitLab / direct-push repos
+
+Set `remote: gitlab` (or omit fork fields). Push to **`origin`** per normal GitLab MR workflow.
+
+## Preflight before push/PR
+
+```bash
+git remote -v
+git config --get remote.pushDefault   # GitHub fork worktrees: must be "fork"
+```
+
+If `fork` is missing on a GitHub fork worktree, from hub root:
+
+```bash
+./scripts/configure-git-remotes.sh <repo-alias>
+./scripts/ensure-worktrees.sh <codename>
+```

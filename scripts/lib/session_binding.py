@@ -41,6 +41,17 @@ def validate_codename(codename: str) -> str:
     return name
 
 
+def sanitize_context_text(value: str, *, max_len: int = 500) -> str:
+    """Single-line safe text for injected session context (no newlines or markdown breaks)."""
+    if value is None:
+        return ""
+    text = str(value).replace("\r", " ").replace("\n", " ").strip()
+    text = " ".join(text.split())
+    if len(text) > max_len:
+        return text[: max_len - 1] + "…"
+    return text
+
+
 def hub_root() -> Path:
     env = os.environ.get("WORKSPACE_ROOT", "").strip()
     if env:
@@ -229,6 +240,11 @@ def sync_index_from_session(root: Path, codename: str, session: dict | None = No
             "created": session.get("created") or entry.get("created", date.today().isoformat()),
         }
     )
+    next_step = (session.get("next") or "").strip()
+    if next_step:
+        entry["next"] = next_step
+    else:
+        entry.pop("next", None)
     for key in ("ended", "paused_at"):
         entry.pop(key, None)
     index["sessions"][codename] = entry
@@ -347,9 +363,41 @@ def format_worktree_section(root: Path, codename: str, session: dict) -> str:
         exists = (root / rel).is_dir()
         state = "ready" if exists else "run `./scripts/ensure-worktrees.sh " + codename + "`"
         repo = task.get("repo") or "—"
+        meta_parts: list[str] = []
+        if task.get("pr"):
+            meta_parts.append(f"pr: {sanitize_context_text(task['pr'], max_len=200)}")
+        if task.get("ci"):
+            meta_parts.append(f"ci: {sanitize_context_text(task['ci'], max_len=200)}")
+        if task.get("note"):
+            meta_parts.append(f"note: {sanitize_context_text(task['note'], max_len=300)}")
+        meta = f" — {' | '.join(meta_parts)}" if meta_parts else ""
         lines.append(
-            f"- **`{task.get('id', 'main')}`** (`{repo}`) — `{rel}` (branch `{branch}`) — {state}"
+            f"- **`{task.get('id', 'main')}`** (`{repo}`) — `{rel}` (branch `{branch}`) — {state}{meta}"
         )
+    return "\n".join(lines) + "\n"
+
+
+def format_guidelines_section(root: Path, codename: str, session: dict) -> str:
+    """Agent guideline pointers for session context (template + optional project/worktree docs)."""
+    from repos import _path_under_root, load_guidelines, project_guideline_rel
+
+    lines = ["\n## Guidelines\n", "- Template: `.cursor/rules/agent-guidelines.mdc`"]
+    guidelines = load_guidelines(root)
+    project_rel = project_guideline_rel(guidelines)
+    project_path = _path_under_root(root, project_rel)
+    if project_path and project_path.is_file():
+        lines.append(f"- Project: `{project_rel}`")
+    worktree_rel = guidelines.get("worktree")
+    if isinstance(worktree_rel, str) and worktree_rel.strip():
+        wt = primary_worktree(root, codename, session)
+        if wt:
+            contrib = (wt / worktree_rel).resolve()
+            try:
+                contrib.relative_to(wt.resolve())
+                if contrib.is_file():
+                    lines.append(f"- Worktree: `{contrib.relative_to(root.resolve())}`")
+            except ValueError:
+                pass
     return "\n".join(lines) + "\n"
 
 
@@ -529,14 +577,19 @@ def build_context_markdown(root: Path, codename: str, chat_id: str) -> str:
     goal = _tasks_goal_line(session_dir)
     tasks = session.get("tasks") or []
     running = [t.get("id") for t in tasks if t.get("status") in ("in_progress", "running", "draft")]
-    title = session.get("title") or "(no title)"
+    title = sanitize_context_text(session.get("title") or "(no title)", max_len=200) or "(no title)"
 
     progress_note = ""
     progress_path = session_dir / "progress.json"
     if progress_path.exists():
         progress = json.loads(progress_path.read_text())
         if progress.get("handoff_note"):
-            progress_note = f"\n- **Handoff:** {progress['handoff_note']}"
+            handoff = sanitize_context_text(progress["handoff_note"], max_len=500)
+            if handoff:
+                progress_note = f"\n- **Handoff:** {handoff}"
+
+    next_step = sanitize_context_text(session.get("next") or "", max_len=500)
+    next_line = f"- **Next:** {next_step}\n" if next_step else ""
 
     inbox_section = format_inbox_section(root, codename)
     worktree_section = format_worktree_section(root, codename, session)
@@ -556,11 +609,12 @@ def build_context_markdown(root: Path, codename: str, chat_id: str) -> str:
 - **Conversation:** `{chat_id}`
 - **Title:** {title}
 {mode_line}- **Status:** {session.get("status", "draft")}
-- **Tasks in flight:** {tasks_line}
+{next_line}- **Tasks in flight:** {tasks_line}
 - **Writable:** {writable}{worktree_note}
 {progress_note}
 {worktree_section}{inbox_section}
 {goal}
+{format_guidelines_section(root, codename, session)}
 
 See [SESSIONS.md](../../SESSIONS.md), [docs/REPOS.md](../../docs/REPOS.md), `sessions/{codename}/BOUNDARIES.md`, `session.json`, `repos.yaml`.
 """
@@ -846,6 +900,7 @@ def list_active_sessions(root: Path | None = None) -> list[dict]:
                 "title": session_json.get("title") or index_entry.get("title") or "",
                 "status": session_json.get("status") or index_entry.get("status") or "draft",
                 "created": session_json.get("created") or index_entry.get("created") or "",
+                "next": (session_json.get("next") or index_entry.get("next") or "").strip(),
                 "bound_chats": len(bindings),
                 "bound_this_chat": bound_here,
                 "bound_this_tmux": bound_tmux,
@@ -1024,7 +1079,7 @@ def format_session_start_prompt(root: Path | None = None) -> str:
         lines.append("**Open sessions:**")
         lines.append("")
         for i, s in enumerate(sessions, 1):
-            title = s["title"] or "(no title)"
+            title = sanitize_context_text(s["title"] or "(no title)", max_len=80) or "(no title)"
             bind_note = " *(bound to this chat)*" if s["bound_this_chat"] else ""
             if s["bound_this_tmux"] and not s["bound_this_chat"]:
                 bind_note = " *(this tmux tab)*"
@@ -1035,9 +1090,13 @@ def format_session_start_prompt(root: Path | None = None) -> str:
             tasks = ""
             if s["tasks_in_progress"]:
                 tasks = f" — tasks: {', '.join(s['tasks_in_progress'])}"
+            next_note = ""
+            next_text = sanitize_context_text(s.get("next") or "", max_len=80)
+            if next_text:
+                next_note = f" — next: {next_text}"
             lines.append(
                 f"{i}. **`{s['codename']}`** — {title} [{s['status']}] "
-                f"(created {s['created']}){bind_note}{tasks}"
+                f"(created {s['created']}){bind_note}{tasks}{next_note}"
             )
         lines.extend(
             [

@@ -1,6 +1,9 @@
 # immo-investor — project guidelines
 
-Agent entry for **product** work in this hub. Read together with [AGENTS.md](../AGENTS.md) (sessions, scope, git) and the bound session's `BOUNDARIES.md`.
+Project-specific guidelines for **product** work in this hub. Read together with:
+
+- **Level 1 (template):** [`.cursor/rules/agent-guidelines.mdc`](../.cursor/rules/agent-guidelines.mdc) — docs sync + test minimum
+- **Hub workflow:** [AGENTS.md](../AGENTS.md) (sessions, scope, git) and the bound session's `BOUNDARIES.md`
 
 **Canonical code path:** `sessions/<codename>/worktrees/immo/` — not `repos/immo/` (reference clone, read-only).
 
@@ -70,8 +73,8 @@ Package layout:
 apps/api, apps/web     stubs until M2/M4 — follow docs/ARCHITECTURE.md when implementing
 packages/db            Prisma schema + client
 packages/domain        screening math + vitest
-workers/ingest         M1 active
-workers/screening      M3
+workers/ingest         stub / M1 in progress (IS24 buy + rent ingest)
+workers/screening      M3 (planned)
 docker/                Postgres dev only (127.0.0.1:5432)
 ```
 

@@ -1,0 +1,21 @@
+---
+description: Hub-mode PR checklist when session.json mode is hub
+alwaysApply: true
+---
+
+# Hub contributing (template skeleton only)
+
+When **`session.json`** has `"mode": "hub"`, also follow [CONTRIBUTING.md](../../CONTRIBUTING.md):
+
+- Keep examples generic (`my-app`, `my-agent`) — no real project or domain names
+- Scope: session binding, repos registry, worktrees, hooks, docs, install — not domain features
+- Before opening a hub PR, run:
+
+```bash
+python3 scripts/test_session_binding.py
+python3 scripts/test_git_remotes.py
+python3 scripts/test_hub_upgrade.py
+```
+
+- Open from a feature branch; wait for CI (`test` workflow)
+- **Do not** use `gh pr merge --auto` or merge unless the maintainer explicitly asks

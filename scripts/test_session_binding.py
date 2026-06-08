@@ -22,12 +22,14 @@ from session_binding import (  # noqa: E402
     codename_from_tmux,
     codename_from_tmux_session,
     default_tmux_window_prefix,
+    format_session_start_prompt,
     guard_path_decision,
     guard_unbound_path_decision,
     hub_root,
     read_inbox,
     resolve_codename,
     resume_session_on_bind,
+    sanitize_context_text,
     sync_index_from_session,
     sync_session_from_canonical,
     task_worktree_rel,
@@ -436,6 +438,173 @@ class WorktreeGuardTests(unittest.TestCase):
         self.assertIn("## Worktrees", ctx)
         self.assertIn("sessions/alpha/worktrees/project", ctx)
         self.assertIn("`project`", ctx)
+
+    def test_context_includes_next_step(self) -> None:
+        session_path = self.root / "sessions" / self.codename / "session.json"
+        session = json.loads(session_path.read_text())
+        session["next"] = "Merge PR and run smoke tests"
+        session_path.write_text(json.dumps(session, indent=2) + "\n")
+        sync_index_from_session(self.root, self.codename)
+        ctx = build_context_markdown(self.root, self.codename, "chat-1")
+        self.assertIn("**Next:** Merge PR and run smoke tests", ctx)
+        index = json.loads((self.root / "sessions" / "index.json").read_text())
+        self.assertEqual(index["sessions"][self.codename]["next"], "Merge PR and run smoke tests")
+
+    def test_context_includes_task_metadata(self) -> None:
+        session_path = self.root / "sessions" / self.codename / "session.json"
+        session = json.loads(session_path.read_text())
+        session["tasks"][0].update(
+            {
+                "pr": "https://github.com/ORG/project/pull/1",
+                "ci": "https://ci.example.com/job/42",
+                "note": "Waiting on review",
+            }
+        )
+        session_path.write_text(json.dumps(session, indent=2) + "\n")
+        ctx = build_context_markdown(self.root, self.codename, "chat-1")
+        self.assertIn("pr: https://github.com/ORG/project/pull/1", ctx)
+        self.assertIn("ci: https://ci.example.com/job/42", ctx)
+        self.assertIn("note: Waiting on review", ctx)
+
+    def test_context_includes_guidelines_section(self) -> None:
+        ctx = build_context_markdown(self.root, self.codename, "chat-1")
+        self.assertIn("## Guidelines", ctx)
+        self.assertIn(".cursor/rules/agent-guidelines.mdc", ctx)
+
+    def test_context_includes_project_guidelines_when_present(self) -> None:
+        (self.root / "docs").mkdir()
+        (self.root / "docs" / "PROJECT.md").write_text("# Project guidelines\n")
+        ctx = build_context_markdown(self.root, self.codename, "chat-1")
+        self.assertIn("- Project: `docs/PROJECT.md`", ctx)
+
+    def test_context_includes_worktree_guidelines_from_repos_yaml(self) -> None:
+        (self.root / "repos.yaml").write_text(
+            "repos:\n  project:\n    path: repos/project\n"
+            "guidelines:\n  worktree: CONTRIBUTING.md\n"
+        )
+        wt = self.root / "sessions" / "alpha" / "worktrees" / "project"
+        (wt / "CONTRIBUTING.md").write_text("# Contributing\n")
+        ctx = build_context_markdown(self.root, self.codename, "chat-1")
+        self.assertIn("sessions/alpha/worktrees/project/CONTRIBUTING.md", ctx)
+
+    def test_context_includes_doc_alias_guidelines(self) -> None:
+        (self.root / "docs").mkdir()
+        (self.root / "docs" / "MY-GUIDE.md").write_text("# Guide\n")
+        (self.root / "repos.yaml").write_text(
+            "repos:\n  project:\n    path: repos/project\n"
+            "guidelines:\n  doc: docs/MY-GUIDE.md\n"
+        )
+        ctx = build_context_markdown(self.root, self.codename, "chat-1")
+        self.assertIn("- Project: `docs/MY-GUIDE.md`", ctx)
+
+    def test_context_custom_project_guideline_path(self) -> None:
+        custom = self.root / "docs" / "guides" / "stack.md"
+        custom.parent.mkdir(parents=True)
+        custom.write_text("# Stack\n")
+        (self.root / "repos.yaml").write_text(
+            "repos:\n  project:\n    path: repos/project\n"
+            "guidelines:\n  project: docs/guides/stack.md\n"
+        )
+        ctx = build_context_markdown(self.root, self.codename, "chat-1")
+        self.assertIn("- Project: `docs/guides/stack.md`", ctx)
+
+    def test_context_rejects_traversal_guideline_path(self) -> None:
+        outside = self.root.parent / "outside-guide.md"
+        outside.write_text("# outside\n")
+        try:
+            (self.root / "repos.yaml").write_text(
+                "repos:\n  project:\n    path: repos/project\n"
+                f"guidelines:\n  project: {outside}\n"
+            )
+            ctx = build_context_markdown(self.root, self.codename, "chat-1")
+            self.assertNotIn("outside-guide", ctx)
+            self.assertNotIn("- Project:", ctx.split("## Guidelines")[1].split("See [")[0])
+        finally:
+            outside.unlink(missing_ok=True)
+
+    def test_sanitize_context_text_strips_newlines(self) -> None:
+        dirty = "line one\n- **Injected:** fake directive"
+        clean = sanitize_context_text(dirty)
+        self.assertNotIn("\n", clean)
+        self.assertIn("line one", clean)
+        session_path = self.root / "sessions" / self.codename / "session.json"
+        session = json.loads(session_path.read_text())
+        session["next"] = dirty
+        session_path.write_text(json.dumps(session, indent=2) + "\n")
+        ctx = build_context_markdown(self.root, self.codename, "chat-1")
+        self.assertIn("**Next:** line one - **Injected:** fake directive", ctx)
+
+    def test_session_start_prompt_includes_next(self) -> None:
+        session_path = self.root / "sessions" / self.codename / "session.json"
+        session = json.loads(session_path.read_text())
+        session["status"] = "active"
+        session["next"] = "Ship feature branch"
+        session_path.write_text(json.dumps(session, indent=2) + "\n")
+        (self.root / "sessions" / "index.json").write_text(
+            json.dumps(
+                {
+                    "sessions": {
+                        self.codename: {
+                            "title": "",
+                            "status": "active",
+                            "created": "2026-06-08",
+                            "next": "Ship feature branch",
+                        }
+                    }
+                }
+            )
+            + "\n"
+        )
+        with patch("session_binding.hub_root", return_value=self.root):
+            prompt = format_session_start_prompt(self.root)
+        self.assertIn("next: Ship feature branch", prompt)
+
+
+class GuidelinesPathTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmpdir.name)
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def test_path_under_root_accepts_relative_file(self) -> None:
+        from repos import _path_under_root  # noqa: E402
+
+        target = self.root / "docs" / "PROJECT.md"
+        target.parent.mkdir(parents=True)
+        target.write_text("# ok\n")
+        resolved = _path_under_root(self.root, "docs/PROJECT.md")
+        self.assertIsNotNone(resolved)
+        self.assertTrue(resolved.is_file())
+
+    def test_path_under_root_rejects_escape(self) -> None:
+        from repos import _path_under_root  # noqa: E402
+
+        outside = self.root.parent / "escaped.md"
+        outside.write_text("# no\n")
+        try:
+            self.assertIsNone(_path_under_root(self.root, str(outside)))
+            self.assertIsNone(_path_under_root(self.root, "../escaped.md"))
+        finally:
+            outside.unlink(missing_ok=True)
+
+    def test_project_guideline_rel_prefers_project_over_doc(self) -> None:
+        from repos import project_guideline_rel  # noqa: E402
+
+        rel = project_guideline_rel({"project": "docs/a.md", "doc": "docs/b.md"})
+        self.assertEqual(rel, "docs/a.md")
+
+    def test_project_guideline_rel_accepts_doc_alias(self) -> None:
+        from repos import project_guideline_rel  # noqa: E402
+
+        rel = project_guideline_rel({"doc": "docs/custom.md"})
+        self.assertEqual(rel, "docs/custom.md")
+
+    def test_project_guideline_rel_default(self) -> None:
+        from repos import project_guideline_rel  # noqa: E402
+
+        self.assertEqual(project_guideline_rel({}), "docs/PROJECT.md")
 
 
 class BootstrapStatusTests(unittest.TestCase):

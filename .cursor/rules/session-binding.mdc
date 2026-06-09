@@ -19,10 +19,21 @@ Each Cursor composer chat has its own codename binding. There is no global `sess
    - **Stop** until they reply: an existing **codename** to continue, or **new** / **new session** for a fresh session.
    - Continue: `./scripts/bind-session.sh <codename>`
    - New: `./scripts/new-session.sh` → codename on stdout, then `./scripts/bind-session.sh <codename>`
-   - After editing `session.json` / scope: `./scripts/sync-session.sh <codename>`
+   - After editing `session.json` (tasks, status, etc.): `./scripts/sync-session.sh <codename>`
+   - Scope (title/goal/next): `./scripts/set-session-scope.sh <codename> …` — already syncs index and chat context
    - Manual tmux rename: `./scripts/rename-tmux-session.sh <codename>`
    - Do **not** call `new-session.sh` until the user confirms **new**.
 3. If `sessions/context/<conversation_id>.md` exists for this chat, read it for codename and goal.
+
+## Scope metadata (before product edits)
+
+When work intent is clear, set scope **before** session-scoped edits — do not wait for the user to ask:
+
+```bash
+./scripts/set-session-scope.sh <codename> --title "Short topic" --goal "What this session delivers"
+```
+
+Syncs `sessions/index.json` and bound chat context — no separate `sync-session.sh` needed for scope-only updates. Required when title is empty or still the codename, and there is no goal, `next`, or meaningful tasks yet. New sessions with known intent: `./scripts/new-session.sh "" "Title"` then bind.
 
 ## Rules
 

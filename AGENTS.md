@@ -28,9 +28,10 @@ Hub install if needed: `pip install -r scripts/requirements.txt` && `./scripts/i
 
 1. `./scripts/repos-status.sh` — if not `ready` and user wants **product** work, bootstrap repos first (ask if missing).
 2. `./scripts/resolve-session.sh` or picker → bind codename
-3. `session.json` tasks need `"repo": "<alias>"` matching `repos.yaml`; then `./scripts/ensure-worktrees.sh <codename>`
-4. Edit product in `sessions/<codename>/worktrees/<repo>/` only
-5. `./scripts/sync-session.sh <codename>` after metadata edits
+3. **Scope metadata** — when work intent is clear, run `./scripts/set-session-scope.sh <codename> --title "…" --goal "…"` before the first product edit (see [SESSIONS.md](SESSIONS.md))
+4. `session.json` tasks need `"repo": "<alias>"` matching `repos.yaml`; then `./scripts/ensure-worktrees.sh <codename>`
+5. Edit product in `sessions/<codename>/worktrees/<repo>/` only
+6. `./scripts/sync-session.sh <codename>` after other metadata edits
 
 Optional session fields in `session.json`: **`next`** (resume hint); per-task **`pr`**, **`ci`**, **`note`** (shown in chat context). See [docs/REPOS.md](docs/REPOS.md).
 

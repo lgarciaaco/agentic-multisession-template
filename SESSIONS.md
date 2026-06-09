@@ -64,6 +64,25 @@ New sessions default **`title`** to the codename (shown in the picker). The inte
 
 Set `active_pool: bg3` (or add your own pool under `pools:`) before the first session, or edit local `_codenames.yaml` anytime. See [`sessions/_codenames.example.yaml`](sessions/_codenames.example.yaml).
 
+### Scope metadata
+
+Agents record **what the session is for** as soon as work intent is clear — before product edits:
+
+```bash
+./scripts/set-session-scope.sh <codename> \
+  --title "Short picker title" \
+  --goal "One or two lines in TASKS.md ## Goal" \
+  --next "Optional resume hint"
+```
+
+| When | Action |
+|------|--------|
+| First bound turn with actionable work | Set title + goal (and `next` if useful) via `set-session-scope.sh` |
+| New session, intent known | `./scripts/new-session.sh "" "Title"` then bind; add goal if needed |
+| Task change or pause | Update title, goal, or `next`; run `./scripts/sync-session.sh` for other fields |
+
+The session-start hook nudges when scope is still thin (empty title, no goal, no `next`, no tasks). Binding backfills a missing title to the codename for legacy sessions; replace it with a real title on the first work turn.
+
 ### Edit scope / tasks
 
 Update **`session.json`** and **`TASKS.md`**, then:
@@ -123,6 +142,7 @@ Canonical status lives in `session.json`. Run `sync-session.sh` if local `index.
 | `./scripts/generate-workspace.sh [path]` | Write multi-root `.code-workspace` from `repos.yaml` |
 | `./scripts/ensure-worktrees.sh <name>` | Create git worktrees from `session.json` tasks |
 | `./scripts/sync-session.sh [name]` | Sync index/context from `session.json` |
+| `./scripts/set-session-scope.sh [name] --title T [--goal G] [--next N]` | Set title, TASKS.md goal, and/or `next` hint |
 | `./scripts/unbind-session.sh` | Clear binding only |
 | `./scripts/end-session.sh [name]` | Close work + unbind this chat |
 | `./scripts/list-active-sessions.sh` | Table of open sessions |
@@ -149,8 +169,9 @@ Tab 3: my-agent → pick bravo  →  separate branch + worktree
 
 1. **start work** / `/start-work` — orchestrator lists sessions, you pick codename or **new**
 2. Agent runs `./scripts/bind-session.sh <codename>`
-3. Hooks inject `sessions/context/<conversation_id>.md` on session start
-4. **end session** — skill runs `./scripts/end-session.sh` (not the before-prompt hook)
+3. When work intent is clear: `./scripts/set-session-scope.sh <codename> --title "…" --goal "…"` before product edits
+4. Hooks inject `sessions/context/<conversation_id>.md` on session start
+5. **end session** — skill runs `./scripts/end-session.sh` (not the before-prompt hook)
 
 Do **not** run bare `agent` in tmux — use the project launcher so hooks and session resolution run.
 
@@ -162,7 +183,7 @@ Session **A** leaves a note for session **B** without copy-paste between Cursor 
 
 | Action | Command |
 |--------|---------|
-| **Write** | `./scripts/session-inbox.sh write bravo alpha "your message"` |
+| **Write** | `./scripts/session-inbox.sh write <from> <to> "message"` (e.g. `write bravo alpha` → note in `alpha.md`) |
 | **Read** | `./scripts/session-inbox.sh read alpha` |
 | **Auto** | On bind, `sessions/_inbox/<codename>.md` is injected into `sessions/context/<chat>.md` |
 

@@ -15,6 +15,7 @@ from session_binding import (
     close_session_work,
     conversation_id,
     ensure_session,
+    format_session_scope_nudge,
     format_session_start_prompt,
     format_session_start_required,
     hub_root,
@@ -26,6 +27,9 @@ from session_binding import (
     rename_tmux_for_codename,
     resolve_codename,
     resolve_source_label,
+    session_scope_is_thin,
+    validate_active_codename,
+    set_session_scope,
     sync_session_from_canonical,
     tmux_window_label,
     unbind_session_context,
@@ -111,6 +115,37 @@ def cmd_list(args: argparse.Namespace) -> int:
 
 def cmd_ensure(args: argparse.Namespace) -> int:
     print(ensure_session(hub_root(), force_pick=not args.reuse))
+    return 0
+
+
+def cmd_scope(args: argparse.Namespace) -> int:
+    root = hub_root()
+    codename = args.codename
+    if codename:
+        codename = _require_codename(codename)
+    else:
+        codename, _ = resolve_codename(root)
+    if not codename:
+        print("Usage: scope <codename> [--title T] [--next T] [--goal T]", file=sys.stderr)
+        return 1
+    if args.title is None and args.next is None and args.goal is None:
+        print("Error: at least one of --title, --next, or --goal is required", file=sys.stderr)
+        return 1
+    validate_active_codename(root, codename)
+    try:
+        set_session_scope(
+            root,
+            codename,
+            title=args.title,
+            next_step=args.next,
+            goal=args.goal,
+            conversation_id=conversation_id(),
+        )
+    except (ValueError, FileNotFoundError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    print(codename)
+    print(f"Updated scope for sessions/{codename}/")
     return 0
 
 
@@ -202,6 +237,11 @@ def cmd_hook_session_start(_args: argparse.Namespace) -> int:
             f"Session `{codename}` resolved via {label}. "
             f"Tmux window: `{window}`. Writable: sessions/{codename}/worktrees/** + metadata; repos/ read-only."
         )
+        try:
+            if session_scope_is_thin(root, codename):
+                extra = extra + "\n\n" + format_session_scope_nudge(codename)
+        except ValueError:
+            pass
     else:
         extra = format_session_start_required(root)
 
@@ -320,6 +360,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Also mark session active (same as bind resume)",
     )
+    scope_p = sub.add_parser("scope", help="Set session title, next hint, and/or TASKS.md goal")
+    scope_p.add_argument("codename", nargs="?")
+    scope_p.add_argument("--title")
+    scope_p.add_argument("--next")
+    scope_p.add_argument("--goal")
     rename_p = sub.add_parser("rename", help="Rename tmux window to codename")
     rename_p.add_argument("codename", nargs="?")
     close_p = sub.add_parser("close", help="Close session work and unbind")
@@ -347,6 +392,7 @@ def main(argv: list[str] | None = None) -> int:
         "unbind": cmd_unbind,
         "list": cmd_list,
         "ensure": cmd_ensure,
+        "scope": cmd_scope,
         "sync": cmd_sync,
         "rename": cmd_rename,
         "close": cmd_close,

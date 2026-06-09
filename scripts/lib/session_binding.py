@@ -305,6 +305,132 @@ def set_session_title(root: Path, codename: str, title: str) -> None:
     sync_index_from_session(root, name, session)
 
 
+def _goal_text_from_tasks(session_dir: Path) -> str:
+    """Non-empty body under ## Goal in TASKS.md (excludes the header)."""
+    tasks_path = session_dir / "TASKS.md"
+    if not tasks_path.exists():
+        return ""
+    lines = tasks_path.read_text().splitlines()
+    goal_lines: list[str] = []
+    in_goal = False
+    for line in lines:
+        if _is_goal_heading(line):
+            in_goal = True
+            continue
+        if in_goal:
+            if line.startswith("## "):
+                break
+            if line.strip():
+                goal_lines.append(line)
+    return sanitize_goal_text("\n".join(goal_lines).strip(), max_len=2000)
+
+
+def set_tasks_goal(session_dir: Path, goal: str) -> None:
+    """Replace the ## Goal section body in TASKS.md; preserve other sections."""
+    path = session_dir / "TASKS.md"
+    if not path.exists():
+        raise FileNotFoundError(f"{path} not found")
+    goal = goal.strip()
+    if not goal:
+        raise ValueError("goal must not be empty")
+    goal = sanitize_goal_text(goal)
+    if not goal:
+        raise ValueError("goal must not be empty after sanitization")
+    lines = path.read_text().splitlines()
+    new_lines: list[str] = []
+    i = 0
+    found_goal = False
+    while i < len(lines):
+        if _is_goal_heading(lines[i]):
+            found_goal = True
+            new_lines.append(lines[i])
+            i += 1
+            while i < len(lines) and not lines[i].startswith("## "):
+                i += 1
+            new_lines.append("")
+            new_lines.extend(goal.splitlines())
+            continue
+        new_lines.append(lines[i])
+        i += 1
+    if not found_goal:
+        raise ValueError("TASKS.md has no ## Goal section")
+    path.write_text("\n".join(new_lines).rstrip() + "\n")
+
+
+def _task_has_scope(task: dict) -> bool:
+    repo = (task.get("repo") or "").strip()
+    if repo:
+        return True
+    task_id = (task.get("id") or "").strip()
+    if task_id:
+        return True
+    status = (task.get("status") or "").strip().lower()
+    return bool(status and status not in ("pending", "draft"))
+
+
+def _tasks_have_scope(tasks: list) -> bool:
+    return any(_task_has_scope(t) for t in tasks if isinstance(t, dict))
+
+
+def session_scope_is_thin(root: Path, codename: str) -> bool:
+    """True when session lacks meaningful title, goal, next, and tasks."""
+    name = validate_codename(codename)
+    session = _load_session_json(root, name) or {}
+    title = (session.get("title") or "").strip()
+    if title and title != name:
+        return False
+    if (session.get("next") or "").strip():
+        return False
+    session_dir = root / "sessions" / name
+    if _goal_text_from_tasks(session_dir):
+        return False
+    if _tasks_have_scope(session.get("tasks") or []):
+        return False
+    return True
+
+
+def format_session_scope_nudge(codename: str) -> str:
+    return (
+        f"Session scope not recorded yet for `{codename}`. Before product edits, run "
+        f'`./scripts/set-session-scope.sh {codename} --title "…" --goal "…"`.'
+    )
+
+
+def set_session_scope(
+    root: Path,
+    codename: str,
+    *,
+    title: str | None = None,
+    next_step: str | None = None,
+    goal: str | None = None,
+    conversation_id: str | None = None,
+) -> None:
+    """Update session title, next hint, and/or TASKS.md goal; refresh index and chat context."""
+    name = validate_codename(codename)
+    session_dir = root / "sessions" / name
+    if not session_dir.is_dir():
+        raise FileNotFoundError(f"sessions/{name}/ does not exist")
+
+    if title is not None:
+        set_session_title(root, name, title)
+
+    session = _load_session_json(root, name) or {}
+    if next_step is not None:
+        cleaned = sanitize_context_text(next_step, max_len=500) if str(next_step).strip() else ""
+        if cleaned:
+            session["next"] = cleaned
+        else:
+            session.pop("next", None)
+        _write_session_json(root, name, session)
+
+    if goal is not None:
+        set_tasks_goal(session_dir, goal)
+
+    session = _load_session_json(root, name) or {}
+    sync_index_from_session(root, name, session)
+    refresh_binding_contexts(root, name, conversation_id=conversation_id)
+
+
 def prompt_new_session_title(root: Path, codename: str) -> None:
     """Ask on /dev/tty for a display title; Enter keeps the codename default."""
     name = validate_codename(codename)
@@ -339,6 +465,34 @@ def sanitize_context_text(value: str, *, max_len: int = 500) -> str:
     if len(text) > max_len:
         return text[: max_len - 1] + "…"
     return text
+
+
+def sanitize_goal_text(value: str, *, max_len: int = 2000) -> str:
+    """Multi-line goal safe for TASKS.md and injected session context."""
+    if value is None:
+        return ""
+    lines: list[str] = []
+    for raw in str(value).replace("\r", "").split("\n"):
+        line = " ".join(raw.strip().split())
+        if not line:
+            if lines and lines[-1]:
+                lines.append("")
+            continue
+        if re.match(r"^#+\s", line):
+            continue
+        if re.match(r"^-\s+\*\*", line):
+            continue
+        if len(line) > 500:
+            line = line[:499] + "…"
+        lines.append(line)
+    text = "\n".join(lines).strip()
+    if len(text) > max_len:
+        return text[: max_len - 1] + "…"
+    return text
+
+
+def _is_goal_heading(line: str) -> bool:
+    return line.strip() == "## Goal"
 
 
 def hub_root() -> Path:
@@ -498,20 +652,10 @@ def _tasks_goal_line(session_dir: Path) -> str:
     tasks_path = session_dir / "TASKS.md"
     if not tasks_path.exists():
         return ""
-    lines = tasks_path.read_text().splitlines()
-    goal_lines: list[str] = []
-    in_goal = False
-    for line in lines:
-        if line.startswith("## Goal"):
-            in_goal = True
-            goal_lines.append(line)
-            continue
-        if in_goal:
-            if line.startswith("## "):
-                break
-            if line.strip():
-                goal_lines.append(line)
-    return "\n".join(goal_lines)
+    body = _goal_text_from_tasks(session_dir)
+    if not body:
+        return ""
+    return "## Goal\n\n" + body
 
 
 def sync_index_from_session(root: Path, codename: str, session: dict | None = None) -> None:
@@ -553,6 +697,9 @@ def resume_session_on_bind(root: Path, codename: str) -> None:
     changed = False
     if session.get("status") != "active":
         session["status"] = "active"
+        changed = True
+    if not (session.get("title") or "").strip():
+        session["title"] = codename
         changed = True
     for key in ("ended", "ended_at", "paused_at"):
         if key in session:

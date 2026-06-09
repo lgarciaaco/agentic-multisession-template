@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **`set-session-scope.sh`** — set session `title`, `TASKS.md` goal, and optional `next` in one command; refreshes index and chat context
+- Session-start hook nudge when scope is still thin (no title/goal/next/tasks)
+
+### Changed
+
+- Session orchestrator skill and session-binding rule — agents set scope metadata before product edits when work intent is clear
+- `resume_session_on_bind` backfills empty legacy titles to codename
+- SESSIONS.md Cursor workflow, `_template/BOUNDARIES.md`, and `docs/REPOS.md` document scope command
+
+### Fixed
+
+- **`set-session-scope.sh`** — sanitize `--goal` before TASKS.md and chat context; hook no longer crashes on invalid codenames; placeholder tasks no longer suppress thin-scope nudge
+
 ## [0.5.0] - 2026-06-08
 
 ### Added
@@ -90,7 +107,7 @@ All notable changes to this project will be documented in this file.
 **Impact:** optional
 
 - Sessions created before inbox existed won't mention cross-session notes in their boundaries — no breakage
-- Use `./scripts/session-inbox.sh write alpha bravo "message"` when coordinating across Cursor windows
+- Use `./scripts/session-inbox.sh write <from> <to> "message"` when coordinating across Cursor windows (message lands in `sessions/_inbox/<to>.md`)
 
 ## [0.1.2] - 2026-06-05
 

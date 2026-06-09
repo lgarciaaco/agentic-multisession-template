@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-09
+
 ### Added
 
 - **`set-session-scope.sh`** — set session `title`, `TASKS.md` goal, and optional `next` in one command; refreshes index and chat context
@@ -18,6 +20,13 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - **`set-session-scope.sh`** — sanitize `--goal` before TASKS.md and chat context; hook no longer crashes on invalid codenames; placeholder tasks no longer suppress thin-scope nudge
+
+### Session notes
+
+**Impact:** optional
+
+- Existing sessions keep working; agents are nudged to set title/goal when scope is empty
+- After upgrade, refresh `BOUNDARIES.md` from `sessions/_template/BOUNDARIES.md` if your session copy predates the scope step
 
 ## [0.5.0] - 2026-06-08
 

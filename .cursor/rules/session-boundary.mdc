@@ -6,7 +6,7 @@ alwaysApply: true
 After `resolve-session.sh` returns a codename: read `sessions/<codename>/BOUNDARIES.md`.
 
 - Edit product code only under `sessions/<codename>/worktrees/**`; `repos/` is read-only.
-- **Hub (`mode: hub`):** hub `scripts/`, `.cursor/`, docs + `sessions/<codename>/`.
+- Bound sessions: hub-root paths hook-blocked; metadata under `sessions/<codename>/` only. See [docs/REPOS.md](../../docs/REPOS.md) Guards and Self-hosted hub.
 - Do not edit other `sessions/<other>/` trees.
 - Cross-session notes: `./scripts/session-inbox.sh write <from> <to> "message"` → `sessions/_inbox/<to>.md`.
 - Registry: [docs/REPOS.md](../../docs/REPOS.md), `repos.yaml`.

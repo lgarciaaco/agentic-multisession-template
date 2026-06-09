@@ -91,7 +91,7 @@ Parent agent — not Task subagent.
 2. Run `./scripts/set-session-scope.sh` if title/goal thin.
 3. On **accept plan**: `./scripts/workflow-accept-plan.sh <codename>` (sync tasks, gates, worktrees).
 4. `./scripts/ensure-worktrees.sh <codename>` also run by accept-plan script.
-5. Edit only `sessions/<codename>/worktrees/**` (or hub paths when `mode: hub`).
+5. Edit only `sessions/<codename>/worktrees/**` (self-hosted hubs: hub repo via worktree, not hub root).
 6. Mark tasks `in_progress` → `done` in dependency order.
 7. `./scripts/sync-session.sh <codename>` after metadata edits.
 

@@ -121,7 +121,7 @@ After user says **accept plan**:
 ./scripts/workflow-accept-plan.sh <codename>
 ```
 
-Syncs `action-plan.md` tasks → `session.json` + `TASKS.md`, sets `plan_user_accepted`, `phase: implementation`, runs `ensure-worktrees.sh`. Path guards block worktree (and hub implementation) edits until this runs.
+Syncs `action-plan.md` tasks → `session.json` + `TASKS.md`, sets `plan_user_accepted`, `phase: implementation`, runs `ensure-worktrees.sh`. Path guards block worktree edits until this runs.
 
 ### Implementation phase
 
@@ -220,7 +220,7 @@ Templates: `sessions/_template/artifacts/`. Schema: [references/workflow-schema.
 
 ## Writable
 
-`sessions/<codename>/workflow.json`, `artifacts/**`, `reviews/workspace/wf-*/`, `plan-review/`, session metadata. Implementation: worktrees or hub paths per BOUNDARIES.md.
+`sessions/<codename>/workflow.json`, `artifacts/**`, `reviews/workspace/wf-*/`, `plan-review/`, session metadata. Implementation: `sessions/<codename>/worktrees/**` only (self-hosted hub: worktree, not hub root).
 
 ## References
 

@@ -6,17 +6,32 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- **workflow-orchestrator** skill (M2–M3) — role rules, `SKILL.md`, `workflow.json` schema, artifact templates under `sessions/_template/artifacts/`
-- **`format_workflow_section`** — injects workflow phase, gates, loops, and artifact paths (with present/missing) into chat context when `sessions/<codename>/workflow.json` exists
-- **Plan loop (M4)** — `scripts/lib/workflow_plan.py`, `scripts/workflow-plan-synthesize.py`, workspace/persistence refs; autonomous REVISE→APPROVE synthesis and `pr-NNN` persistence
-- **Accept plan (M5)** — `scripts/workflow-accept-plan.sh`; task sync from `action-plan.md`; workflow gates block worktree/hub implementation until plan accepted
-- **Code review loop (M6)** — `scripts/lib/workflow_code_review.py`, `workflow-begin-code-review.py`, `workflow-code-review-enrich-scope.py`, `workflow-code-review-advance.py`; intent reviewer reads `action-plan.md` acceptance; `loops.code_review` + `progress.last_review` tracking
-- **Delivery + resume (M7)** — `workflow-write-delivery-report.py`, `workflow-reopen-brief.py`, `workflow-reopen-plan.py`; `format_workflow_section` Resume hint; `workflow_next_action()` for `/workflow` continuation
-- **Hub docs + tests (M8)** — `test_workflow_plan_reviewer_rules.py`; expanded pre-PR suite in `hub-contributing.mdc`; `SESSIONS.md` single-session workflow section; walkthrough in `docs/WORKFLOW.md`
+- **workflow-orchestrator** skill — role rules, `SKILL.md`, `workflow.json` schema, artifact templates under `sessions/_template/artifacts/`
+- **`format_workflow_section`** — injects workflow phase, gates, loops, artifact paths, and **Resume** hint into chat context
+- **Plan loop** — `scripts/lib/workflow_plan.py`, `scripts/workflow-plan-synthesize.py`; autonomous REVISE→APPROVE synthesis and `pr-NNN` persistence
+- **Accept plan** — `scripts/workflow-accept-plan.sh`; task sync from `action-plan.md`; workflow gates block worktree edits until plan accepted
+- **Code review loop** — `scripts/lib/workflow_code_review.py`, enrich/advance/begin CLIs; intent reviewer reads `action-plan.md` acceptance
+- **Delivery + resume** — `workflow-write-delivery-report.py`, reopen CLIs, `workflow_next_action()` for `/workflow` continuation
+- **Hub docs + tests** — `test_workflow_plan_reviewer_rules.py`; expanded pre-PR suite; walkthrough in `docs/WORKFLOW.md`
+- **Self-hosted hub detection** — `repos-status.sh` reports `self_hosted` when a registry clone URL matches hub `origin`
+- Session-start nudge when self-hosted but worktree is missing
 
 ### Changed
 
-- `AGENTS.md`, `SESSIONS.md`, `.cursor/skills/README.md`, `orchestrator.mdc`, `CONTRIBUTING.md` — `/workflow` pipeline, trigger routing, inbox demoted to optional for linear delivery
+- `AGENTS.md`, `SESSIONS.md`, `.cursor/skills/README.md`, `orchestrator.mdc`, `CONTRIBUTING.md` — `/workflow` pipeline, trigger routing, inbox demoted to optional
+- Path guards block hub-root product paths for all bound sessions (`mode: hub` no longer unlocks `scripts/`, `.cursor/`, or docs)
+- Hub-root registry pins (`repos.yaml`, `.hub-version`, `.hub-upstream`) blocked for bound sessions (unbound-only)
+- `normalize_git_url` handles `ssh://` URLs; session-start emits scope and worktree nudges together
+- Self-hosted playbook in `docs/REPOS.md`, bootstrap/orchestrator skills, and `BOUNDARIES.md`
+
+### Session notes
+
+**Impact:** optional
+
+- **Workflow:** `/workflow` for single-chat delivery; resume from `workflow.json` phase
+- Self-hosted hubs: add `tasks[].repo`, run `ensure-worktrees.sh`, edit worktree — not hub root
+- Hub layer refresh: `./scripts/hub-upgrade.sh` only
+- Refresh `BOUNDARIES.md` from `sessions/_template/BOUNDARIES.md`
 
 ## [0.6.0] - 2026-06-09
 

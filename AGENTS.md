@@ -30,7 +30,7 @@ Hub install if needed: `pip install -r scripts/requirements.txt` && `./scripts/i
 2. `./scripts/resolve-session.sh` or picker → bind codename
 3. **Scope metadata** — when work intent is clear, run `./scripts/set-session-scope.sh <codename> --title "…" --goal "…"` before the first product edit (see [SESSIONS.md](SESSIONS.md))
 4. `session.json` tasks need `"repo": "<alias>"` matching `repos.yaml`; then `./scripts/ensure-worktrees.sh <codename>`
-5. Edit product in `sessions/<codename>/worktrees/<repo>/` only
+5. Edit product in `sessions/<codename>/worktrees/<repo>/` only — hub-root blocked when bound ([docs/REPOS.md](docs/REPOS.md) Guards); hub refresh via `./scripts/hub-upgrade.sh`
 6. `./scripts/sync-session.sh <codename>` after other metadata edits
 
 Optional session fields in `session.json`: **`next`** (resume hint); per-task **`pr`**, **`ci`**, **`note`** (shown in chat context). See [docs/REPOS.md](docs/REPOS.md).
@@ -80,8 +80,8 @@ Installed version: `.hub-version` · upstream check: `./scripts/hub-status.sh`
 
 ## Scope
 
-- **Product:** `sessions/<codename>/worktrees/**` + session metadata; `repos/` read-only
-- **Forbidden:** other `sessions/<other>/`, edits under `repos/`
+- **Product:** `sessions/<codename>/worktrees/**` + session metadata; `repos/` read-only ([docs/REPOS.md](docs/REPOS.md) Guards)
+- **Forbidden:** other `sessions/<other>/`, edits under `repos/`, hub-root when bound — [docs/REPOS.md](docs/REPOS.md) Guards
 
 ## Coding guidelines
 

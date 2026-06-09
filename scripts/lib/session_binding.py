@@ -396,6 +396,27 @@ def format_session_scope_nudge(codename: str) -> str:
     )
 
 
+def self_hosted_worktree_missing(root: Path, codename: str) -> bool:
+    """True when hub registers itself but the bound session has no ready worktree."""
+    from repos import self_hosted_aliases
+
+    if not self_hosted_aliases(root):
+        return False
+    return primary_worktree(root, codename) is None
+
+
+def format_session_worktree_nudge(root: Path, codename: str) -> str:
+    from repos import self_hosted_aliases
+
+    aliases = self_hosted_aliases(root)
+    alias = aliases[0] if aliases else "template"
+    return (
+        f"Self-hosted hub: add `tasks[].repo` `{alias}` and run "
+        f"`./scripts/ensure-worktrees.sh {codename}` — product edits belong in the worktree, "
+        f"not hub root."
+    )
+
+
 def set_session_scope(
     root: Path,
     codename: str,
@@ -761,7 +782,7 @@ def write_inbox(root: Path, from_codename: str, to_codename: str, message: str) 
 
 
 def session_mode(session: dict) -> str:
-    """hub = hub maintenance at root; default = product work in worktrees."""
+    """hub = orchestration label (CONTRIBUTING checklist); product work always uses worktrees."""
     mode = (session.get("mode") or "default").strip().lower()
     return mode if mode in ("hub", "default") else "default"
 
@@ -838,21 +859,6 @@ def format_guidelines_section(root: Path, codename: str, session: dict) -> str:
 
 
 _GUARD_ALLOW = {"permission": "allow"}
-_HUB_WRITABLE_DIRS = ("scripts", ".cursor", "docs")
-_HUB_WRITABLE_ROOT_FILES = frozenset(
-    {
-        "AGENTS.md",
-        "SESSIONS.md",
-        "CONTRIBUTING.md",
-        "CHANGELOG.md",
-        "CUSTOMIZE.md",
-        "repos.yaml",
-        "repos.yaml.example",
-        "README.md",
-        ".hub-version",
-        ".hub-upstream.example",
-    }
-)
 
 
 def _guard_deny(user_message: str, agent_message: str) -> dict:
@@ -944,9 +950,6 @@ def guard_unbound_path_decision(root: Path, file_path: str) -> dict:
     return _GUARD_ALLOW
 
 
-_WORKFLOW_IMPLEMENTATION_PHASES = frozenset({"implementation", "code_review_loop"})
-
-
 def _load_workflow_state(root: Path, codename: str) -> tuple[dict | None, bool]:
     path = root / "sessions" / codename / "workflow.json"
     if not path.exists():
@@ -967,21 +970,6 @@ def workflow_gate_denies_worktree(root: Path, codename: str) -> dict | None:
     return _guard_deny(
         "Workflow gate: plan not accepted.",
         f"Run ./scripts/workflow-accept-plan.sh {codename} after user accepts the plan.",
-    )
-
-
-def workflow_gate_denies_hub_write(root: Path, codename: str, session: dict) -> dict | None:
-    """Block hub product paths during implementation when plan is not accepted."""
-    if session_mode(session) != "hub":
-        return None
-    workflow, accepted = _load_workflow_state(root, codename)
-    if workflow is None or accepted:
-        return None
-    if workflow.get("phase") not in _WORKFLOW_IMPLEMENTATION_PHASES:
-        return None
-    return _guard_deny(
-        "Workflow gate: plan not accepted.",
-        f"Run ./scripts/workflow-accept-plan.sh {codename} before implementation edits.",
     )
 
 
@@ -1033,20 +1021,11 @@ def guard_path_decision(root: Path, codename: str, file_path: str) -> dict:
             f"Do not edit sessions/{other}/. This chat is bound to {name}.",
         )
 
-    if session_mode(session) == "hub":
-        gate = workflow_gate_denies_hub_write(root, name, session)
-        if gate:
-            return gate
-        for sub in _HUB_WRITABLE_DIRS:
-            base = root / sub
-            if _path_is_within(resolved, base) or resolved == base:
-                return _GUARD_ALLOW
-        if resolved.parent == root and resolved.name in _HUB_WRITABLE_ROOT_FILES:
-            return _GUARD_ALLOW
-
     return _guard_deny(
-        f"Bound to session {name}; edits only under sessions/{name}/.",
-        f"Edit only under sessions/{name}/worktrees/ and session metadata.",
+        f"Bound to session {name}; hub-root paths are blocked.",
+        f"Edit under sessions/{name}/worktrees/ and session metadata. "
+        f"Registry pins (repos.yaml, .hub-version, .hub-upstream): edit only when unbound. "
+        f"Hub layer refresh: ./scripts/hub-upgrade.sh only.",
     )
 
 
@@ -1148,14 +1127,24 @@ def build_context_markdown(root: Path, codename: str, chat_id: str) -> str:
     workflow_section = format_workflow_section(root, codename)
     worktree_section = format_worktree_section(root, codename, session)
     tasks_line = ", ".join(running) if running else "—"
+    from repos import self_hosted_aliases
+
     mode = session_mode(session)
-    if mode == "hub":
-        writable = "hub root (`scripts/`, `.cursor/`, docs) + `sessions/<codename>/`"
-    else:
-        writable = f"`sessions/{codename}/worktrees/**` + session metadata; `repos/` read-only"
-    mode_line = f"- **Mode:** hub\n" if mode == "hub" else ""
+    writable = f"`sessions/{codename}/worktrees/**` + session metadata; `repos/` read-only"
+    mode_line = (
+        f"- **Mode:** hub (orchestration label — product edits still use worktrees)\n"
+        if mode == "hub"
+        else ""
+    )
     wt = primary_worktree(root, codename, session)
     worktree_note = f"\n- **Product root:** `{wt.relative_to(root)}`" if wt else ""
+    self_hosted = self_hosted_aliases(root)
+    self_hosted_note = ""
+    if self_hosted:
+        self_hosted_note = (
+            "\n- **Self-hosted:** do not edit hub-root `scripts/`, `.cursor/`, or docs; "
+            "use worktree for product code. Hub refresh: `./scripts/hub-upgrade.sh` only."
+        )
 
     return f"""# Session context (this chat)
 
@@ -1164,7 +1153,7 @@ def build_context_markdown(root: Path, codename: str, chat_id: str) -> str:
 - **Title:** {title}
 {mode_line}- **Status:** {session.get("status", "draft")}
 {next_line}- **Tasks in flight:** {tasks_line}
-- **Writable:** {writable}{worktree_note}
+- **Writable:** {writable}{worktree_note}{self_hosted_note}
 {progress_note}
 {workflow_section}{worktree_section}{inbox_section}
 {goal}

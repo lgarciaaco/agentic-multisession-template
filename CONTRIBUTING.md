@@ -7,12 +7,16 @@ This repository is a **generic template** for multi-session Cursor agent hubs. C
 1. Click **Use this template** on GitHub (or copy the repo)
 2. Follow [CUSTOMIZE.md](CUSTOMIZE.md) to bootstrap your hub
 
+## Where to edit
+
+See [docs/REPOS.md](docs/REPOS.md) (Guards + Self-hosted hub): product work in session worktrees; hub-root hook-blocked when bound; registry pins unbound-only; hub refresh via `./scripts/hub-upgrade.sh`.
+
 ## Pull requests
 
 - Keep examples generic (`my-app`, `my-agent`) — no real project names
-- Run the hub pre-PR test suite before opening a PR (see `.cursor/rules/hub-contributing.mdc` — session binding, git remotes, hub upgrade, and `test_workflow_*.py`)
+- Open from a session worktree branch when bound; hub-template PRs may use a feature branch from hub root when unbound
+- Run the hub pre-PR test suite before opening a PR (see `.cursor/rules/hub-contributing.mdc`); wait for CI (`test` workflow) to pass
 - Scope: session binding, repos registry, worktrees, hooks, docs, install — not domain features
-- Open PRs from feature branches; wait for CI (`test` workflow) to pass
 - **Do not** use `gh pr merge --auto` or enable auto-merge on the repo
 - **Do not** merge PRs unless the maintainer explicitly asks — user merges on GitHub, or asks for `gh pr merge <n> --merge` (without `--auto`)
 

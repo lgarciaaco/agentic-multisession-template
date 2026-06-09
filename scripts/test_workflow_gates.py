@@ -12,7 +12,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from session_binding import (  # noqa: E402
     guard_path_decision,
-    workflow_gate_denies_hub_write,
     workflow_gate_denies_worktree,
 )
 from workflow_plan import (  # noqa: E402
@@ -138,27 +137,9 @@ class WorkflowGatesTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             accept_action_plan(self.root, self.codename)
 
-    def test_guard_allows_hub_scripts_after_plan_accept(self) -> None:
-        session_path = self.session_dir / "session.json"
-        session = json.loads(session_path.read_text())
-        session["mode"] = "hub"
-        session_path.write_text(json.dumps(session, indent=2) + "\n")
+    def test_guard_denies_hub_root_even_after_plan_accept(self) -> None:
+        """Self-hosted model: bound sessions edit worktrees only, not hub root."""
         accept_action_plan(self.root, self.codename)
-        path = str(self.root / "scripts" / "test_session_binding.py")
-        decision = guard_path_decision(self.root, self.codename, path)
-        self.assertEqual(decision["permission"], "allow")
-
-    def test_guard_denies_hub_scripts_during_implementation_without_accept(self) -> None:
-        session_path = self.session_dir / "session.json"
-        session = json.loads(session_path.read_text())
-        session["mode"] = "hub"
-        session_path.write_text(json.dumps(session, indent=2) + "\n")
-        workflow_path = self.session_dir / "workflow.json"
-        workflow = json.loads(workflow_path.read_text())
-        workflow["phase"] = "implementation"
-        workflow_path.write_text(json.dumps(workflow, indent=2) + "\n")
-        gate = workflow_gate_denies_hub_write(self.root, self.codename, session)
-        self.assertIsNotNone(gate)
         path = str(self.root / "scripts" / "test_session_binding.py")
         decision = guard_path_decision(self.root, self.codename, path)
         self.assertEqual(decision["permission"], "deny")

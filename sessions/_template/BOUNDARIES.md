@@ -15,16 +15,21 @@ Bound to codename `CODENAME` via `sessions/bindings/` (see `sessions/context/`).
 ## Forbidden
 
 - Any edit under `repos/`
+- Hub-root paths when bound — use worktrees for product code ([docs/REPOS.md](../../docs/REPOS.md) Guards)
 - Any path under `sessions/` except `sessions/CODENAME/` and `sessions/_inbox/`
 - `sessions/bindings/`, `sessions/context/`, `sessions/index.json`
 
 ## Enforced by hooks
 
-Cursor path guards deny edits to `repos/`, `sessions/bindings/`, `sessions/context/`, `sessions/index.json`, and other sessions' directories. Default sessions may edit only `sessions/CODENAME/`. Hub-mode sessions (`mode: hub`) may also edit `scripts/`, `.cursor/`, `docs/`, and these hub root files only: `AGENTS.md`, `SESSIONS.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `CUSTOMIZE.md`, `README.md`, `repos.yaml`, `repos.yaml.example`, `.hub-version`, `.hub-upstream.example`.
+Cursor path guards: [docs/REPOS.md](../../docs/REPOS.md) Guards (hub-root blocked when bound; registry pins unbound-only).
+
+## Self-hosted hub
+
+When `self_hosted: true` in `repos-status.sh`, see [docs/REPOS.md](../../docs/REPOS.md) Self-hosted hub.
 
 ## Hub sessions (`mode`: `hub`)
 
-For hub scripts/docs only: set `"mode": "hub"` in `session.json` and use tasks with `repo` pointing at the hub entry in `repos.yaml` (optional `path: .`).
+Label for CONTRIBUTING checklist and hub-upgrade workflows — **does not** unlock hub-root product edits. Product work still uses worktrees.
 
 ## On start
 

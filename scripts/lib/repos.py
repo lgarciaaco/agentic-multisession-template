@@ -3,9 +3,14 @@
 
 from __future__ import annotations
 
+import functools
+import re
+import subprocess
 from pathlib import Path
 
 import yaml
+
+_GIT_TIMEOUT_SEC = 300
 
 
 def workspace_root() -> Path:
@@ -65,6 +70,70 @@ def project_guideline_rel(guidelines: dict) -> str:
         if isinstance(val, str) and val.strip():
             return val.strip()
     return "docs/PROJECT.md"
+
+
+def normalize_git_url(url: str) -> str:
+    """Canonical host/path for comparing clone URLs (ssh, https, scp, .git suffix)."""
+    raw = url.strip().rstrip("/")
+    if raw.endswith(".git"):
+        raw = raw[:-4]
+    scp = re.match(r"git@([^:]+):(.+)", raw)
+    if scp:
+        return f"{scp.group(1).lower()}/{scp.group(2).lower()}"
+    http = re.match(r"https?://([^/]+)/(.+)", raw)
+    if http:
+        return f"{http.group(1).lower()}/{http.group(2).lower()}"
+    ssh_url = re.match(r"ssh://(?:git@)?([^/]+)/(.+)", raw)
+    if ssh_url:
+        return f"{ssh_url.group(1).lower()}/{ssh_url.group(2).lower()}"
+    return raw.lower()
+
+
+@functools.lru_cache(maxsize=8)
+def _hub_origin_url_cached(root_str: str) -> str:
+    root = Path(root_str)
+    if not (root / ".git").exists():
+        return ""
+    result = subprocess.run(
+        ["git", "-C", str(root), "remote", "get-url", "origin"],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=_GIT_TIMEOUT_SEC,
+    )
+    if result.returncode != 0:
+        return ""
+    return normalize_git_url(result.stdout.strip())
+
+
+def hub_origin_url(root: Path | None = None) -> str:
+    """Normalized origin URL for the hub root git repo, or empty if unavailable."""
+    root = (root or workspace_root()).resolve()
+    return _hub_origin_url_cached(str(root))
+
+
+@functools.lru_cache(maxsize=8)
+def _self_hosted_aliases_cached(root_str: str) -> tuple[str, ...]:
+    root = Path(root_str)
+    origin = _hub_origin_url_cached(root_str)
+    if not origin:
+        return ()
+    aliases: list[str] = []
+    try:
+        repos = load_repos(root)
+    except FileNotFoundError:
+        return ()
+    for alias, cfg in repos.items():
+        clone = cfg.get("clone")
+        if isinstance(clone, str) and normalize_git_url(clone) == origin:
+            aliases.append(alias)
+    return tuple(aliases)
+
+
+def self_hosted_aliases(root: Path | None = None) -> list[str]:
+    """Registry aliases whose clone URL matches the hub origin (hub is the product)."""
+    root = (root or workspace_root()).resolve()
+    return list(_self_hosted_aliases_cached(str(root)))
 
 
 def repo_base(root: Path, cfg: dict) -> Path:
@@ -132,13 +201,27 @@ def bootstrap_status(root: Path | None = None) -> dict:
         hub_steps.append("pip install -r scripts/requirements.txt")
         hub_steps.append("./scripts/install-workspace-agent.sh")
 
-    return {
+    self_hosted = self_hosted_aliases(root)
+    if self_hosted:
+        agent_action = (
+            f"Self-hosted hub ({', '.join(self_hosted)}). Add tasks[].repo, "
+            f"./scripts/ensure-worktrees.sh <codename>, edit worktrees/ — not hub root product paths. "
+            f"Hub layer refresh: ./scripts/hub-upgrade.sh only."
+        )
+    else:
+        agent_action = (
+            "Repos cloned. Bind or create a session; add tasks with tasks[].repo matching "
+            "repos.yaml keys; ./scripts/ensure-worktrees.sh <codename> before product edits."
+        )
+
+    payload: dict = {
         "state": "ready",
         "repos": list(repos.keys()),
         "hub_launcher_installed": launcher.exists(),
-        "agent_action": (
-            "Repos cloned. Bind or create a session; add tasks with tasks[].repo matching "
-            "repos.yaml keys; ./scripts/ensure-worktrees.sh <codename> before product edits."
-        ),
+        "agent_action": agent_action,
         "hub_setup_remaining": hub_steps,
     }
+    if self_hosted:
+        payload["self_hosted"] = True
+        payload["self_hosted_aliases"] = self_hosted
+    return payload

@@ -35,7 +35,7 @@ Do **not** invent clone URLs. Ask:
 > Which product repos should this hub track? For each: **alias** (short name), **git clone URL**, **default branch** (usually `main`).
 
 User may say:
-- **None yet** — hub-only (sessions/scripts). Leave `repos: {}`; no `clone-repos` until they add repos.
+- **None yet** — sessions only until repos are registered. Leave `repos: {}`; no `clone-repos` until they add repos. (While unbound, agents may edit hub root for bootstrap; after bind, product work uses worktrees.)
 - **One repo** — e.g. `project` → one `repos.yaml` entry, `path: repos/<alias>`.
 - **Several** — one entry per remote.
 
@@ -50,6 +50,13 @@ repos:
 ```
 
 Then `./scripts/clone-repos.sh`.
+
+### Self-hosted hub (template editing itself)
+
+When the user develops **this hub repo** as the product (same clone URL as hub `origin`):
+
+- See [docs/REPOS.md](../../../docs/REPOS.md) Self-hosted hub (`path: repos/<alias>`, not `path: .`; worktrees for product edits).
+- `repos-status.sh` reports `self_hosted: true` when a registry clone URL matches hub origin.
 
 ---
 
@@ -82,7 +89,7 @@ Never `git clone` manually into `repos/` unless `clone-repos.sh` cannot run — 
 
 ## 4. Hub naming (when user cares)
 
-Update `README.md` / `AGENTS.md` with project name; shorten template-bootstrap block in `AGENTS.md` when done.
+Update `README.md` / `AGENTS.md` with project name while **unbound** (hub-root edits blocked after session bind); shorten template-bootstrap block in `AGENTS.md` when done.
 
 `python3 scripts/test_session_binding.py` — must pass.
 

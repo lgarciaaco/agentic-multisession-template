@@ -36,3 +36,12 @@ repos: {}
 #     clone: git@gitlab.com:GROUP/service.git
 #     remote: gitlab
 #     default_branch: main
+#
+# Example (self-hosted hub — developing this template as the product):
+#   template:
+#     path: repos/template
+#     clone: git@github.com:YOU/agentic-multisession-template.git
+#     default_branch: main
+# Product edits: sessions/<codename>/worktrees/template/ — not hub root.
+# Registry pins (repos.yaml, .hub-version, .hub-upstream): unbound-only — see docs/REPOS.md Guards.
+# repos-status.sh reports self_hosted: true when clone URL matches hub origin.

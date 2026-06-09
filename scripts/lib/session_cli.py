@@ -16,6 +16,7 @@ from session_binding import (
     conversation_id,
     ensure_session,
     format_session_scope_nudge,
+    format_session_worktree_nudge,
     format_session_start_prompt,
     format_session_start_required,
     hub_root,
@@ -27,6 +28,7 @@ from session_binding import (
     rename_tmux_for_codename,
     resolve_codename,
     resolve_source_label,
+    self_hosted_worktree_missing,
     session_scope_is_thin,
     validate_active_codename,
     set_session_scope,
@@ -238,8 +240,13 @@ def cmd_hook_session_start(_args: argparse.Namespace) -> int:
             f"Tmux window: `{window}`. Writable: sessions/{codename}/worktrees/** + metadata; repos/ read-only."
         )
         try:
+            nudges: list[str] = []
             if session_scope_is_thin(root, codename):
-                extra = extra + "\n\n" + format_session_scope_nudge(codename)
+                nudges.append(format_session_scope_nudge(codename))
+            if self_hosted_worktree_missing(root, codename):
+                nudges.append(format_session_worktree_nudge(root, codename))
+            if nudges:
+                extra = extra + "\n\n" + "\n\n".join(nudges)
         except ValueError:
             pass
     else:

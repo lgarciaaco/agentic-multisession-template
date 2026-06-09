@@ -9,6 +9,7 @@ When **`session.json`** has `"mode": "hub"`, also follow [CONTRIBUTING.md](../..
 
 - Keep examples generic (`my-app`, `my-agent`) — no real project or domain names
 - Scope: session binding, repos registry, worktrees, hooks, docs, install — not domain features
+- Edit product code in `sessions/<codename>/worktrees/<repo>/` — not hub root (`mode: hub` does not unlock root edits). Push PRs from the worktree feature branch.
 - Before opening a hub PR, run:
 
 ```bash

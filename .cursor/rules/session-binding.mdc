@@ -39,7 +39,7 @@ Syncs `sessions/index.json` and bound chat context — no separate `sync-session
 
 - Never read or write `sessions/.active`.
 - Never edit `sessions/<other-codename>/` when resolve-session prints a different codename.
-- Writable: `sessions/<codename>/worktrees/**` + session metadata; `repos/` read-only. Run `./scripts/repos-status.sh` if repos unset.
+- Writable when bound: `sessions/<codename>/worktrees/**` + session metadata; `repos/` read-only. Hub-root blocked — see [docs/REPOS.md](../../docs/REPOS.md) Guards. Self-hosted: `repos-status` → `self_hosted: true` → `ensure-worktrees` → worktree.
 
 ## End session
 

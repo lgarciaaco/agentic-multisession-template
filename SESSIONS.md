@@ -131,7 +131,7 @@ Canonical status lives in `session.json`. Run `sync-session.sh` if local `index.
 
 | Command | Purpose |
 |---------|---------|
-| `./scripts/repos-status.sh` | Agent bootstrap state (missing/empty/needs_clone/ready) |
+| `./scripts/repos-status.sh` | Agent bootstrap state (`state`, `self_hosted`, `self_hosted_aliases`, `agent_action`) |
 | `./scripts/hub-status.sh` | Installed vs upstream template version (JSON; `--cached-only` skips fetch) |
 | `./scripts/hub-upgrade.sh` | Refresh hub scripts/hooks/docs in place (`--dry-run`, `--yes`, `--to VERSION`, `--allow-untrusted-upstream`) |
 | `<launcher>` (`.hub-launcher`) | Session list → bind → clone/worktrees when ready → agent CLI |
@@ -170,8 +170,9 @@ Tab 3: my-agent → pick bravo  →  separate branch + worktree
 1. **start work** / `/start-work` — orchestrator lists sessions, you pick codename or **new**
 2. Agent runs `./scripts/bind-session.sh <codename>`
 3. When work intent is clear: `./scripts/set-session-scope.sh <codename> --title "…" --goal "…"` before product edits
-4. Hooks inject `sessions/context/<conversation_id>.md` on session start
-5. **end session** — skill runs `./scripts/end-session.sh` (not the before-prompt hook)
+4. `./scripts/ensure-worktrees.sh <codename>` when tasks have `repo` (required for self-hosted hubs — `repos-status` → `self_hosted: true`)
+5. Hooks inject `sessions/context/<conversation_id>.md` on session start
+6. **end session** — skill runs `./scripts/end-session.sh` (not the before-prompt hook)
 
 Do **not** run bare `agent` in tmux — use the project launcher so hooks and session resolution run.
 

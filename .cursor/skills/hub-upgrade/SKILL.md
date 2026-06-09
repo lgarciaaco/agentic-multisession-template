@@ -75,4 +75,4 @@ Do **not** bulk-edit session folders unless the user agrees or impact was `requi
 
 - Never re-bootstrap from scratch unless user explicitly asks.
 - Never delete `repos/` or session history as part of upgrade.
-- Hub-mode session (`mode: hub`) may edit upgraded paths; product sessions stay in worktrees.
+- **Only** `./scripts/hub-upgrade.sh` may refresh hub-root `scripts/`, hooks, and docs — agents do not hand-edit those paths. Product work stays in worktrees.

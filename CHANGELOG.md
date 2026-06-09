@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Self-hosted hub detection** — `repos-status.sh` reports `self_hosted` when a registry clone URL matches hub `origin`
+- Session-start nudge when self-hosted but worktree is missing
+
+### Changed
+
+- Path guards block hub-root product paths for all bound sessions (`mode: hub` no longer unlocks `scripts/`, `.cursor/`, or docs)
+- Hub-root registry pins (`repos.yaml`, `.hub-version`, `.hub-upstream`) blocked for bound sessions (unbound-only)
+- `normalize_git_url` handles `ssh://` URLs; session-start emits scope and worktree nudges together
+- Self-hosted playbook in `docs/REPOS.md`, bootstrap/orchestrator skills, and `BOUNDARIES.md`
+
+### Session notes
+
+**Impact:** optional
+
+- Self-hosted hubs: add `tasks[].repo`, run `ensure-worktrees.sh`, edit worktree — not hub root
+- Hub layer refresh: `./scripts/hub-upgrade.sh` only
+- Refresh `BOUNDARIES.md` from `sessions/_template/BOUNDARIES.md`
+
 ## [0.6.0] - 2026-06-09
 
 ### Added

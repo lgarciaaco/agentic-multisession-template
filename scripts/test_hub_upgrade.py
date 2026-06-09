@@ -317,14 +317,14 @@ class HubUpgradeShellTests(unittest.TestCase):
 
 
 class HubGuardTests(unittest.TestCase):
-    def test_hub_mode_allows_hub_version(self) -> None:
+    def test_hub_mode_denies_hub_version(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             session_dir = root / "sessions" / "alpha"
             session_dir.mkdir(parents=True)
             (session_dir / "session.json").write_text('{"mode":"hub","tasks":[]}\n')
             decision = guard_path_decision(root, "alpha", str(root / ".hub-version"))
-            self.assertEqual(decision["permission"], "allow")
+            self.assertEqual(decision["permission"], "deny")
 
 
 if __name__ == "__main__":

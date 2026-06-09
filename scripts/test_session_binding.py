@@ -14,6 +14,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from repos import bootstrap_status, normalize_git_url, self_hosted_aliases  # noqa: E402
 from session_binding import (  # noqa: E402
     _read_tty_line,
     active_pool_list,
@@ -29,6 +30,8 @@ from session_binding import (  # noqa: E402
     DEFAULT_CODENAME_POOL,
     format_session_start_prompt,
     format_session_scope_nudge,
+    format_session_worktree_nudge,
+    self_hosted_worktree_missing,
     guard_path_decision,
     guard_unbound_path_decision,
     hub_root,
@@ -381,14 +384,33 @@ class WorktreeGuardTests(unittest.TestCase):
         decision = guard_path_decision(self.root, self.codename, path)
         self.assertEqual(decision["permission"], "deny")
 
-    def test_guard_hub_mode_allows_scripts(self) -> None:
+    def test_guard_hub_mode_denies_hub_scripts(self) -> None:
         session_path = self.root / "sessions" / "alpha" / "session.json"
         session = json.loads(session_path.read_text())
         session["mode"] = "hub"
         session_path.write_text(json.dumps(session, indent=2) + "\n")
         path = str(self.root / "scripts" / "hub.sh")
         decision = guard_path_decision(self.root, self.codename, path)
-        self.assertEqual(decision["permission"], "allow")
+        self.assertEqual(decision["permission"], "deny")
+
+    def test_guard_denies_orchestration_repos_yaml(self) -> None:
+        path = str(self.root / "repos.yaml")
+        (self.root / "repos.yaml").write_text("repos: {}\n")
+        decision = guard_path_decision(self.root, self.codename, path)
+        self.assertEqual(decision["permission"], "deny")
+
+    def test_guard_denies_orchestration_hub_upstream(self) -> None:
+        for name in (".hub-upstream", ".hub-upstream.example", "repos.yaml.example"):
+            path = str(self.root / name)
+            (self.root / name).write_text("# test\n")
+            decision = guard_path_decision(self.root, self.codename, path)
+            self.assertEqual(decision["permission"], "deny", name)
+
+    def test_guard_denies_orchestration_hub_version(self) -> None:
+        path = str(self.root / ".hub-version")
+        (self.root / ".hub-version").write_text("0.6.0\n")
+        decision = guard_path_decision(self.root, self.codename, path)
+        self.assertEqual(decision["permission"], "deny")
 
     def test_guard_denies_bindings_and_context(self) -> None:
         for sub in ("bindings", "context"):
@@ -1180,6 +1202,142 @@ class SessionPickerTests(unittest.TestCase):
             codename = run_interactive_session_picker(self.root)
         self.assertEqual(codename, "echo")
         mock_prompt.assert_called_once_with(self.root, "echo")
+
+
+class SelfHostedTests(unittest.TestCase):
+    def test_normalize_git_url_ssh_and_https(self) -> None:
+        self.assertEqual(
+            normalize_git_url("git@github.com:ORG/repo.git"),
+            "github.com/org/repo",
+        )
+        self.assertEqual(
+            normalize_git_url("https://github.com/ORG/repo"),
+            "github.com/org/repo",
+        )
+        self.assertEqual(
+            normalize_git_url("ssh://git@github.com/ORG/repo.git"),
+            "github.com/org/repo",
+        )
+
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmpdir.name)
+        subprocess.run(["git", "init", "-b", "main", str(self.root)], check=True, capture_output=True)
+        subprocess.run(
+            ["git", "-C", str(self.root), "remote", "add", "origin", "git@github.com:ORG/hub.git"],
+            check=True,
+            capture_output=True,
+        )
+        (self.root / "repos.yaml").write_text(
+            "repos:\n  template:\n    path: repos/template\n"
+            "    clone: git@github.com:ORG/hub.git\n    default_branch: main\n"
+        )
+        (self.root / "repos" / "template").mkdir(parents=True)
+        subprocess.run(["git", "init", "-b", "main", str(self.root / "repos" / "template")], check=True)
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def test_self_hosted_aliases_detects_matching_clone(self) -> None:
+        self.assertEqual(self_hosted_aliases(self.root), ["template"])
+
+    def test_bootstrap_status_includes_self_hosted(self) -> None:
+        status = bootstrap_status(self.root)
+        self.assertTrue(status.get("self_hosted"))
+        self.assertEqual(status.get("self_hosted_aliases"), ["template"])
+        self.assertIn("Self-hosted hub", status["agent_action"])
+
+    def test_self_hosted_worktree_missing_when_no_tasks(self) -> None:
+        codename = "alpha"
+        session_dir = self.root / "sessions" / codename
+        session_dir.mkdir(parents=True)
+        (session_dir / "session.json").write_text(
+            json.dumps({"codename": codename, "title": "alpha", "tasks": []}) + "\n"
+        )
+        self.assertTrue(self_hosted_worktree_missing(self.root, codename))
+        nudge = format_session_worktree_nudge(self.root, codename)
+        self.assertIn("template", nudge)
+        self.assertIn("ensure-worktrees", nudge)
+
+    def test_self_hosted_worktree_missing_false_when_worktree_ready(self) -> None:
+        codename = "alpha"
+        session_dir = self.root / "sessions" / codename
+        session_dir.mkdir(parents=True)
+        (session_dir / "session.json").write_text(
+            json.dumps(
+                {
+                    "codename": codename,
+                    "title": "alpha",
+                    "tasks": [{"id": "main", "repo": "template", "status": "in_progress"}],
+                }
+            )
+            + "\n"
+        )
+        wt = session_dir / "worktrees" / "template"
+        wt.mkdir(parents=True)
+        (wt / "README.md").write_text("# wt\n")
+        self.assertFalse(self_hosted_worktree_missing(self.root, codename))
+
+    def test_context_includes_self_hosted_note(self) -> None:
+        codename = "alpha"
+        session_dir = self.root / "sessions" / codename
+        session_dir.mkdir(parents=True)
+        (session_dir / "session.json").write_text(
+            json.dumps(
+                {
+                    "codename": codename,
+                    "title": "Self-hosted",
+                    "mode": "hub",
+                    "tasks": [{"id": "main", "repo": "template", "status": "in_progress"}],
+                }
+            )
+            + "\n"
+        )
+        wt = session_dir / "worktrees" / "template"
+        wt.mkdir(parents=True)
+        ctx = build_context_markdown(self.root, codename, "chat-1")
+        self.assertIn("Self-hosted", ctx)
+        self.assertIn("hub-upgrade", ctx)
+        self.assertIn("orchestration label", ctx)
+
+    def test_hook_session_start_dual_nudge(self) -> None:
+        codename = "alpha"
+        session_dir = self.root / "sessions" / codename
+        session_dir.mkdir(parents=True)
+        (session_dir / "session.json").write_text(
+            json.dumps(
+                {
+                    "codename": codename,
+                    "title": codename,
+                    "status": "active",
+                    "tasks": [],
+                }
+            )
+            + "\n"
+        )
+        (session_dir / "TASKS.md").write_text("# alpha\n\n## Goal\n\n## Tasks\n\n")
+        lib_src = Path(__file__).resolve().parent / "lib"
+        shutil.copytree(lib_src, self.root / "scripts" / "lib", dirs_exist_ok=True)
+        env = os.environ.copy()
+        env["WORKSPACE_ROOT"] = str(self.root)
+        env["HOOK_INPUT"] = json.dumps({"conversation_id": "chat-dual"})
+        binding = self.root / "sessions" / "bindings" / "chat-dual.json"
+        binding.parent.mkdir(parents=True, exist_ok=True)
+        binding.write_text(
+            json.dumps({"conversation_id": "chat-dual", "codename": codename}) + "\n"
+        )
+        cli = self.root / "scripts" / "lib" / "session_cli.py"
+        result = subprocess.run(
+            [sys.executable, str(cli), "hook-session-start"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        ctx = payload["additional_context"]
+        self.assertIn("set-session-scope.sh", ctx)
+        self.assertIn("ensure-worktrees.sh", ctx)
 
 
 if __name__ == "__main__":

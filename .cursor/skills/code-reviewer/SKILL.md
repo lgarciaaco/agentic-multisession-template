@@ -14,8 +14,8 @@ Multi-agent review. Not PR workflow. Orchestrator computes scope, spawns special
 ## Target
 
 1. `./scripts/resolve-session.sh` → session-bound or ad hoc
-2. Product: `sessions/<codename>/worktrees/<repo>/`
-3. Hub: hub root + `sessions/<codename>/` metadata
+2. Product (all repos, including self-hosted template): `sessions/<codename>/worktrees/<repo>/`
+3. Session metadata only at hub root: `sessions/<codename>/` (not hub-root `scripts/` or docs)
 4. Ad hoc: user directory
 
 ## Scope

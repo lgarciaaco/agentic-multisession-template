@@ -176,8 +176,33 @@ Launcher runs `clone-repos` + `ensure-worktrees` when `repos.yaml` exists and st
 
 ---
 
+## Self-hosted hub
+
+When the hub **is** the product (registry clone URL matches hub `origin` — `repos-status.sh` → `self_hosted: true`):
+
+```yaml
+repos:
+  template:
+    path: repos/template          # reference clone (required — not path: .)
+    clone: git@github.com:YOU/agentic-multisession-template.git
+    default_branch: main
+```
+
+```text
+sessions/<codename>/worktrees/template/   # feature branch — all product edits here
+sessions/<codename>/                      # session metadata when bound
+hub root (main)                           # hook-blocked when bound; refresh via ./scripts/hub-upgrade.sh only
+```
+
+- `path: .` is for fetch-only registry entries, not development worktrees (git nesting limit).
+- Hub-root `scripts/`, `.cursor/`, docs, and registry pins (`repos.yaml`, `.hub-version`, `.hub-upstream`) are **hook-blocked** for bound sessions — edit pins only when unbound.
+- Refresh hub layer: `./scripts/hub-upgrade.sh` only.
+
+---
+
 ## Guards
 
 - **`repos/`** — read-only (hook denies edits)
 - **`sessions/<codename>/worktrees/`** — writable product code
-- **Hub root** — allowed (scripts, docs); product agents should still use worktrees
+- **Hub root product paths** — blocked for bound sessions (`scripts/`, `.cursor/`, `docs/`, root markdown)
+- **Hub root** — blocked for bound sessions (including `repos.yaml`, `.hub-version`, `.hub-upstream`); registry pins unbound-only

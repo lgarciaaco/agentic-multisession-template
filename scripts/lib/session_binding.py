@@ -944,6 +944,47 @@ def guard_unbound_path_decision(root: Path, file_path: str) -> dict:
     return _GUARD_ALLOW
 
 
+_WORKFLOW_IMPLEMENTATION_PHASES = frozenset({"implementation", "code_review_loop"})
+
+
+def _load_workflow_state(root: Path, codename: str) -> tuple[dict | None, bool]:
+    path = root / "sessions" / codename / "workflow.json"
+    if not path.exists():
+        return None, False
+    try:
+        workflow = json.loads(path.read_text())
+    except json.JSONDecodeError:
+        return None, False
+    accepted = bool((workflow.get("gates") or {}).get("plan_user_accepted"))
+    return workflow, accepted
+
+
+def workflow_gate_denies_worktree(root: Path, codename: str) -> dict | None:
+    """Block worktree edits when workflow.json exists and plan is not accepted."""
+    workflow, accepted = _load_workflow_state(root, codename)
+    if workflow is None or accepted:
+        return None
+    return _guard_deny(
+        "Workflow gate: plan not accepted.",
+        f"Run ./scripts/workflow-accept-plan.sh {codename} after user accepts the plan.",
+    )
+
+
+def workflow_gate_denies_hub_write(root: Path, codename: str, session: dict) -> dict | None:
+    """Block hub product paths during implementation when plan is not accepted."""
+    if session_mode(session) != "hub":
+        return None
+    workflow, accepted = _load_workflow_state(root, codename)
+    if workflow is None or accepted:
+        return None
+    if workflow.get("phase") not in _WORKFLOW_IMPLEMENTATION_PHASES:
+        return None
+    return _guard_deny(
+        "Workflow gate: plan not accepted.",
+        f"Run ./scripts/workflow-accept-plan.sh {codename} before implementation edits.",
+    )
+
+
 def guard_path_decision(root: Path, codename: str, file_path: str) -> dict:
     """Cursor hook: allow/deny edits — repos/ read-only, worktrees writable."""
     if not file_path:
@@ -974,6 +1015,14 @@ def guard_path_decision(root: Path, codename: str, file_path: str) -> dict:
         return _GUARD_ALLOW
 
     session_dir = root / "sessions" / name
+    session = _load_session_json(root, name) or {}
+    worktrees_dir = session_dir / "worktrees"
+    if _path_is_within(resolved, worktrees_dir):
+        gate = workflow_gate_denies_worktree(root, name)
+        if gate:
+            return gate
+        return _GUARD_ALLOW
+
     if _path_is_within(resolved, session_dir) or resolved == session_dir:
         return _GUARD_ALLOW
 
@@ -984,8 +1033,10 @@ def guard_path_decision(root: Path, codename: str, file_path: str) -> dict:
             f"Do not edit sessions/{other}/. This chat is bound to {name}.",
         )
 
-    session = _load_session_json(root, name) or {}
     if session_mode(session) == "hub":
+        gate = workflow_gate_denies_hub_write(root, name, session)
+        if gate:
+            return gate
         for sub in _HUB_WRITABLE_DIRS:
             base = root / sub
             if _path_is_within(resolved, base) or resolved == base:
@@ -1004,6 +1055,72 @@ def format_inbox_section(root: Path, codename: str) -> str:
     if not content:
         return ""
     return f"\n## Inbox (from other sessions)\n\n{content}\n"
+
+
+def format_workflow_section(root: Path, codename: str) -> str:
+    """Inject workflow.json summary when a session uses the workflow orchestrator."""
+    workflow_path = root / "sessions" / codename / "workflow.json"
+    if not workflow_path.exists():
+        return ""
+
+    try:
+        workflow = json.loads(workflow_path.read_text())
+    except json.JSONDecodeError:
+        return "\n## Workflow\n\n- **workflow.json:** invalid JSON — fix before `/workflow`\n"
+
+    phase = sanitize_context_text(str(workflow.get("phase") or "unknown"), max_len=50) or "unknown"
+    gates = workflow.get("gates") or {}
+    loops = workflow.get("loops") or {}
+    artifacts = workflow.get("artifacts") or {}
+
+    lines = ["\n## Workflow\n", f"- **Phase:** `{phase}`"]
+    for key in ("brief_accepted", "plan_user_accepted"):
+        if key in gates:
+            lines.append(f"- **Gate {key}:** {gates[key]}")
+
+    plan_loop = loops.get("plan") or {}
+    if plan_loop:
+        iteration = plan_loop.get("iteration", 0)
+        maximum = plan_loop.get("max", 5)
+        verdict = plan_loop.get("last_verdict")
+        verdict_text = sanitize_context_text(str(verdict), max_len=30) if verdict else "—"
+        lines.append(f"- **Plan loop:** {iteration}/{maximum}; last `{verdict_text}`")
+
+    code_loop = loops.get("code_review") or {}
+    if code_loop:
+        iteration = code_loop.get("iteration", 0)
+        maximum = code_loop.get("max", 5)
+        verdict = code_loop.get("last_verdict")
+        verdict_text = sanitize_context_text(str(verdict), max_len=30) if verdict else "—"
+        lines.append(f"- **Code review loop:** {iteration}/{maximum}; last `{verdict_text}`")
+
+    session_dir = root / "sessions" / codename
+    artifact_lines: list[str] = []
+    for rel in artifacts.values():
+        if not rel or not isinstance(rel, str):
+            continue
+        rel_clean = rel.strip().lstrip("/")
+        if not rel_clean or ".." in Path(rel_clean).parts:
+            continue
+        exists = (session_dir / rel_clean).exists()
+        state = "present" if exists else "missing"
+        artifact_lines.append(f"`sessions/{codename}/{rel_clean}` ({state})")
+    if artifact_lines:
+        lines.append("- **Artifacts:**")
+        for entry in artifact_lines:
+            lines.append(f"  - {entry}")
+
+    lines.append("- **Commands:** `/workflow`, `/workflow status`")
+    try:
+        from workflow_resume import workflow_next_action
+
+        resume = workflow_next_action(workflow)
+        resume_text = sanitize_context_text(resume, max_len=300)
+        if resume_text:
+            lines.append(f"- **Resume:** {resume_text}")
+    except Exception:
+        pass
+    return "\n".join(lines) + "\n"
 
 
 def build_context_markdown(root: Path, codename: str, chat_id: str) -> str:
@@ -1028,6 +1145,7 @@ def build_context_markdown(root: Path, codename: str, chat_id: str) -> str:
     next_line = f"- **Next:** {next_step}\n" if next_step else ""
 
     inbox_section = format_inbox_section(root, codename)
+    workflow_section = format_workflow_section(root, codename)
     worktree_section = format_worktree_section(root, codename, session)
     tasks_line = ", ".join(running) if running else "—"
     mode = session_mode(session)
@@ -1048,7 +1166,7 @@ def build_context_markdown(root: Path, codename: str, chat_id: str) -> str:
 {next_line}- **Tasks in flight:** {tasks_line}
 - **Writable:** {writable}{worktree_note}
 {progress_note}
-{worktree_section}{inbox_section}
+{workflow_section}{worktree_section}{inbox_section}
 {goal}
 {format_guidelines_section(root, codename, session)}
 

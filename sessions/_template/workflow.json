@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "phase": "intake",
+  "gates": {
+    "brief_accepted": false,
+    "plan_user_accepted": false
+  },
+  "loops": {
+    "plan": {
+      "iteration": 0,
+      "max": 5,
+      "last_verdict": null
+    },
+    "code_review": {
+      "iteration": 0,
+      "max": 5,
+      "last_verdict": null
+    }
+  },
+  "artifacts": {
+    "brief": "artifacts/problem-brief.md",
+    "plan": "artifacts/action-plan.md",
+    "delivery": "artifacts/delivery-report.md",
+    "plan_feedback": "artifacts/plan-feedback.md"
+  }
+}

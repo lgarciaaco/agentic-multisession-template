@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **workflow-orchestrator** skill (M2–M3) — role rules, `SKILL.md`, `workflow.json` schema, artifact templates under `sessions/_template/artifacts/`
+- **`format_workflow_section`** — injects workflow phase, gates, loops, and artifact paths (with present/missing) into chat context when `sessions/<codename>/workflow.json` exists
+- **Plan loop (M4)** — `scripts/lib/workflow_plan.py`, `scripts/workflow-plan-synthesize.py`, workspace/persistence refs; autonomous REVISE→APPROVE synthesis and `pr-NNN` persistence
+- **Accept plan (M5)** — `scripts/workflow-accept-plan.sh`; task sync from `action-plan.md`; workflow gates block worktree/hub implementation until plan accepted
+- **Code review loop (M6)** — `scripts/lib/workflow_code_review.py`, `workflow-begin-code-review.py`, `workflow-code-review-enrich-scope.py`, `workflow-code-review-advance.py`; intent reviewer reads `action-plan.md` acceptance; `loops.code_review` + `progress.last_review` tracking
+- **Delivery + resume (M7)** — `workflow-write-delivery-report.py`, `workflow-reopen-brief.py`, `workflow-reopen-plan.py`; `format_workflow_section` Resume hint; `workflow_next_action()` for `/workflow` continuation
+- **Hub docs + tests (M8)** — `test_workflow_plan_reviewer_rules.py`; expanded pre-PR suite in `hub-contributing.mdc`; `SESSIONS.md` single-session workflow section; walkthrough in `docs/WORKFLOW.md`
+
+### Changed
+
+- `AGENTS.md`, `SESSIONS.md`, `.cursor/skills/README.md`, `orchestrator.mdc`, `CONTRIBUTING.md` — `/workflow` pipeline, trigger routing, inbox demoted to optional for linear delivery
+
 ## [0.6.0] - 2026-06-09
 
 ### Added

@@ -142,6 +142,14 @@ Canonical status lives in `session.json`. Run `sync-session.sh` if local `index.
 | `./scripts/generate-workspace.sh [path]` | Write multi-root `.code-workspace` from `repos.yaml` |
 | `./scripts/ensure-worktrees.sh <name>` | Create git worktrees from `session.json` tasks |
 | `./scripts/sync-session.sh [name]` | Sync index/context from `session.json` |
+| `./scripts/workflow-plan-synthesize.py <name> <workspace>` | Synthesize plan review iteration |
+| `./scripts/workflow-accept-plan.sh <name>` | Accept action plan; sync tasks + worktrees |
+| `./scripts/workflow-begin-code-review.py <name>` | Begin code review loop when tasks done |
+| `./scripts/workflow-code-review-enrich-scope.py <name> <workspace>` | Add action-plan acceptance to review manifest |
+| `./scripts/workflow-code-review-advance.py <name> [r-NNN]` | Advance code review loop after synthesizer |
+| `./scripts/workflow-write-delivery-report.py <name>` | Generate delivery report; phase → completed |
+| `./scripts/workflow-reopen-brief.py <name>` | Reopen brief gate; phase → intake |
+| `./scripts/workflow-reopen-plan.py <name>` | Reopen plan gate; phase → plan_loop |
 | `./scripts/set-session-scope.sh [name] --title T [--goal G] [--next N]` | Set title, TASKS.md goal, and/or `next` hint |
 | `./scripts/unbind-session.sh` | Clear binding only |
 | `./scripts/end-session.sh [name]` | Close work + unbind this chat |
@@ -170,24 +178,44 @@ Tab 3: my-agent → pick bravo  →  separate branch + worktree
 1. **start work** / `/start-work` — orchestrator lists sessions, you pick codename or **new**
 2. Agent runs `./scripts/bind-session.sh <codename>`
 3. When work intent is clear: `./scripts/set-session-scope.sh <codename> --title "…" --goal "…"` before product edits
-4. Hooks inject `sessions/context/<conversation_id>.md` on session start
+4. Hooks inject `sessions/context/<conversation_id>.md` on session start (includes `workflow.json` summary when present)
 5. **end session** — skill runs `./scripts/end-session.sh` (not the before-prompt hook)
 
 Do **not** run bare `agent` in tmux — use the project launcher so hooks and session resolution run.
 
 ---
 
-## Cross-session inbox
+## Single-session workflow (`/workflow`)
 
-Session **A** leaves a note for session **B** without copy-paste between Cursor windows.
+Optional pipeline in **one chat** — Problem → Plan → Code → Review. Replaces multi-chat inbox relay for linear feature delivery.
+
+| Step | Phase | User gate |
+|------|-------|-----------|
+| Analyst intake | `intake` → `brief_review` | `accept brief` |
+| Plan loop | `plan_loop` → `plan_user_review` | `accept plan` |
+| Implementation | `implementation` | — |
+| Code review loop | `code_review_loop` | — |
+| Delivery | `delivery` → `completed` | inform (report) |
+
+**Start or resume:** `/workflow` loads `.cursor/skills/workflow-orchestrator/SKILL.md`, reads `sessions/<codename>/workflow.json` `phase` and context **Resume** — continues without replaying chat history.
+
+**Scripts:** see workflow rows in [Commands](#commands) (`workflow-plan-synthesize.py`, `workflow-accept-plan.sh`, code-review and delivery scripts). Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
+
+**State:** `workflow.json`, `artifacts/`, `reviews/`, `artifacts/plan-review/` under `sessions/<codename>/`.
+
+---
+
+## Cross-session inbox (optional)
+
+For notes between **parallel** sessions when not using `/workflow`. Not required for the single-session pipeline.
 
 | Action | Command |
 |--------|---------|
-| **Write** | `./scripts/session-inbox.sh write <from> <to> "message"` (e.g. `write bravo alpha` → note in `alpha.md`) |
-| **Read** | `./scripts/session-inbox.sh read alpha` |
-| **Auto** | On bind, `sessions/_inbox/<codename>.md` is injected into `sessions/context/<chat>.md` |
+| **Write** | `./scripts/session-inbox.sh write <from> <to> "message"` |
+| **Read** | `./scripts/session-inbox.sh read <codename>` |
+| **Auto** | On bind, `sessions/_inbox/<codename>.md` injected into chat context |
 
-Files live in `sessions/_inbox/` (shared; any session may write via the script). See [sessions/_inbox/README.md](sessions/_inbox/README.md).
+See [sessions/_inbox/README.md](sessions/_inbox/README.md).
 
 ---
 

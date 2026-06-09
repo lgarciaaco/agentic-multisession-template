@@ -9,6 +9,16 @@ alwaysApply: true
 
 **Start work** / `/start-work` → load `.cursor/skills/session-orchestrator/SKILL.md`. You run `./scripts/*`.
 
+**Workflow** / `/workflow` → load `.cursor/skills/workflow-orchestrator/SKILL.md`. Resume from `workflow.json` phase; do not restart from chat history.
+
+**`/workflow status`** → same skill; one-screen status from `workflow.json`.
+
+**`accept brief`** / **`accept`** → workflow gate 1 (phase `brief_review`).
+
+**`accept plan`** → workflow gate 2 → `./scripts/workflow-accept-plan.sh <codename>`.
+
+**`reopen brief`** / **`reopen plan`** → `workflow-reopen-brief.py` / `workflow-reopen-plan.py`.
+
 **End session** / `/end-session` → load `.cursor/skills/session-end/SKILL.md`.
 
 **Template version / upgrade hub** → load `.cursor/skills/hub-upgrade/SKILL.md`. Run `./scripts/hub-status.sh` first; upgrade only when user says so.

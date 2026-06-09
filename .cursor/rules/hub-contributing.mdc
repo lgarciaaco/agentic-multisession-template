@@ -15,6 +15,11 @@ When **`session.json`** has `"mode": "hub"`, also follow [CONTRIBUTING.md](../..
 python3 scripts/test_session_binding.py
 python3 scripts/test_git_remotes.py
 python3 scripts/test_hub_upgrade.py
+python3 scripts/test_workflow_plan_loop.py
+python3 scripts/test_workflow_gates.py
+python3 scripts/test_workflow_code_review.py
+python3 scripts/test_workflow_resume.py
+python3 scripts/test_workflow_plan_reviewer_rules.py
 ```
 
 - Open from a feature branch; wait for CI (`test` workflow)

@@ -39,6 +39,29 @@ When `repos.yaml` uses **GitHub fork workflow** (`github_fork_user`, `remote: gi
 
 Regenerate a multi-root editor workspace: `./scripts/generate-workspace.sh` → `<hub-slug>.code-workspace`.
 
+## Workflow pipeline
+
+**`/workflow`** / **`/workflow status`** → `.cursor/skills/workflow-orchestrator/SKILL.md`
+
+Single-session **Problem → Plan → Code → Review** in one chat. State: `sessions/<codename>/workflow.json`; artifacts under `sessions/<codename>/artifacts/`. Chat context includes phase, gates, loops, artifact paths, and **Resume** when `workflow.json` exists.
+
+| Trigger | Action |
+|---------|--------|
+| `/workflow` | Start or resume from `workflow.json` phase |
+| `/workflow status` | One-screen status |
+| `accept brief` / `accept` | Gate 1 |
+| `accept plan` | Gate 2 → `./scripts/workflow-accept-plan.sh <codename>` |
+| `reopen brief` / `reopen plan` | `workflow-reopen-brief.py` / `workflow-reopen-plan.py` |
+
+| Phase scripts | Command |
+|---------------|---------|
+| Plan loop | `python3 scripts/workflow-plan-synthesize.py <codename> sessions/.../wf-...` |
+| Accept plan | `./scripts/workflow-accept-plan.sh <codename>` |
+| Code review | `workflow-begin-code-review.py`, `workflow-code-review-enrich-scope.py`, `workflow-code-review-advance.py` |
+| Delivery | `python3 scripts/workflow-write-delivery-report.py <codename>` |
+
+User gates only at brief, plan, and delivery report (inform). Autonomous inner loops for plan and code review — no cross-session inbox relay. Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
+
 ## End
 
 **end session** / **`/end-session`** → `.cursor/skills/session-end/SKILL.md` → `./scripts/end-session.sh`
@@ -78,6 +101,7 @@ Session context lists which guideline files exist on bind. Optional `guidelines:
 |-|------|
 | Bootstrap | `.cursor/skills/bootstrap-hub` |
 | Start | `.cursor/skills/session-orchestrator` |
+| Workflow | `.cursor/skills/workflow-orchestrator` |
 | Code review | `.cursor/skills/code-reviewer` |
 | Hub upgrade | `.cursor/skills/hub-upgrade` |
 | End | `.cursor/skills/session-end` |

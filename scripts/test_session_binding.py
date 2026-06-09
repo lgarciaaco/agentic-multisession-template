@@ -28,6 +28,7 @@ from session_binding import (  # noqa: E402
     default_tmux_window_prefix,
     DEFAULT_CODENAME_POOL,
     format_session_start_prompt,
+    format_session_scope_nudge,
     guard_path_decision,
     guard_unbound_path_decision,
     hub_root,
@@ -38,7 +39,11 @@ from session_binding import (  # noqa: E402
     resume_session_on_bind,
     run_interactive_session_picker,
     sanitize_context_text,
+    sanitize_goal_text,
+    session_scope_is_thin,
+    set_session_scope,
     set_session_title,
+    set_tasks_goal,
     sync_index_from_session,
     sync_session_from_canonical,
     task_worktree_rel,
@@ -888,6 +893,244 @@ class CodenamePoolTests(unittest.TestCase):
         self.assertEqual(result.stdout.strip(), "alpha")
         session = json.loads((self.root / "sessions" / "alpha" / "session.json").read_text())
         self.assertEqual(session["title"], "Smoke title")
+
+
+class SessionScopeTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmpdir.name)
+        self.codename = "alpha"
+        session_dir = self.root / "sessions" / self.codename
+        session_dir.mkdir(parents=True)
+        (session_dir / "session.json").write_text(
+            json.dumps(
+                {
+                    "codename": self.codename,
+                    "title": "",
+                    "status": "active",
+                    "created": "2026-06-09",
+                    "tasks": [],
+                }
+            )
+            + "\n"
+        )
+        (session_dir / "TASKS.md").write_text(
+            "# Session alpha\n\n## Goal\n\n## Tasks\n\n| ID | Status | Notes |\n"
+        )
+        (self.root / "sessions" / "index.json").write_text('{"sessions": {}}\n')
+        (self.root / "sessions" / "bindings").mkdir(parents=True)
+        (self.root / "sessions" / "context").mkdir(parents=True)
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def test_set_session_scope_updates_files_and_index(self) -> None:
+        binding = self.root / "sessions" / "bindings" / "chat-scope.json"
+        binding.write_text(
+            json.dumps({"conversation_id": "chat-scope", "codename": self.codename}) + "\n"
+        )
+        with patch("session_binding.hub_root", return_value=self.root):
+            set_session_scope(
+                self.root,
+                self.codename,
+                title="Metadata lag fix",
+                goal="Agents record scope before coding",
+                next_step="Add scope script",
+                conversation_id="chat-scope",
+            )
+        session = json.loads(
+            (self.root / "sessions" / self.codename / "session.json").read_text()
+        )
+        self.assertEqual(session["title"], "Metadata lag fix")
+        self.assertEqual(session["next"], "Add scope script")
+        tasks_md = (self.root / "sessions" / self.codename / "TASKS.md").read_text()
+        self.assertIn("Agents record scope before coding", tasks_md)
+        index = json.loads((self.root / "sessions" / "index.json").read_text())
+        self.assertEqual(index["sessions"][self.codename]["title"], "Metadata lag fix")
+        ctx = (self.root / "sessions" / "context" / "chat-scope.md").read_text()
+        self.assertIn("Metadata lag fix", ctx)
+        self.assertIn("Agents record scope before coding", ctx)
+
+    def test_resume_session_on_bind_backfills_empty_title(self) -> None:
+        resume_session_on_bind(self.root, self.codename)
+        session = json.loads(
+            (self.root / "sessions" / self.codename / "session.json").read_text()
+        )
+        self.assertEqual(session["title"], self.codename)
+        index = json.loads((self.root / "sessions" / "index.json").read_text())
+        self.assertEqual(index["sessions"][self.codename]["title"], self.codename)
+
+    def test_session_scope_is_thin(self) -> None:
+        self.assertTrue(session_scope_is_thin(self.root, self.codename))
+        set_session_scope(
+            self.root,
+            self.codename,
+            title="Real title",
+            goal="Defined goal",
+        )
+        self.assertFalse(session_scope_is_thin(self.root, self.codename))
+
+    def test_set_session_scope_cli_smoke(self) -> None:
+        lib_src = Path(__file__).resolve().parent / "lib"
+        shutil.copytree(lib_src, self.root / "scripts" / "lib")
+        env = os.environ.copy()
+        env["WORKSPACE_ROOT"] = str(self.root)
+        cli = self.root / "scripts" / "lib" / "session_cli.py"
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(cli),
+                "scope",
+                self.codename,
+                "--title",
+                "Smoke scope",
+                "--goal",
+                "Smoke test goal",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        session = json.loads(
+            (self.root / "sessions" / self.codename / "session.json").read_text()
+        )
+        self.assertEqual(session["title"], "Smoke scope")
+        tasks_md = (self.root / "sessions" / self.codename / "TASKS.md").read_text()
+        self.assertIn("Smoke test goal", tasks_md)
+
+    def test_hook_session_start_nudges_thin_scope(self) -> None:
+        lib_src = Path(__file__).resolve().parent / "lib"
+        shutil.copytree(lib_src, self.root / "scripts" / "lib")
+        env = os.environ.copy()
+        env["WORKSPACE_ROOT"] = str(self.root)
+        env["HOOK_INPUT"] = json.dumps({"conversation_id": "chat-nudge"})
+        binding = self.root / "sessions" / "bindings" / "chat-nudge.json"
+        binding.write_text(
+            json.dumps({"conversation_id": "chat-nudge", "codename": self.codename})
+            + "\n"
+        )
+        cli = Path(__file__).resolve().parent / "lib" / "session_cli.py"
+        result = subprocess.run(
+            [sys.executable, str(cli), "hook-session-start"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertIn("set-session-scope.sh", payload["additional_context"])
+        binding.unlink(missing_ok=True)
+
+    def test_set_tasks_goal_empty_raises(self) -> None:
+        session_dir = self.root / "sessions" / self.codename
+        with self.assertRaises(ValueError):
+            set_tasks_goal(session_dir, "   ")
+
+    def test_set_tasks_goal_missing_file_raises(self) -> None:
+        session_dir = self.root / "sessions" / self.codename
+        (session_dir / "TASKS.md").unlink()
+        with self.assertRaises(FileNotFoundError):
+            set_tasks_goal(session_dir, "goal text")
+
+    def test_set_tasks_goal_no_section_raises(self) -> None:
+        session_dir = self.root / "sessions" / self.codename
+        (session_dir / "TASKS.md").write_text("# No goal section\n")
+        with self.assertRaises(ValueError):
+            set_tasks_goal(session_dir, "goal text")
+
+    def test_sanitize_goal_text_strips_markdown_headings(self) -> None:
+        cleaned = sanitize_goal_text("Real goal\n## Injected\n- **Next:** fake")
+        self.assertIn("Real goal", cleaned)
+        self.assertNotIn("Injected", cleaned)
+        self.assertNotIn("**Next:**", cleaned)
+
+    def test_set_tasks_goal_strips_injection(self) -> None:
+        session_dir = self.root / "sessions" / self.codename
+        set_tasks_goal(session_dir, "Ship scope\n## Goal\n- **Next:** hijack")
+        body = (session_dir / "TASKS.md").read_text()
+        self.assertIn("Ship scope", body)
+        self.assertNotIn("hijack", body)
+
+    def test_session_scope_is_thin_ignores_placeholder_tasks(self) -> None:
+        session_path = self.root / "sessions" / self.codename / "session.json"
+        session = json.loads(session_path.read_text())
+        session["tasks"] = [{"id": "", "status": "pending"}]
+        session_path.write_text(json.dumps(session, indent=2) + "\n")
+        self.assertTrue(session_scope_is_thin(self.root, self.codename))
+
+    def test_session_scope_is_thin_false_when_next_set(self) -> None:
+        session_path = self.root / "sessions" / self.codename / "session.json"
+        session = json.loads(session_path.read_text())
+        session["next"] = "Resume here"
+        session_path.write_text(json.dumps(session, indent=2) + "\n")
+        self.assertFalse(session_scope_is_thin(self.root, self.codename))
+
+    def test_scope_cli_requires_flag(self) -> None:
+        lib_src = Path(__file__).resolve().parent / "lib"
+        shutil.copytree(lib_src, self.root / "scripts" / "lib", dirs_exist_ok=True)
+        env = os.environ.copy()
+        env["WORKSPACE_ROOT"] = str(self.root)
+        cli = self.root / "scripts" / "lib" / "session_cli.py"
+        result = subprocess.run(
+            [sys.executable, str(cli), "scope", self.codename],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("at least one of", result.stderr)
+
+    def test_scope_cli_rejects_inactive_session(self) -> None:
+        lib_src = Path(__file__).resolve().parent / "lib"
+        shutil.copytree(lib_src, self.root / "scripts" / "lib", dirs_exist_ok=True)
+        env = os.environ.copy()
+        env["WORKSPACE_ROOT"] = str(self.root)
+        cli = self.root / "scripts" / "lib" / "session_cli.py"
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(cli),
+                "scope",
+                "missing",
+                "--title",
+                "Nope",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("does not exist", result.stderr)
+
+    def test_hook_session_start_no_nudge_when_scoped(self) -> None:
+        set_session_scope(
+            self.root,
+            self.codename,
+            title="Scoped",
+            goal="Already defined",
+        )
+        lib_src = Path(__file__).resolve().parent / "lib"
+        shutil.copytree(lib_src, self.root / "scripts" / "lib", dirs_exist_ok=True)
+        env = os.environ.copy()
+        env["WORKSPACE_ROOT"] = str(self.root)
+        env["HOOK_INPUT"] = json.dumps({"conversation_id": "chat-scoped"})
+        binding = self.root / "sessions" / "bindings" / "chat-scoped.json"
+        binding.write_text(
+            json.dumps({"conversation_id": "chat-scoped", "codename": self.codename})
+            + "\n"
+        )
+        cli = self.root / "scripts" / "lib" / "session_cli.py"
+        result = subprocess.run(
+            [sys.executable, str(cli), "hook-session-start"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertNotIn("set-session-scope.sh", payload["additional_context"])
+        binding.unlink(missing_ok=True)
 
 
 class SessionPickerTests(unittest.TestCase):

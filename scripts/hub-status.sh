@@ -13,9 +13,11 @@ while [[ $# -gt 0 ]]; do
       cat <<'EOF'
 Usage: ./scripts/hub-status.sh [--cached-only]
 
-Compare installed .hub-version to upstream template (JSON on stdout).
+Compare installed `.hub-version` to upstream template releases (JSON on stdout).
 Default: fetch upstream into .hub-upstream-cache/
 --cached-only: use cache only (no network)
+
+When installed version is 1.0.0-rc.1, treat it as the first stable candidate line.
 EOF
       exit 0
       ;;

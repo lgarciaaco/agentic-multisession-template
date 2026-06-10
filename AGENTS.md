@@ -69,7 +69,9 @@ User gates **only at brief and plan**. Autonomous inner loops for plan and code 
 
 ## Hub template upgrade
 
-Ask **"Is there a new template version?"** → `./scripts/hub-status.sh` → explain hub changes + session notes in plain language.
+**1.0.0-rc.1** is the **first stable candidate** release line — not an incremental dev milestone. Treat rc.1 as production-ready hub machinery; report gaps before the **1.0.0** tag.
+
+Ask **"Is there a new template version?"** → `./scripts/hub-status.sh` → explain hub changes + session notes in plain language (installed `.hub-version` vs upstream template releases).
 
 Say **"Upgrade"** → `.cursor/skills/hub-upgrade/SKILL.md` → `./scripts/hub-upgrade.sh --yes` (hub layer only; keeps `repos.yaml` and session folders).
 

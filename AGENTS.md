@@ -27,7 +27,7 @@ Hub install if needed: `pip install -r scripts/requirements.txt` && `./scripts/i
 **Cursor:** **start work** / **`/start-work`** → `.cursor/skills/session-orchestrator/SKILL.md`
 
 1. `./scripts/repos-status.sh` — if not `ready` and user wants **product** work, bootstrap repos first (ask if missing).
-2. `./scripts/resolve-session.sh` or picker → bind codename
+2. `./scripts/resolve-session.sh` or picker → bind codename (hooks auto-persist from tmux pane/window, not sibling inherit; first-prompt fallback — see [SESSIONS.md](SESSIONS.md) Chat auto-bind; `./scripts/session-audit.sh` to verify)
 3. **Scope metadata** — when work intent is clear, run `./scripts/set-session-scope.sh <codename> --title "…" --goal "…"` before the first product edit (see [SESSIONS.md](SESSIONS.md))
 4. `session.json` tasks need `"repo": "<alias>"` matching `repos.yaml`; then `./scripts/ensure-worktrees.sh <codename>`
 5. Edit product in `sessions/<codename>/worktrees/<repo>/` only — hub-root blocked when bound ([docs/REPOS.md](docs/REPOS.md) Guards); hub refresh via `./scripts/hub-upgrade.sh`

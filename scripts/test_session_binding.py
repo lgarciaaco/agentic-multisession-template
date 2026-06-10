@@ -16,11 +16,17 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from repos import bootstrap_status, normalize_git_url, self_hosted_aliases  # noqa: E402
 from session_binding import (  # noqa: E402
+    format_multi_session_tmux_warning,
+    format_session_audit_report,
+    format_unpersisted_inherit_warning,
     _read_tty_line,
     active_pool_list,
     allocate_codename,
+    AUTO_PERSIST_BINDING_SOURCES,
     bind_session_context,
     build_context_markdown,
+    collect_session_audit,
+    ensure_chat_binding,
     format_workflow_section,
     close_session_work,
     CodenameAllocationError,
@@ -40,6 +46,7 @@ from session_binding import (  # noqa: E402
     hub_root,
     load_codenames,
     prompt_new_session_title,
+    read_binding,
     read_inbox,
     resolve_codename,
     resume_session_on_bind,
@@ -1481,6 +1488,319 @@ class SelfHostedTests(unittest.TestCase):
         ctx = payload["additional_context"]
         self.assertIn("set-session-scope.sh", ctx)
         self.assertIn("ensure-worktrees.sh", ctx)
+
+
+class ChatBindingPersistTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmpdir.name)
+        self.codename = "bravo"
+        session_dir = self.root / "sessions" / self.codename
+        session_dir.mkdir(parents=True)
+        (session_dir / "session.json").write_text(
+            json.dumps(
+                {
+                    "codename": self.codename,
+                    "title": self.codename,
+                    "status": "active",
+                    "tasks": [],
+                }
+            )
+            + "\n"
+        )
+        (session_dir / "TASKS.md").write_text("# bravo\n\n## Goal\n\n## Tasks\n\n")
+        (session_dir / "progress.json").write_text(
+            json.dumps({"status": "active", "session": self.codename}) + "\n"
+        )
+        (self.root / "sessions" / "bindings").mkdir(parents=True)
+        (self.root / "sessions" / "context").mkdir(parents=True)
+        (self.root / "sessions" / "index.json").write_text(
+            json.dumps({"sessions": {self.codename: {"status": "active"}}}) + "\n"
+        )
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def test_ensure_chat_binding_persists_from_tmux_pane(self) -> None:
+        cid = "chat-auto-pane"
+        with patch("session_binding.set_tmux_pane_codename", return_value=True):
+            with patch("session_binding.rename_tmux_for_codename", return_value=True):
+                name, source, persisted = ensure_chat_binding(
+                    self.root, cid, self.codename, "tmux-pane"
+                )
+        self.assertTrue(persisted)
+        self.assertEqual(name, self.codename)
+        self.assertEqual(source, "binding")
+        binding = read_binding(self.root, cid)
+        self.assertIsNotNone(binding)
+        self.assertEqual(binding["codename"], self.codename)
+        self.assertTrue(binding.get("auto_bound"))
+        self.assertEqual(binding.get("resolved_via"), "tmux-pane")
+        self.assertTrue((self.root / "sessions" / "context" / f"{cid}.md").exists())
+
+    def test_ensure_chat_binding_skips_tmux_session_inherit(self) -> None:
+        cid = "chat-inherit-only"
+        name, source, persisted = ensure_chat_binding(
+            self.root, cid, self.codename, "tmux-session"
+        )
+        self.assertFalse(persisted)
+        self.assertEqual(source, "tmux-session")
+        self.assertIsNone(read_binding(self.root, cid))
+
+    def test_ensure_chat_binding_refreshes_existing(self) -> None:
+        cid = "chat-existing"
+        binding_path = self.root / "sessions" / "bindings" / f"{cid}.json"
+        binding_path.write_text(
+            json.dumps(
+                {
+                    "conversation_id": cid,
+                    "codename": self.codename,
+                    "bound_at": "2026-01-01T00:00:00+00:00",
+                    "last_active_at": "2026-01-01T00:00:00+00:00",
+                }
+            )
+            + "\n"
+        )
+        name, source, persisted = ensure_chat_binding(
+            self.root, cid, "charlie", "tmux-pane"
+        )
+        self.assertFalse(persisted)
+        self.assertEqual(name, self.codename)
+        self.assertEqual(source, "binding")
+        binding = read_binding(self.root, cid)
+        self.assertEqual(binding["codename"], self.codename)
+        self.assertNotEqual(binding["last_active_at"], "2026-01-01T00:00:00+00:00")
+
+    def test_hook_session_start_auto_persists_tmux_pane(self) -> None:
+        import argparse
+        from io import StringIO
+
+        import session_cli
+
+        os.environ["WORKSPACE_ROOT"] = str(self.root)
+        os.environ["HOOK_INPUT"] = json.dumps({"conversation_id": "chat-hook-persist"})
+        buf = StringIO()
+        with patch("sys.stdout", buf):
+            with patch("session_binding.hub_root", return_value=self.root):
+                with patch("session_binding.get_tmux_pane_codename", return_value=self.codename):
+                    with patch("session_binding.get_tmux_session_bound_codenames", return_value=set()):
+                        with patch("session_binding.get_tmux_window_name", return_value=None):
+                            with patch("session_binding.set_tmux_pane_codename", return_value=True):
+                                with patch("session_binding.rename_tmux_for_codename", return_value=True):
+                                    rc = session_cli.cmd_hook_session_start(argparse.Namespace())
+        try:
+            self.assertEqual(rc, 0)
+            payload = json.loads(buf.getvalue())
+            self.assertIn("Chat binding persisted", payload["additional_context"])
+            self.assertIsNotNone(read_binding(self.root, "chat-hook-persist"))
+        finally:
+            os.environ.pop("WORKSPACE_ROOT", None)
+            os.environ.pop("HOOK_INPUT", None)
+            os.environ.pop("WORKSPACE_CONVERSATION_ID", None)
+
+    def test_hook_before_prompt_persists_without_start_work_phrase(self) -> None:
+        import argparse
+
+        import session_cli
+
+        os.environ["WORKSPACE_ROOT"] = str(self.root)
+        os.environ["HOOK_INPUT"] = json.dumps(
+            {"conversation_id": "chat-first-prompt", "prompt": "fix the bug please"}
+        )
+        with patch("session_binding.hub_root", return_value=self.root):
+            with patch("session_binding.get_tmux_pane_codename", return_value=self.codename):
+                with patch("session_binding.get_tmux_session_bound_codenames", return_value=set()):
+                    with patch("session_binding.get_tmux_window_name", return_value=None):
+                        with patch("session_binding.set_tmux_pane_codename", return_value=True):
+                            with patch("session_binding.rename_tmux_for_codename", return_value=True):
+                                rc = session_cli.cmd_hook_before_prompt(argparse.Namespace())
+        try:
+            self.assertEqual(rc, 0)
+            self.assertIsNotNone(read_binding(self.root, "chat-first-prompt"))
+        finally:
+            os.environ.pop("WORKSPACE_ROOT", None)
+            os.environ.pop("HOOK_INPUT", None)
+            os.environ.pop("WORKSPACE_CONVERSATION_ID", None)
+
+    def test_auto_persist_sources_exclude_tmux_session(self) -> None:
+        self.assertNotIn("tmux-session", AUTO_PERSIST_BINDING_SOURCES)
+
+    def test_collect_session_audit_lists_bindings(self) -> None:
+        cid = "chat-audit"
+        (self.root / "sessions" / "bindings" / f"{cid}.json").write_text(
+            json.dumps(
+                {
+                    "conversation_id": cid,
+                    "codename": self.codename,
+                    "auto_bound": True,
+                    "resolved_via": "tmux-pane",
+                }
+            )
+            + "\n"
+        )
+        os.environ["WORKSPACE_CONVERSATION_ID"] = cid
+        try:
+            with patch("session_binding.read_binding", wraps=read_binding):
+                audit = collect_session_audit(self.root)
+        finally:
+            os.environ.pop("WORKSPACE_CONVERSATION_ID", None)
+        self.assertEqual(len(audit["bindings"]), 1)
+        self.assertEqual(audit["bindings"][0]["codename"], self.codename)
+
+    def test_ensure_chat_binding_persists_from_tmux_window(self) -> None:
+        cid = "chat-auto-window"
+        with patch("session_binding.set_tmux_pane_codename", return_value=True):
+            with patch("session_binding.rename_tmux_for_codename", return_value=True):
+                name, source, persisted = ensure_chat_binding(
+                    self.root, cid, self.codename, "tmux"
+                )
+        self.assertTrue(persisted)
+        self.assertEqual(source, "binding")
+        binding = read_binding(self.root, cid)
+        self.assertEqual(binding.get("resolved_via"), "tmux")
+
+    def test_ensure_chat_binding_refreshes_context_file(self) -> None:
+        cid = "chat-ctx-refresh"
+        ctx_path = self.root / "sessions" / "context" / f"{cid}.md"
+        binding_path = self.root / "sessions" / "bindings" / f"{cid}.json"
+        binding_path.write_text(
+            json.dumps(
+                {
+                    "conversation_id": cid,
+                    "codename": self.codename,
+                    "bound_at": "2026-01-01T00:00:00+00:00",
+                    "last_active_at": "2026-01-01T00:00:00+00:00",
+                }
+            )
+            + "\n"
+        )
+        ctx_path.parent.mkdir(parents=True, exist_ok=True)
+        ctx_path.write_text("stale context\n")
+        ensure_chat_binding(self.root, cid, "charlie", "tmux-pane")
+        self.assertTrue(ctx_path.exists())
+        self.assertIn(self.codename, ctx_path.read_text())
+
+    def test_format_multi_session_tmux_warning_with_siblings(self) -> None:
+        with patch(
+            "session_binding.get_tmux_session_bound_codenames",
+            return_value={self.codename, "charlie"},
+        ):
+            warn = format_multi_session_tmux_warning(self.root, self.codename)
+        self.assertIn("session-audit.sh", warn)
+        self.assertIn("charlie", warn)
+
+    def test_format_multi_session_tmux_warning_single_session(self) -> None:
+        with patch(
+            "session_binding.get_tmux_session_bound_codenames",
+            return_value={self.codename},
+        ):
+            self.assertEqual(format_multi_session_tmux_warning(self.root, self.codename), "")
+
+    def test_format_unpersisted_inherit_warning(self) -> None:
+        msg = format_unpersisted_inherit_warning(self.codename, "tmux-session")
+        self.assertIn("not auto-bound", msg)
+        self.assertEqual(format_unpersisted_inherit_warning(self.codename, "tmux-pane"), "")
+
+    def test_format_session_audit_report_sections(self) -> None:
+        audit = {
+            "this_chat": {
+                "conversation_id": "chat-1",
+                "resolved_codename": self.codename,
+                "resolved_via": "binding",
+                "has_binding": True,
+            },
+            "bindings": [
+                {
+                    "conversation_id": "chat-1",
+                    "codename": self.codename,
+                    "auto_bound": True,
+                    "resolved_via": "tmux-pane",
+                    "this_chat": True,
+                }
+            ],
+            "tmux_panes": [{"pane_id": "%1", "codename": self.codename, "under_hub": True, "window": "w"}],
+            "tmux_sibling_codenames": [self.codename, "charlie"],
+            "sessions": [{"codename": self.codename, "title": "t", "bound_chats": 1, "last_bound_at": "x"}],
+        }
+        report = format_session_audit_report(audit)
+        self.assertIn("## Chat bindings", report)
+        self.assertIn("## Tmux panes", report)
+        self.assertIn("## Active sessions", report)
+        self.assertIn("This chat", report)
+
+    def test_hook_session_start_multi_session_warning(self) -> None:
+        import argparse
+        from io import StringIO
+
+        import session_cli
+
+        os.environ["WORKSPACE_ROOT"] = str(self.root)
+        os.environ["HOOK_INPUT"] = json.dumps({"conversation_id": "chat-multi-warn"})
+        buf = StringIO()
+        with patch("sys.stdout", buf):
+            with patch("session_binding.hub_root", return_value=self.root):
+                with patch("session_binding.get_tmux_pane_codename", return_value=self.codename):
+                    with patch(
+                        "session_binding.get_tmux_session_bound_codenames",
+                        return_value={self.codename, "charlie"},
+                    ):
+                        with patch("session_binding.get_tmux_window_name", return_value=None):
+                            with patch("session_binding.set_tmux_pane_codename", return_value=True):
+                                with patch("session_binding.rename_tmux_for_codename", return_value=True):
+                                    session_cli.cmd_hook_session_start(argparse.Namespace())
+        try:
+            payload = json.loads(buf.getvalue())
+            self.assertIn("session-audit.sh", payload["additional_context"])
+            self.assertIn("charlie", payload["additional_context"])
+        finally:
+            os.environ.pop("WORKSPACE_ROOT", None)
+            os.environ.pop("HOOK_INPUT", None)
+            os.environ.pop("WORKSPACE_CONVERSATION_ID", None)
+
+    def test_hook_session_start_inherit_warning_no_persist(self) -> None:
+        import argparse
+        from io import StringIO
+
+        import session_cli
+
+        os.environ["WORKSPACE_ROOT"] = str(self.root)
+        os.environ["HOOK_INPUT"] = json.dumps({"conversation_id": "chat-inherit"})
+        buf = StringIO()
+        with patch("sys.stdout", buf):
+            with patch("session_binding.hub_root", return_value=self.root):
+                with patch("session_binding.get_tmux_pane_codename", return_value=None):
+                    with patch(
+                        "session_binding.get_tmux_session_bound_codenames",
+                        return_value={self.codename},
+                    ):
+                        with patch("session_binding.get_tmux_window_name", return_value=None):
+                            session_cli.cmd_hook_session_start(argparse.Namespace())
+        try:
+            payload = json.loads(buf.getvalue())
+            self.assertIn("not auto-bound", payload["additional_context"])
+            self.assertIsNone(read_binding(self.root, "chat-inherit"))
+        finally:
+            os.environ.pop("WORKSPACE_ROOT", None)
+            os.environ.pop("HOOK_INPUT", None)
+            os.environ.pop("WORKSPACE_CONVERSATION_ID", None)
+
+    def test_cmd_audit_json(self) -> None:
+        import argparse
+
+        import session_cli
+
+        os.environ["WORKSPACE_ROOT"] = str(self.root)
+        buf = __import__("io").StringIO()
+        with patch("sys.stdout", buf):
+            with patch("session_binding.hub_root", return_value=self.root):
+                session_cli.cmd_audit(argparse.Namespace(format="json"))
+        try:
+            data = json.loads(buf.getvalue())
+            self.assertIn("bindings", data)
+            self.assertIn("sessions", data)
+            self.assertIn("this_chat", data)
+        finally:
+            os.environ.pop("WORKSPACE_ROOT", None)
 
 
 if __name__ == "__main__":

@@ -10,15 +10,21 @@ import sys
 from pathlib import Path
 
 from session_binding import (
+    AUTO_PERSIST_BINDING_SOURCES,
     agent_launcher_name,
     bind_session_context,
     close_session_work,
+    collect_session_audit,
     conversation_id,
+    ensure_chat_binding,
     ensure_session,
+    format_multi_session_tmux_warning,
+    format_session_audit_report,
     format_session_scope_nudge,
     format_session_worktree_nudge,
     format_session_start_prompt,
     format_session_start_required,
+    format_unpersisted_inherit_warning,
     hub_root,
     list_active_sessions,
     print_session_table,
@@ -231,15 +237,28 @@ def cmd_hook_session_start(_args: argparse.Namespace) -> int:
         os.environ["WORKSPACE_CONVERSATION_ID"] = cid
 
     codename, source = resolve_codename(root)
+    resolved_source = source
+    persisted = False
+    if codename and cid:
+        codename, source, persisted = ensure_chat_binding(root, cid, codename, source)
     if codename:
-        if cid and source == "binding":
-            write_context_file(root, cid, codename)
         label = resolve_source_label(source)
         window = tmux_window_label(codename) or codename
         extra = (
             f"Session `{codename}` resolved via {label}. "
             f"Tmux window: `{window}`. Writable: sessions/{codename}/worktrees/** + metadata; repos/ read-only."
         )
+        if persisted:
+            extra += (
+                f"\n\nChat binding persisted for this conversation → `{codename}` "
+                f"(see `sessions/bindings/` and `sessions/context/`)."
+            )
+        inherit_warn = format_unpersisted_inherit_warning(codename, resolved_source)
+        if inherit_warn:
+            extra += f"\n\n{inherit_warn}"
+        multi_warn = format_multi_session_tmux_warning(root, codename, resolved_source)
+        if multi_warn:
+            extra += f"\n\n{multi_warn}"
         try:
             nudges: list[str] = []
             if session_scope_is_thin(root, codename):
@@ -274,12 +293,13 @@ def cmd_hook_before_prompt(_args: argparse.Namespace) -> int:
 
     # End session: session-end skill runs end-session.sh (not here — avoids double close).
 
-    if prompt_is_start_new(prompt) and not binding:
-        from session_binding import codename_from_tmux
-
-        tmux_codename = codename_from_tmux(root)
-        if tmux_codename:
-            bind_session_context(root, tmux_codename, cid)
+    if not binding:
+        codename, source = resolve_codename(root)
+        if codename:
+            if source in AUTO_PERSIST_BINDING_SOURCES:
+                ensure_chat_binding(root, cid, codename, source)
+            elif source == "tmux-session" and prompt_is_start_new(prompt):
+                bind_session_context(root, codename, cid)
 
     return 0
 
@@ -319,6 +339,16 @@ def cmd_inbox(args: argparse.Namespace) -> int:
 
     print("Error: unknown inbox command", file=sys.stderr)
     return 1
+
+
+def cmd_audit(args: argparse.Namespace) -> int:
+    root = hub_root()
+    audit = collect_session_audit(root)
+    if args.format == "json":
+        print(json.dumps(audit, indent=2))
+        return 0
+    print(format_session_audit_report(audit))
+    return 0
 
 
 def cmd_hook_guard_paths(_args: argparse.Namespace) -> int:
@@ -388,6 +418,8 @@ def main(argv: list[str] | None = None) -> int:
     inbox_write.add_argument("to_session", metavar="to")
     inbox_write.add_argument("message")
 
+    audit_p = sub.add_parser("audit", help="Correlation snapshot: bindings, tmux, sessions")
+    audit_p.add_argument("--format", choices=("report", "json"), default="report")
     sub.add_parser("hook-session-start")
     sub.add_parser("hook-before-prompt")
     sub.add_parser("hook-session-end")
@@ -405,6 +437,7 @@ def main(argv: list[str] | None = None) -> int:
         "rename": cmd_rename,
         "close": cmd_close,
         "inbox": cmd_inbox,
+        "audit": cmd_audit,
         "hook-session-start": cmd_hook_session_start,
         "hook-before-prompt": cmd_hook_before_prompt,
         "hook-session-end": cmd_hook_session_end,

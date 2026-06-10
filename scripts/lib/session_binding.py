@@ -20,6 +20,8 @@ RESOLVE_SOURCE_LABELS = {
     "tmux-session": "tmux session (sibling tab)",
     "tmux": "tmux window name",
 }
+# Cursor chats auto-persist bindings from these tmux sources (not sibling inherit).
+AUTO_PERSIST_BINDING_SOURCES = frozenset({"tmux-pane", "tmux"})
 
 
 def _utc_now_iso() -> str:
@@ -517,9 +519,10 @@ def _is_goal_heading(line: str) -> bool:
 
 
 def hub_root() -> Path:
-    from hub_paths import hub_root as _hub_root
-
-    return _hub_root()
+    env = os.environ.get("WORKSPACE_ROOT", "").strip()
+    if env:
+        return Path(env)
+    return Path(__file__).resolve().parent.parent.parent
 
 
 def tmux_pane_option() -> str:
@@ -1366,7 +1369,14 @@ def read_binding(root: Path, conversation_id: str, *, active_only: bool = True) 
     return data
 
 
-def write_binding(root: Path, conversation_id: str, codename: str) -> dict:
+def write_binding(
+    root: Path,
+    conversation_id: str,
+    codename: str,
+    *,
+    resolved_via: str | None = None,
+    auto_bound: bool | None = None,
+) -> dict:
     bindings_dir(root).mkdir(parents=True, exist_ok=True)
     now = _utc_now_iso()
     existing = read_binding(root, conversation_id, active_only=False)
@@ -1376,8 +1386,212 @@ def write_binding(root: Path, conversation_id: str, codename: str) -> dict:
         "bound_at": (existing or {}).get("bound_at") or now,
         "last_active_at": now,
     }
+    if resolved_via:
+        data["resolved_via"] = resolved_via
+    elif existing and existing.get("resolved_via"):
+        data["resolved_via"] = existing["resolved_via"]
+    if auto_bound is not None:
+        data["auto_bound"] = auto_bound
+    elif existing and "auto_bound" in existing:
+        data["auto_bound"] = existing["auto_bound"]
     binding_path(root, conversation_id).write_text(json.dumps(data, indent=2) + "\n")
     return data
+
+
+def touch_binding_active(root: Path, conversation_id: str) -> None:
+    """Update last_active_at on an existing binding without changing codename."""
+    data = read_binding(root, conversation_id, active_only=False)
+    if not data:
+        return
+    data["last_active_at"] = _utc_now_iso()
+    binding_path(root, conversation_id).write_text(json.dumps(data, indent=2) + "\n")
+
+
+def ensure_chat_binding(
+    root: Path,
+    cid: str,
+    codename: str,
+    source: str,
+) -> tuple[str, str, bool]:
+    """Persist or refresh a Cursor chat binding. Returns (codename, source, newly_persisted)."""
+    existing = read_binding(root, cid)
+    if existing:
+        name = existing["codename"]
+        touch_binding_active(root, cid)
+        write_context_file(root, cid, name)
+        return name, "binding", False
+
+    if source not in AUTO_PERSIST_BINDING_SOURCES:
+        return codename, source, False
+
+    bind_session_context(root, codename, cid, resolved_via=source, auto_bound=True)
+    return codename, "binding", True
+
+
+def format_multi_session_tmux_warning(root: Path, codename: str, source: str = "") -> str:
+    """Warn when multiple hub sessions share one tmux session."""
+    siblings = get_tmux_session_bound_codenames(root)
+    if len(siblings) <= 1:
+        return ""
+    others = sorted(siblings - {codename})
+    if not others:
+        return ""
+    joined = ", ".join(f"`{name}`" for name in others)
+    return (
+        f"**Warning:** {len(siblings)} sessions active in this tmux session "
+        f"(`{codename}` + {joined}). "
+        f"Verify with `./scripts/session-audit.sh` before editing."
+    )
+
+
+def format_unpersisted_inherit_warning(codename: str, source: str) -> str:
+    if source != "tmux-session":
+        return ""
+    return (
+        f"**Session not auto-bound:** `{codename}` inherited from a sibling tab only. "
+        f"Reply with the codename or run `./scripts/bind-session.sh {codename}` to lock this chat."
+    )
+
+
+def collect_session_audit(root: Path | None = None) -> dict:
+    """Correlation snapshot: bindings, tmux panes, and active sessions."""
+    root = root or hub_root()
+    cid = conversation_id()
+    codename, source = resolve_codename(root)
+
+    bindings: list[dict] = []
+    bdir = bindings_dir(root)
+    if bdir.exists():
+        for path in sorted(bdir.glob("*.json")):
+            try:
+                data = json.loads(path.read_text())
+            except json.JSONDecodeError:
+                continue
+            if isinstance(data, dict) and data.get("codename") and data.get("status") != "ended":
+                bindings.append(
+                    {
+                        "conversation_id": data.get("conversation_id") or path.stem,
+                        "codename": data["codename"],
+                        "bound_at": data.get("bound_at"),
+                        "last_active_at": data.get("last_active_at"),
+                        "auto_bound": data.get("auto_bound"),
+                        "resolved_via": data.get("resolved_via"),
+                        "this_chat": data.get("conversation_id") == cid if cid else False,
+                    }
+                )
+
+    tmux_panes: list[dict] = []
+    if os.environ.get("TMUX"):
+        opt = tmux_pane_option()
+        result = _run_tmux(
+            "list-panes",
+            "-s",
+            "-F",
+            f"#{{pane_id}}\t#{{@{opt}}}\t#{{pane_current_path}}\t#{{window_name}}\t#{{pane_title}}",
+        )
+        if result:
+            for line in result.stdout.splitlines():
+                parts = line.split("\t")
+                if len(parts) < 5:
+                    continue
+                pane_id, pane_codename, pane_path, window_name, pane_title = parts[:5]
+                under_hub = _pane_path_under_hub_root(root, pane_path)
+                tmux_panes.append(
+                    {
+                        "pane_id": pane_id,
+                        "codename": pane_codename.strip() or None,
+                        "under_hub": under_hub,
+                        "path": pane_path.strip(),
+                        "window": window_name.strip(),
+                        "title": pane_title.strip(),
+                    }
+                )
+
+    sessions: list[dict] = []
+    for entry in list_active_sessions(root):
+        name = entry["codename"]
+        progress_path = root / "sessions" / name / "progress.json"
+        last_bound = None
+        if progress_path.exists():
+            try:
+                last_bound = json.loads(progress_path.read_text()).get("last_bound_at")
+            except json.JSONDecodeError:
+                pass
+        sessions.append(
+            {
+                "codename": name,
+                "title": entry.get("title") or "",
+                "status": entry.get("status") or "",
+                "bound_chats": entry.get("bound_chats", 0),
+                "last_bound_at": last_bound,
+            }
+        )
+
+    sibling_codenames = sorted(get_tmux_session_bound_codenames(root))
+    return {
+        "this_chat": {
+            "conversation_id": cid,
+            "resolved_codename": codename,
+            "resolved_via": source or None,
+            "has_binding": bool(cid and read_binding(root, cid)),
+        },
+        "bindings": bindings,
+        "tmux_panes": tmux_panes,
+        "tmux_sibling_codenames": sibling_codenames,
+        "sessions": sessions,
+    }
+
+
+def format_session_audit_report(audit: dict) -> str:
+    lines = ["# Session audit", ""]
+    this_chat = audit.get("this_chat") or {}
+    cid = this_chat.get("conversation_id")
+    codename = this_chat.get("resolved_codename")
+    via = this_chat.get("resolved_via")
+    if cid:
+        bound = "yes" if this_chat.get("has_binding") else "**NO — tmux fallback only**"
+        lines.append(f"- **This chat:** `{cid}` → `{codename or 'UNBOUND'}` via `{via or '—'}` (binding: {bound})")
+    else:
+        lines.append("- **This chat:** no `conversation_id` (shell/tmux only)")
+    siblings = audit.get("tmux_sibling_codenames") or []
+    if len(siblings) > 1:
+        lines.append(f"- **Tmux siblings (same hub):** {', '.join(f'`{s}`' for s in siblings)}")
+
+    bindings = audit.get("bindings") or []
+    lines.extend(["", "## Chat bindings", ""])
+    if bindings:
+        lines.append("| conversation | codename | auto | via | last active |")
+        lines.append("|---|---|---|---|---|")
+        for b in bindings:
+            auto = "yes" if b.get("auto_bound") else "no"
+            marker = " *" if b.get("this_chat") else ""
+            lines.append(
+                f"| `{b.get('conversation_id', '?')}`{marker} | `{b['codename']}` | {auto} | "
+                f"`{b.get('resolved_via') or '—'}` | {b.get('last_active_at') or '—'} |"
+            )
+    else:
+        lines.append("_No chat bindings on disk — every Cursor chat is on tmux fallback._")
+
+    panes = audit.get("tmux_panes") or []
+    if panes:
+        lines.extend(["", "## Tmux panes", ""])
+        for p in panes:
+            hub = "hub" if p.get("under_hub") else "foreign"
+            lines.append(
+                f"- `{p.get('pane_id')}` codename=`{p.get('codename') or '—'}` "
+                f"window=`{p.get('window')}` [{hub}]"
+            )
+
+    sessions = audit.get("sessions") or []
+    if sessions:
+        lines.extend(["", "## Active sessions", ""])
+        for s in sessions:
+            chats = s.get("bound_chats", 0)
+            lines.append(
+                f"- **`{s['codename']}`** — {s.get('title') or '(no title)'} "
+                f"({chats} chat(s) bound, last_bound `{s.get('last_bound_at') or '—'}`)"
+            )
+    return "\n".join(lines) + "\n"
 
 
 def clear_binding(root: Path, conversation_id: str) -> bool:
@@ -1400,12 +1614,25 @@ def write_context_file(root: Path, conversation_id: str, codename: str) -> Path:
     return out
 
 
-def bind_session_context(root: Path, codename: str, cid: str | None = None) -> None:
+def bind_session_context(
+    root: Path,
+    codename: str,
+    cid: str | None = None,
+    *,
+    resolved_via: str | None = None,
+    auto_bound: bool | None = None,
+) -> None:
     validate_active_codename(root, codename)
     resume_session_on_bind(root, codename)
     chat_id = cid or conversation_id()
     if chat_id:
-        write_binding(root, chat_id, codename)
+        write_binding(
+            root,
+            chat_id,
+            codename,
+            resolved_via=resolved_via,
+            auto_bound=auto_bound,
+        )
         write_context_file(root, chat_id, codename)
     set_tmux_pane_codename(codename)
     rename_tmux_for_codename(codename)

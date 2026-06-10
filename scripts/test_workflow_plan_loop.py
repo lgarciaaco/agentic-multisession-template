@@ -107,6 +107,15 @@ class WorkflowPlanLoopTests(unittest.TestCase):
         }
         self.assertEqual(synthesize_plan_verdict(doc), "APPROVE")
 
+    def test_synthesize_revise_on_open_suggestion(self) -> None:
+        doc = {
+            "agent": "plan",
+            "criteria": [{"id": "SC-1", "criterion": "x", "met": True}],
+            "findings": [{"severity": "SUGGESTION", "issue": "add rollback step"}],
+            "verdict": "APPROVE",
+        }
+        self.assertEqual(synthesize_plan_verdict(doc), "REVISE")
+
     def test_dedupe_keeps_higher_severity(self) -> None:
         findings = [
             {"severity": "SUGGESTION", "issue": "same issue"},

@@ -5,8 +5,8 @@
 3. Any `criteria[].met: false` → contributes to REVISE (unless REJECT already set)
 4. Verdict:
    - **REJECT**: agent set REJECT, or brief fundamentally misread
-   - **REVISE**: any REQUIRED finding, or any unmet criterion
-   - **APPROVE**: all criteria met; no REQUIRED findings
+   - **REVISE**: any REQUIRED finding; any unmet criterion; **any SUGGESTION or NIT** (open dispositions or first-pass quality findings)
+   - **APPROVE**: all criteria met; no REQUIRED; **no SUGGESTION or NIT in findings** (validated refusals remain in plan disposition table only)
 5. Write `<workspace>/report.md` — summary, criteria table, findings by severity, verdict
 6. Persist `artifacts/plan-review/pr-NNN.json` + `pr-NNN-report.md`
 7. Update `workflow.loops.plan.last_verdict` and iteration in `workflow.json`

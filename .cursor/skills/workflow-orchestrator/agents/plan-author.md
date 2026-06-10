@@ -27,6 +27,7 @@ Read repos.yaml for valid repo aliases.
 If prior_findings: read findings/plan.json.
   REQUIRED: fix every item in plan or Revision notes.
   SUGGESTION/NIT: decide accepted or refused for each; record in ## Reviewer disposition with rationale.
+  Loop continues — plan-reviewer re-runs to validate dispositions before APPROVE.
 If user_feedback path set: read artifacts/plan-feedback.md.
 
 Write action-plan.md to plan_path. Template in plan-author rules.

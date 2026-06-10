@@ -60,7 +60,7 @@ Single-session **Problem → Plan → Code → Review** in one chat. State: `ses
 | Code review | `workflow-begin-code-review.py`, `workflow-code-review-enrich-scope.py`, `workflow-code-review-advance.py` |
 | Delivery | `python3 scripts/workflow-write-delivery-report.py <codename>` |
 
-User gates only at brief, plan, and delivery report (inform). Autonomous inner loops for plan and code review — no cross-session inbox relay. Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
+User gates only at brief, plan, and delivery report (inform). Autonomous inner loops for plan and code review — no cross-session inbox relay. Plan loop: author dispositions SUGGESTION/NIT → reviewer validates → APPROVE only when findings have no open SUGGESTION/NIT; user gate shows **refused** dispositions only. Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
 
 ## End
 

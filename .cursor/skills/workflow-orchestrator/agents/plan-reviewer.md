@@ -25,12 +25,20 @@ Load .cursor/skills/workflow-orchestrator/rules/plan-reviewer.md,
 
 Read problem-brief.md and action-plan.md from manifest paths.
 Read repos.yaml when tasks reference repo aliases.
+If prior_findings: read prior findings/plan.json for SUGGESTION/NIT to validate.
 
 Map each SC-n → criteria[] with met + evidence.
 DoR on every task. REQUIRED/SUGGESTION/NIT only — never BLOCKER.
-Verdict: APPROVE | REVISE | REJECT.
+
+Disposition loop:
+  First pass: emit SUGGESTION/NIT for quality gaps → REVISE (author dispositions).
+  Later pass: validate ## Reviewer disposition rows.
+    accepted → verify change in plan; refused → validate rationale.
+    Validated rows → omit from findings[].
+  APPROVE only when no REQUIRED, all criteria met, findings[] has no SUGGESTION/NIT.
+  Validated refusals stay in plan table only — not re-emitted as findings.
 
 Write <workspace>/findings/plan.json only. Never edit action-plan.md.
 
-Return: verdict, criteria met/total, severity counts.
+Return: verdict, criteria met/total, severity counts, disposition rows validated.
 ```

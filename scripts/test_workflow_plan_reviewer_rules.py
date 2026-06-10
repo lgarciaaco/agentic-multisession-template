@@ -40,6 +40,7 @@ class PlanReviewerRulesSmokeTests(unittest.TestCase):
         for section in (
             "Brief coverage",
             "Task quality",
+            "Disposition validation",
             "Process",
             "Traceability",
         ):
@@ -63,6 +64,15 @@ class PlanReviewerRulesSmokeTests(unittest.TestCase):
             "agent": "plan",
             "criteria": [{"id": "SC-1", "met": True}],
             "findings": [{"severity": "REQUIRED", "issue": "missing test plan"}],
+            "verdict": "APPROVE",
+        }
+        self.assertEqual(synthesize_plan_verdict(doc), "REVISE")
+
+    def test_synthesize_plan_verdict_revise_on_open_suggestion(self) -> None:
+        doc = {
+            "agent": "plan",
+            "criteria": [{"id": "SC-1", "met": True}],
+            "findings": [{"severity": "SUGGESTION", "issue": "split t2"}],
             "verdict": "APPROVE",
         }
         self.assertEqual(synthesize_plan_verdict(doc), "REVISE")

@@ -37,9 +37,11 @@ Concrete commands to run; add tests where needed.
 
 ## Reviewer disposition
 
+Author records **accepted** / **refused** for each SUGGESTION/NIT; plan-reviewer validates on a later pass. User gate shows **refused** rows only.
+
 | Finding (summary) | Severity | Decision | Rationale |
 |-------------------|----------|----------|-----------|
-| | | accepted / refused | |
+| | SUGGESTION / NIT | accepted / refused | |
 
 ## Revision notes
 

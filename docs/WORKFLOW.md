@@ -30,10 +30,10 @@ Reopen: `python3 scripts/workflow-reopen-brief.py <codename>`
 
 Phase `plan_loop` — agent runs without asking you to forward messages:
 
-1. Task(plan-author) → `artifacts/action-plan.md`
-2. Task(plan-reviewer) → `findings/plan.json`
+1. Task(plan-author) → `artifacts/action-plan.md` (dispositions SUGGESTION/NIT on REVISE)
+2. Task(plan-reviewer) → `findings/plan.json` (validates dispositions on later passes)
 3. `python3 scripts/workflow-plan-synthesize.py <codename> sessions/<codename>/reviews/workspace/wf-...`
-4. REVISE → fix and repeat; APPROVE → `plan_user_review`
+4. REVISE → author/reviewer repeat until APPROVE (open SUGGESTION/NIT cleared; refusals validated) → `plan_user_review`
 
 ## 4. Gate 2 — Action plan
 

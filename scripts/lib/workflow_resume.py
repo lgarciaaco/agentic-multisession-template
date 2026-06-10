@@ -31,7 +31,7 @@ def workflow_next_action(workflow: dict[str, Any]) -> str:
             f"last {verdict}): plan-author → plan-reviewer → workflow-plan-synthesize.py"
         )
     if phase == "plan_user_review":
-        return "Present action plan; await user accept plan or plan-feedback.md"
+        return "Present action plan and refused dispositions; await user accept plan or plan-feedback.md"
     if phase == "implementation":
         return "Continue implementation in worktrees per action-plan.md"
     if phase == "code_review_loop":

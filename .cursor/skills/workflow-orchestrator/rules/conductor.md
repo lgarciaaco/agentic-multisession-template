@@ -15,7 +15,7 @@ Single-chat orchestrator for Problem → Plan → Code → Review. Autonomous in
 | `intake` | problem-analyst.md | `problem-brief.md` drafted |
 | `brief_review` | problem-analyst.md | user `accept brief` |
 | `plan_loop` | plan-author + plan-reviewer (Task) | synthesizer APPROVE |
-| `plan_user_review` | conductor presents plan + **Reviewer disposition** | user `accept plan` |
+| `plan_user_review` | conductor presents plan + **refused dispositions only** | user `accept plan` |
 | `implementation` | session-orchestrator + developer section below | all plan tasks done |
 | `code_review_loop` | code-reviewer skill | PASS or PASS_WITH_NITS |
 | `delivery` | delivery template | `delivery-report.md` shown |
@@ -67,11 +67,12 @@ iteration = workflow.loops.plan.iteration
 loop while iteration < workflow.loops.plan.max (default 5):
   write plan_scope_manifest.json
   spawn Task(plan-author)  → artifacts/action-plan.md
-  spawn Task(plan-reviewer) → findings/plan.json
+  spawn Task(plan-reviewer) → findings/plan.json  # validates dispositions when present
   python3 scripts/workflow-plan-synthesize.py <codename> <workspace-rel>
-  if APPROVE: phase → plan_user_review; break
+  if APPROVE: phase → plan_user_review; break  # only when findings[] has no open SUGGESTION/NIT
   if REJECT: escalate user — suggest reopen brief
   if REVISE: iteration++; pass findings to next plan-author spawn
+    # includes: REQUIRED gaps, open SUGGESTION/NIT, invalid disposition, accepted-not-applied
 
 if iteration >= max: escalate with pr-NNN-report paths
 else: present plan to user (see **Plan user review** below)
@@ -81,17 +82,17 @@ else: present plan to user (see **Plan user review** below)
 
 ## Plan user review (gate 2 presentation)
 
-When phase is `plan_user_review` after synthesizer **APPROVE**:
+When phase is `plan_user_review` after synthesizer **APPROVE** (reviewer validated all dispositions; only **refused** deferrals may remain):
 
-1. Read `artifacts/action-plan.md` and latest `artifacts/plan-review/pr-NNN-report.md` (or workspace `findings/plan.json` if report missing)
+1. Read `artifacts/action-plan.md` and latest `artifacts/plan-review/pr-NNN-report.md`
 2. Present to user in one screen:
    - Plan **Approach** + task table summary (ids, repos, depends)
-   - **Reviewer disposition** — every SUGGESTION/NIT from the last loop iteration with **accepted** or **refused** and author **rationale** (from plan table; if missing, conductor summarizes from `findings/plan.json` and flags gap)
+   - **Deferred items (refused only)** — rows from **Reviewer disposition** where Decision is **refused**, with author **rationale**. Omit **accepted** rows (already in plan). One line if none: "No deferred reviewer items."
    - Open **Revision notes** if REVISE iterations occurred
-3. End with gate command only: **`accept plan`** or corrections → `plan-feedback.md` + re-enter `plan_loop`
+3. End with gate command only: **`accept plan`** (confirms deferrals) or corrections → `plan-feedback.md` + re-enter `plan_loop`
 4. Do not ask open-ended "any questions?" — user accepts or sends feedback
 
-If disposition table is empty but findings had SUGGESTION/NIT, do not present for acceptance — re-spawn plan-author with findings.
+If synthesizer APPROVE but `findings/plan.json` still had SUGGESTION/NIT, or disposition rows missing for prior SUGGESTION/NIT — invalid iteration; re-enter `plan_loop` with plan-reviewer Task.
 
 **Workspace IDs:** `wf-YYYYMMDD-HHMMSS` for plan; keep `review-*` for code-reviewer unchanged.
 

@@ -69,6 +69,9 @@ def synthesize_plan_verdict(findings_doc: dict[str, Any]) -> str:
         return "REVISE"
     if any(not item.get("met", True) for item in criteria):
         return "REVISE"
+    # Open SUGGESTION/NIT → author must disposition; reviewer must validate on a later pass.
+    if any(str(item.get("severity")) in ("SUGGESTION", "NIT") for item in findings):
+        return "REVISE"
     return "APPROVE"
 
 

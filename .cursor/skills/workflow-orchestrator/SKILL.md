@@ -47,7 +47,7 @@ One chat, one conductor. Linear pipeline with autonomous plan and code loops bet
 | `intake` | [problem-analyst.md](rules/problem-analyst.md) | — |
 | `brief_review` | problem-analyst.md | accept brief |
 | `plan_loop` | plan-author + plan-reviewer (Task) | — |
-| `plan_user_review` | conductor presents plan + Reviewer disposition | accept plan |
+| `plan_user_review` | conductor presents plan + refused dispositions | accept plan |
 | `implementation` | session-orchestrator + conductor developer section | — |
 | `code_review_loop` | code-reviewer skill subroutine | — |
 | `delivery` | delivery template | inform |
@@ -106,8 +106,9 @@ python3 scripts/workflow-plan-synthesize.py <codename> sessions/<codename>/revie
 ```
 
 5. **Branch** (read `workflow.json` after synthesize):
-   - `APPROVE` → `phase: plan_user_review`; present plan to user
+   - `APPROVE` → `phase: plan_user_review`; present plan to user (reviewer validated dispositions; open SUGGESTION/NIT must be absent from findings)
    - `REVISE` → increment iteration; new `${WORKFLOW_ID}-iter<n>` workspace if needed; goto step 1
+     - Includes open SUGGESTION/NIT, REQUIRED gaps, invalid **refused** rationale, **accepted** not applied in plan
    - `REJECT` → escalate; suggest `reopen brief`
    - iteration ≥ `loops.plan.max` → escalate with `pr-NNN-report.md` paths
 
@@ -116,6 +117,8 @@ python3 scripts/workflow-plan-synthesize.py <codename> sessions/<codename>/revie
 **Status line (no question):** `Plan review iteration N — REVISE (R REQUIRED)` or `Plan review APPROVE — awaiting your accept plan`
 
 ### Accept plan (gate 2)
+
+After synthesizer **APPROVE**, conductor presents **Approach**, task summary, and **refused dispositions only** (validated deferrals from **Reviewer disposition**). Accepted items are already in the plan. See [rules/conductor.md](rules/conductor.md) **Plan user review**.
 
 After user says **accept plan**:
 

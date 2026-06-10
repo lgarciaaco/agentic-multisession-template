@@ -29,7 +29,7 @@ from pathlib import Path
 root = Path(os.environ["WORKSPACE_ROOT"])
 sys.path.insert(0, str(root / "scripts" / "lib"))
 from git_remotes import configure_repo_remotes, default_fork_user_from_yaml
-from hub_git import resolve_worktree_start_ref
+from hub_git import _validate_branch, resolve_worktree_start_ref
 from repos import load_repos, repo_base
 from session_binding import validate_codename
 
@@ -76,6 +76,13 @@ for task in tasks:
 
     wt_dest = root / "sessions" / codename / "worktrees" / alias
     branch = task.get("feature_branch")
+    if branch:
+        try:
+            branch = _validate_branch(branch)
+            task["feature_branch"] = branch
+        except ValueError as exc:
+            print(f"Error: task {task.get('id', '?')}: {exc}", file=sys.stderr)
+            sys.exit(1)
     base_branch = task.get("base_branch") or cfg.get("default_branch", "main")
 
     task["worktree"] = f"sessions/{codename}/worktrees/{alias}"

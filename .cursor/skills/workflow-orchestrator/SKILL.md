@@ -82,6 +82,8 @@ intake → brief_review → [accept brief]
 
 Autonomous loops — conductor runs without user between gates.
 
+**Autopilot rule:** After `accept plan`, through delivery, the conductor does not ask permission to continue. When `workflow-mark-implementation-ready.py` prints `code_review_loop`, **same turn** → load code-reviewer SKILL and run the loop. User gates: **brief** and **plan** only.
+
 ### Plan loop
 
 **Precondition:** `gates.brief_accepted` true; phase `plan_loop`.
@@ -142,7 +144,7 @@ Load [session-orchestrator/SKILL.md](../session-orchestrator/SKILL.md) + [rules/
 python3 scripts/workflow-mark-implementation-ready.py <codename> <task-id>
 ```
 
-Prints `code_review_loop`. Never ask the user to commit first or choose between review and PR.
+Prints `code_review_loop`. Never ask the user to commit first or choose between review and PR. **Do not stop for user confirmation** — proceed immediately to step 1 below in the same turn.
 
 Each iteration:
 
@@ -229,7 +231,7 @@ Templates: `sessions/_template/artifacts/`. Schema: [references/workflow-schema.
 
 ## Writable
 
-`sessions/<codename>/workflow.json`, `artifacts/**`, `reviews/workspace/wf-*/`, `artifacts/plan-review/`, session metadata. Implementation: `sessions/<codename>/worktrees/**` only (self-hosted hub: worktree, not hub root).
+`sessions/<codename>/workflow.json`, `artifacts/**`, `reviews/workspace/wf-*/`, `reviews/workspace/review-*/`, `artifacts/plan-review/`, session metadata. Implementation: `sessions/<codename>/worktrees/**` only (self-hosted hub: worktree, not hub root).
 
 ## References
 

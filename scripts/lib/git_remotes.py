@@ -44,14 +44,7 @@ def fork_clone_url(cfg: dict, default_fork_user: str = "") -> str | None:
     return validate_clone_url(f"git@github.com:{user}/{name}.git")
 
 
-def _run(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        ["git", "-C", str(repo), *args],
-        capture_output=True,
-        text=True,
-        check=check,
-        timeout=_GIT_TIMEOUT_SEC,
-    )
+from git_run import run_git as _run
 
 
 def _remote_exists(repo: Path, name: str) -> bool:

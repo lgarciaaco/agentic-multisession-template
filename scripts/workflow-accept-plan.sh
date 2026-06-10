@@ -12,8 +12,9 @@ fi
 
 cd "$ROOT"
 export WORKSPACE_ROOT="$ROOT"
+export WORKSPACE_CODENAME="$CODENAME"
 
-python3 <<PY
+python3 <<'PY'
 import json
 import os
 import sys
@@ -24,7 +25,7 @@ sys.path.insert(0, str(root / "scripts" / "lib"))
 from session_binding import validate_codename
 from workflow_plan import accept_action_plan
 
-codename = validate_codename("${CODENAME}")
+codename = validate_codename(os.environ.get("WORKSPACE_CODENAME", ""))
 result = accept_action_plan(root, codename)
 print(json.dumps(result, indent=2))
 PY

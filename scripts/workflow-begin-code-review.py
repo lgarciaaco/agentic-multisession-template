@@ -13,6 +13,13 @@ from workflow_code_review import begin_code_review_loop  # noqa: E402
 
 
 def main() -> int:
+    import sys
+
+    print(
+        "Warning: workflow-begin-code-review.py is legacy; prefer "
+        "workflow-mark-implementation-ready.py <codename> <task-id> per task slice.",
+        file=sys.stderr,
+    )
     parser = argparse.ArgumentParser(description="Begin workflow code review loop")
     parser.add_argument("codename", help="Session codename")
     args = parser.parse_args()

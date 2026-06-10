@@ -204,6 +204,8 @@ Optional pipeline in **one chat** — Problem → Plan → Code → Review. Repl
 
 **Start or resume:** `/workflow` loads `.cursor/skills/workflow-orchestrator/SKILL.md`, reads `sessions/<codename>/workflow.json` `phase` and context **Resume** — continues without replaying chat history.
 
+**Autopilot:** user gates at brief and plan only; mark-ready → code review in the same conductor turn; no pause closings between inner loops.
+
 **Scripts:** see workflow rows in [Commands](#commands) (`workflow-plan-synthesize.py`, `workflow-accept-plan.sh`, code-review and delivery scripts). Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
 
 **State:** `workflow.json`, `artifacts/`, `reviews/`, `artifacts/plan-review/` under `sessions/<codename>/`.

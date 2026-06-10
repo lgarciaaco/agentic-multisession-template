@@ -517,10 +517,9 @@ def _is_goal_heading(line: str) -> bool:
 
 
 def hub_root() -> Path:
-    env = os.environ.get("WORKSPACE_ROOT", "").strip()
-    if env:
-        return Path(env)
-    return Path(__file__).resolve().parent.parent.parent
+    from repos import workspace_root
+
+    return workspace_root()
 
 
 def tmux_pane_option() -> str:
@@ -757,13 +756,19 @@ def read_inbox(root: Path, codename: str) -> str | None:
 
 def write_inbox(root: Path, from_codename: str, to_codename: str, message: str) -> Path:
     """Append a message from one session into another session's inbox file."""
-    message = message.strip()
+    message = sanitize_goal_text(message.strip(), max_len=2000)
     if not message:
         raise ValueError("inbox message must not be empty")
     for raw in (from_codename, to_codename):
         name = validate_codename(raw)
         if not (root / "sessions" / name).is_dir():
             raise ValueError(f"invalid session codename: {name}")
+
+    bound, _source = resolve_codename(root)
+    if bound and validate_codename(from_codename) != bound:
+        raise ValueError(
+            f"inbox write must use bound session as from ({bound!r}), not {from_codename!r}"
+        )
 
     path = inbox_path(root, to_codename)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -1033,7 +1038,8 @@ def format_inbox_section(root: Path, codename: str) -> str:
     content = read_inbox(root, codename)
     if not content:
         return ""
-    return f"\n## Inbox (from other sessions)\n\n{content}\n"
+    safe = sanitize_goal_text(content, max_len=4000)
+    return f"\n## Inbox (from other sessions)\n\n{safe}\n"
 
 
 def format_workflow_section(root: Path, codename: str) -> str:
@@ -1097,7 +1103,7 @@ def format_workflow_section(root: Path, codename: str) -> str:
         resume_text = sanitize_context_text(resume, max_len=300)
         if resume_text:
             lines.append(f"- **Resume:** {resume_text}")
-    except Exception:
+    except (ImportError, KeyError, TypeError, ValueError):
         pass
     return "\n".join(lines) + "\n"
 
@@ -1330,7 +1336,12 @@ def read_binding(root: Path, conversation_id: str, *, active_only: bool = True) 
     path = binding_path(root, conversation_id)
     if not path.exists():
         return None
-    data = json.loads(path.read_text())
+    try:
+        data = json.loads(path.read_text())
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict):
+        return None
     if active_only and data.get("status") == "ended":
         return None
     return data

@@ -102,6 +102,7 @@ class HubUpgradeParsingTests(unittest.TestCase):
 
     def test_validate_semver(self) -> None:
         self.assertEqual(validate_semver("v0.4.0"), "0.4.0")
+        self.assertEqual(validate_semver("1.0.0-rc.1"), "1.0.0-rc.1")
         with self.assertRaises(ValueError):
             validate_semver("bad")
 

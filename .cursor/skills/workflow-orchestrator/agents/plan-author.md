@@ -6,8 +6,8 @@ Conductor must not write this file. [rules/conductor.md](../rules/conductor.md) 
 
 ## Load
 
-1. [rules/plan-author.md](../rules/plan-author.md)
-2. [rules/agents/plan-author.md](../rules/agents/plan-author.md)
+1. [rules/agents/plan-author.md](../rules/agents/plan-author.md) — **primary procedure** (NIT: load this before `rules/plan-author.md`)
+2. [rules/plan-author.md](../rules/plan-author.md) — template and disposition rules
 3. On skill edits: [skill-optimizer](../../skill-optimizer/SKILL.md)
 
 ## Task prompt

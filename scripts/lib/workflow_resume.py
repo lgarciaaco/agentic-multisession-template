@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from typing import Any
 
-from workflow_plan import load_workflow, save_workflow
+from workflow_code_review import read_review_summary
+from workflow_plan import latest_sequential_id, load_workflow, save_workflow
 
 
 def workflow_next_action(workflow: dict[str, Any]) -> str:
@@ -45,8 +45,8 @@ def workflow_next_action(workflow: dict[str, Any]) -> str:
         maximum = code_loop.get("max", 5)
         verdict = code_loop.get("last_verdict") or "—"
         return (
-            f"Resume autonomous code review loop (iteration {iteration}/{maximum}, "
-            f"last {verdict}): specialists → fixer on INCOMPLETE → advance"
+            f"AUTO — no user turn: resume code review loop (iteration {iteration}/{maximum}, "
+            f"last {verdict}): load code-reviewer SKILL → specialists → fixer on INCOMPLETE → advance"
         )
     if phase == "delivery":
         return "Write delivery report: python3 scripts/workflow-write-delivery-report.py <codename>"
@@ -70,6 +70,17 @@ def reopen_brief(session_dir: Path) -> dict[str, Any]:
     plan_loop = loops.setdefault("plan", {"iteration": 0, "max": 5, "last_verdict": None})
     plan_loop["iteration"] = 0
     plan_loop["last_verdict"] = None
+    code_loop = loops.setdefault(
+        "code_review",
+        {"iteration": 0, "max": 5, "last_verdict": None, "task_id": None},
+    )
+    code_loop["iteration"] = 0
+    code_loop["last_verdict"] = None
+    code_loop["task_id"] = None
+    impl = loops.get("implementation")
+    if isinstance(impl, dict):
+        impl["active_task"] = None
+        impl["ready_for_review"] = False
     save_workflow(session_dir, workflow)
     return workflow
 
@@ -87,42 +98,26 @@ def reopen_plan(session_dir: Path) -> dict[str, Any]:
 
 
 def latest_plan_review_id(session_dir: Path) -> str | None:
-    plan_review_dir = session_dir / "artifacts" / "plan-review"
-    if not plan_review_dir.is_dir():
-        return None
-    highest = 0
-    best = None
-    for path in plan_review_dir.glob("pr-*.json"):
-        match = re.fullmatch(r"pr-(\d+)", path.stem)
-        if match and int(match.group(1)) > highest:
-            highest = int(match.group(1))
-            best = path.stem
-    return best
+    return latest_sequential_id(session_dir / "artifacts" / "plan-review", "pr")
 
 
 def latest_code_review_id(session_dir: Path) -> str | None:
-    reviews_dir = session_dir / "reviews"
-    if not reviews_dir.is_dir():
-        return None
-    highest = 0
-    best = None
-    for path in reviews_dir.glob("r-*.json"):
-        match = re.fullmatch(r"r-(\d+)", path.stem)
-        if match and int(match.group(1)) > highest:
-            highest = int(match.group(1))
-            best = path.stem
-    return best
+    return latest_sequential_id(session_dir / "reviews", "r")
 
 
 def read_review_summary_json(session_dir: Path, review_id: str) -> dict[str, Any] | None:
-    path = session_dir / "reviews" / f"{review_id}.json"
-    if not path.exists():
+    try:
+        return read_review_summary(session_dir, review_id)
+    except (FileNotFoundError, ValueError):
         return None
-    return json.loads(path.read_text())
 
 
 def read_plan_review_summary(session_dir: Path, review_id: str) -> dict[str, Any] | None:
     path = session_dir / "artifacts" / "plan-review" / f"{review_id}.json"
     if not path.exists():
         return None
-    return json.loads(path.read_text())
+    try:
+        data = json.loads(path.read_text())
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None

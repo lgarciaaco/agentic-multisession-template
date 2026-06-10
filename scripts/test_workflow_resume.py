@@ -72,6 +72,30 @@ class WorkflowResumeTests(unittest.TestCase):
         self.assertIn("REVISE", action)
         self.assertIn("workflow-plan-synthesize.py", action)
 
+    def test_workflow_next_action_code_review_loop(self) -> None:
+        action = workflow_next_action(
+            {
+                "phase": "code_review_loop",
+                "gates": {"brief_accepted": True, "plan_user_accepted": True},
+                "loops": {"code_review": {"iteration": 1, "max": 5, "last_verdict": "INCOMPLETE"}},
+            }
+        )
+        self.assertIn("AUTO", action)
+        self.assertIn("code review loop", action.lower())
+        self.assertIn("code-reviewer SKILL", action)
+        self.assertIn("1/5", action)
+
+    def test_reopen_brief_resets_code_review_loop(self) -> None:
+        wf_path = self.session_dir / "workflow.json"
+        wf = json.loads(wf_path.read_text())
+        wf["loops"]["code_review"] = {"iteration": 3, "max": 5, "last_verdict": "FAIL", "task_id": "t1"}
+        wf_path.write_text(json.dumps(wf, indent=2) + "\n")
+        workflow = reopen_brief(self.session_dir)
+        code_loop = workflow["loops"]["code_review"]
+        self.assertEqual(code_loop["iteration"], 0)
+        self.assertIsNone(code_loop["last_verdict"])
+        self.assertIsNone(code_loop["task_id"])
+
     def test_workflow_next_action_plan_user_review(self) -> None:
         action = workflow_next_action({"phase": "plan_user_review", "gates": {}, "loops": {}})
         self.assertIn("refused dispositions", action)

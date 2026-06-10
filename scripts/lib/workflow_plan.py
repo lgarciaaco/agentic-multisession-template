@@ -17,15 +17,35 @@ def make_workflow_id(when: datetime | None = None) -> str:
     return moment.strftime("wf-%Y%m%d-%H%M%S")
 
 
-def next_plan_review_id(plan_review_dir: Path) -> str:
-    """Allocate next pr-NNN id from artifacts/plan-review/."""
-    plan_review_dir.mkdir(parents=True, exist_ok=True)
+def next_sequential_id(directory: Path, prefix: str, *, width: int = 3) -> str:
+    """Allocate next {prefix}-NNN id from a directory of JSON summaries."""
+    directory.mkdir(parents=True, exist_ok=True)
     highest = 0
-    for path in plan_review_dir.glob("pr-*.json"):
-        match = re.fullmatch(r"pr-(\d+)", path.stem)
+    pattern = re.compile(rf"^{re.escape(prefix)}-(\d+)$")
+    for path in directory.glob(f"{prefix}-*.json"):
+        match = pattern.fullmatch(path.stem)
         if match:
             highest = max(highest, int(match.group(1)))
-    return f"pr-{highest + 1:03d}"
+    return f"{prefix}-{highest + 1:0{width}d}"
+
+
+def latest_sequential_id(directory: Path, prefix: str) -> str | None:
+    if not directory.is_dir():
+        return None
+    highest = 0
+    best: str | None = None
+    pattern = re.compile(rf"^{re.escape(prefix)}-(\d+)$")
+    for path in directory.glob(f"{prefix}-*.json"):
+        match = pattern.fullmatch(path.stem)
+        if match and int(match.group(1)) > highest:
+            highest = int(match.group(1))
+            best = path.stem
+    return best
+
+
+def next_plan_review_id(plan_review_dir: Path) -> str:
+    """Allocate next pr-NNN id from artifacts/plan-review/."""
+    return next_sequential_id(plan_review_dir, "pr")
 
 
 def dedupe_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -215,7 +235,15 @@ def persist_plan_review(
 
 def load_workflow(session_dir: Path) -> dict[str, Any]:
     path = session_dir / "workflow.json"
-    return json.loads(path.read_text())
+    if not path.exists():
+        raise FileNotFoundError(f"missing workflow.json: {path}")
+    try:
+        data = json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"invalid workflow.json: {path}") from exc
+    if not isinstance(data, dict):
+        raise ValueError(f"invalid workflow.json: {path}")
+    return data
 
 
 def save_workflow(session_dir: Path, workflow: dict[str, Any]) -> None:
@@ -237,7 +265,7 @@ def update_plan_loop_state(
     return workflow
 
 
-def resolve_plan_workspace(root: Path, codename: str, workspace_arg: str) -> Path:
+def resolve_review_workspace(root: Path, codename: str, workspace_arg: str) -> Path:
     """Resolve workspace path; must stay under sessions/<codename>/reviews/workspace/."""
     rel = workspace_arg.strip().lstrip("/")
     parts = Path(rel).parts
@@ -257,6 +285,10 @@ def resolve_plan_workspace(root: Path, codename: str, workspace_arg: str) -> Pat
             f"workspace must resolve under sessions/{codename}/reviews/workspace/"
         ) from exc
     return resolved
+
+
+def resolve_plan_workspace(root: Path, codename: str, workspace_arg: str) -> Path:
+    return resolve_review_workspace(root, codename, workspace_arg)
 
 
 def plan_loop_complete(verdict: str) -> bool:

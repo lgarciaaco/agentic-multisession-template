@@ -64,17 +64,17 @@ Record each run here or in session `artifacts/rc-smoke-results.md`.
 
 | ID | Date | Result | Notes |
 |----|------|--------|-------|
-| S1 | 2026-06-10 | PASS | PyYAML import OK |
-| S2 | 2026-06-10 | PASS | `state: ready`, `self_hosted: true` |
-| S3 | 2026-06-10 | PASS | `.hub-version` = `1.0.0-rc.1` |
-| S4 | 2026-06-10 | PASS | `resolve-session.sh` → `nova` |
-| S5 | 2026-06-10 | PASS | worktree allow; hub_scripts deny; repos deny |
-| S6 | 2026-06-10 | PASS | `workflow.json` + `action-plan.md` present for `nova` |
-| S7 | 2026-06-10 | PASS | 199 tests OK (worktree rc tip) |
-| S8 | 2026-06-10 | PASS | `test_session_binding.py` OK |
-| S9 | 2026-06-10 | PASS | workflow gate + resume tests OK |
+| S1 | | | |
+| S2 | | | |
+| S3 | | | |
+| S4 | | | |
+| S5 | | | |
+| S6 | | | |
+| S7 | | | |
+| S8 | | | |
+| S9 | | | |
 
-**Overall:** PASS (9/9) on rc tip @ merge PR #22 (`aab0da3`).
+**Overall:**
 
 ---
 

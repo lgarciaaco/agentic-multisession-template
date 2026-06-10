@@ -10,14 +10,16 @@ from typing import Any
 
 from workflow_plan import (
     dedupe_findings,
+    latest_sequential_id,
     load_workflow,
+    next_sequential_id,
     parse_action_plan_tasks,
+    resolve_review_workspace,
     save_workflow,
 )
 
 CODE_REVIEW_COMPLETE = frozenset({"PASS", "PASS_WITH_NITS"})
 CODE_REVIEW_ESCALATE_VERDICTS = frozenset({"FAIL"})
-SEVERITY_RANK = {"NIT": 0, "SUGGESTION": 1, "REQUIRED": 2, "BLOCKER": 3}
 
 
 def synthesize_code_review_verdict(
@@ -155,33 +157,24 @@ def update_code_review_loop_state(
 
 def next_code_review_id(reviews_dir: Path) -> str:
     """Allocate next r-NNN id from sessions/<codename>/reviews/."""
-    reviews_dir.mkdir(parents=True, exist_ok=True)
-    highest = 0
-    for path in reviews_dir.glob("r-*.json"):
-        match = re.fullmatch(r"r-(\d+)", path.stem)
-        if match:
-            highest = max(highest, int(match.group(1)))
-    return f"r-{highest + 1:03d}"
+    return next_sequential_id(reviews_dir, "r")
 
 
 def read_review_summary(session_dir: Path, review_id: str) -> dict[str, Any]:
     path = session_dir / "reviews" / f"{review_id}.json"
     if not path.exists():
         raise FileNotFoundError(f"Review summary not found: {path}")
-    return json.loads(path.read_text())
+    try:
+        data = json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"invalid review summary JSON: {path}") from exc
+    if not isinstance(data, dict):
+        raise ValueError(f"invalid review summary JSON: {path}")
+    return data
 
 
 def latest_review_summary(session_dir: Path) -> tuple[str, dict[str, Any]] | None:
-    reviews_dir = session_dir / "reviews"
-    if not reviews_dir.is_dir():
-        return None
-    best_id = ""
-    best_num = -1
-    for path in reviews_dir.glob("r-*.json"):
-        match = re.fullmatch(r"r-(\d+)", path.stem)
-        if match and int(match.group(1)) > best_num:
-            best_num = int(match.group(1))
-            best_id = path.stem
+    best_id = latest_sequential_id(session_dir / "reviews", "r")
     if not best_id:
         return None
     return best_id, read_review_summary(session_dir, best_id)
@@ -267,25 +260,7 @@ def enrich_scope_manifest(
 
 
 def resolve_code_review_workspace(root: Path, codename: str, workspace_arg: str) -> Path:
-    """Resolve workspace path; must stay under sessions/<codename>/reviews/workspace/."""
-    rel = workspace_arg.strip().lstrip("/")
-    parts = Path(rel).parts
-    expected = ("sessions", codename, "reviews", "workspace")
-    if len(parts) < len(expected) or parts[: len(expected)] != expected:
-        raise ValueError(
-            f"workspace must be under sessions/{codename}/reviews/workspace/: {workspace_arg}"
-        )
-    if ".." in parts:
-        raise ValueError(f"workspace path must not contain ..: {workspace_arg}")
-    resolved = (root / rel).resolve()
-    allowed = (root / "sessions" / codename / "reviews" / "workspace").resolve()
-    try:
-        resolved.relative_to(allowed)
-    except ValueError as exc:
-        raise ValueError(
-            f"workspace must resolve under sessions/{codename}/reviews/workspace/"
-        ) from exc
-    return resolved
+    return resolve_review_workspace(root, codename, workspace_arg)
 
 
 def implementation_tasks_complete(session_dir: Path) -> bool:
@@ -393,8 +368,8 @@ def advance_code_review_loop(
             update_progress_last_review(session_dir, review_id=review_id, summary=summary)
         except FileNotFoundError:
             pass
-    elif latest_review_summary(session_dir):
-        rid, summary = latest_review_summary(session_dir)  # type: ignore[misc]
+    elif latest := latest_review_summary(session_dir):
+        rid, summary = latest
         update_progress_last_review(session_dir, review_id=rid, summary=summary)
 
     return workflow

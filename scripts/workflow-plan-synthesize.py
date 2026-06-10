@@ -47,7 +47,18 @@ def main() -> int:
 
     findings_doc = json.loads(findings_path.read_text())
     manifest_path = workspace / "plan_scope_manifest.json"
-    workflow_id = json.loads(manifest_path.read_text()).get("workflow_id", workspace.name)
+    if not manifest_path.exists():
+        print(f"Missing {manifest_path}", file=sys.stderr)
+        return 1
+    try:
+        manifest = json.loads(manifest_path.read_text())
+    except json.JSONDecodeError:
+        print(f"Invalid JSON in {manifest_path}", file=sys.stderr)
+        return 1
+    if not isinstance(manifest, dict):
+        print(f"Invalid manifest in {manifest_path}", file=sys.stderr)
+        return 1
+    workflow_id = manifest.get("workflow_id", workspace.name)
     if not workflow_id:
         workflow_id = workspace.name
 

@@ -18,9 +18,13 @@ Sources:
 - `artifacts/plan-review/pr-NNN.json` — latest plan review
 - `reviews/r-NNN.json` — latest code review
 
+## Autopilot (no user turn)
+
+After code review **PASS**, the conductor runs `workflow-write-delivery-report.py` in the **same turn** — no “resume when ready” closing. Delivery is inform-only; do not pause for user acknowledgment before marking `phase: completed`.
+
 ## Resume on `/workflow`
 
-Chat context **Workflow** section includes **Resume** from `workflow_next_action()` — conductor continues that phase without replaying chat history.
+Chat context **Workflow** section includes **Resume** from `workflow_next_action()` when the pipeline was **interrupted** (new chat message, crash, or explicit `/workflow`). That is not an autopilot pause — conductor continues that phase without replaying chat history.
 
 ## Reopen
 

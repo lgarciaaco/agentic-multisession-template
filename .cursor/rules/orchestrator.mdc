@@ -9,7 +9,7 @@ alwaysApply: true
 
 **Start work** / `/start-work` → load `.cursor/skills/session-orchestrator/SKILL.md`. You run `./scripts/*`.
 
-**Workflow** / `/workflow` → load `.cursor/skills/workflow-orchestrator/SKILL.md`. Resume from `workflow.json` phase; do not restart from chat history.
+**Workflow** / `/workflow` → load `.cursor/skills/workflow-orchestrator/SKILL.md`. Resume from `workflow.json` phase; do not restart from chat history. **Autopilot:** brief/plan gates only; mark-ready → code review same turn; no pause closings between inner loops.
 
 **`/workflow status`** → same skill; one-screen status from `workflow.json`.
 

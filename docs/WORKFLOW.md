@@ -2,6 +2,10 @@
 
 Single-session pipeline: **Problem → Plan → Code → Review**. One Cursor chat, **two user gates** (brief and plan).
 
+## Autopilot
+
+User gates at **brief** and **plan** only. After **`accept plan`**, the conductor runs inner loops without pause closings: plan author/reviewer until APPROVE; implementation → **`workflow-mark-implementation-ready.py`** → code review in the **same turn** when a task slice is done; fixer/specialist loop until **PASS**; delivery report is inform-only. Do not stop for relay, commit, or “resume when ready” between those steps.
+
 ## Prerequisites
 
 - Hub bound to a session codename (`./scripts/resolve-session.sh`)
@@ -96,9 +100,10 @@ Before tagging **1.0.0-rc.1**, run [RC-SMOKE-CHECKLIST.md](RC-SMOKE-CHECKLIST.md
 |--------|------|
 | `workflow-plan-synthesize.py` | After plan reviewer Task |
 | `workflow-accept-plan.sh` | User accept plan |
-| `workflow-begin-code-review.py` | All tasks done |
-| `workflow-code-review-enrich-scope.py` | After code-reviewer scope collector |
-| `workflow-code-review-advance.py` | After code-reviewer synthesizer |
+| `workflow-mark-implementation-ready.py <codename> <task-id>` | Task slice done → enter code review (same turn) |
+| `workflow-begin-code-review.py` | **Legacy:** all tasks done (prefer mark-ready per task) |
+| `workflow-code-review-enrich-scope.py <codename> <workspace>` | After code-reviewer scope collector |
+| `workflow-code-review-advance.py <codename> [r-NNN]` | After code-reviewer synthesizer |
 | `workflow-write-delivery-report.py` | Code review PASS |
 | `workflow-reopen-brief.py` / `workflow-reopen-plan.py` | Unfreeze gates |
 

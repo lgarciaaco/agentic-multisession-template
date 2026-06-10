@@ -1406,5 +1406,17 @@ class SelfHostedTests(unittest.TestCase):
         self.assertIn("ensure-worktrees.sh", ctx)
 
 
+class ShellSecurityTests(unittest.TestCase):
+    def test_workflow_accept_plan_uses_quoted_heredoc(self) -> None:
+        script = (Path(__file__).resolve().parent / "workflow-accept-plan.sh").read_text()
+        self.assertIn("<<'PY'", script)
+        self.assertIn("WORKSPACE_CODENAME", script)
+        self.assertNotIn('<<PY', script.replace("<<'PY'", ""))
+
+    def test_generate_workspace_rejects_outside_hub(self) -> None:
+        script = (Path(__file__).resolve().parent / "generate-workspace.sh").read_text()
+        self.assertIn("must be under hub root", script)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -137,6 +137,31 @@ One-line progress only:
 
 Never ask user to relay messages or choose the next pipeline step.
 
+## Autopilot phases (no user turn)
+
+When `workflow.json` exists and phase is one of below, **continue in the same turn** until the next user gate or escalation. Do **not** end the message with a question or offer to pause.
+
+| Phase | User gate? | Conductor continues |
+|-------|------------|---------------------|
+| `plan_loop` | no | plan-author → plan-reviewer → synthesize → branch |
+| `implementation` | no | code in worktree until slice ready → mark-ready |
+| `code_review_loop` | no | code-reviewer → fixer on INCOMPLETE → advance → delivery on PASS |
+| `delivery` | no | `workflow-write-delivery-report.py` → present report |
+| `brief_review` | **yes** | await `accept brief` |
+| `plan_user_review` | **yes** | await `accept plan` |
+
+Read chat context **Resume:** line (from `workflow_next_action`) — it is the required next step, not optional.
+
+## Forbidden closings (autopilot phases)
+
+Do not end autopilot turns with:
+
+- "Want me to continue…?" / "Should I…?" / "Pause here?"
+- "Or would you prefer…?" / "Let me know if…"
+- Offering commit, PR, or code review as a user choice
+
+**Required closing:** one status line only, e.g. `Code review iteration 1 — running specialists…` or `Code review PASS — writing delivery report`.
+
 ## Escalation (max iterations)
 
 Present stuck summary with phase, iteration, verdict, artifact paths. Suggested: `reopen plan`, narrow scope, or manual fix + resume.

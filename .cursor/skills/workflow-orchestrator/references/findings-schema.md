@@ -1,5 +1,7 @@
 # Plan review findings schema
 
+Canonical shared envelope and severity vocabulary: [docs/WORKFLOW-REVIEW-SCHEMA.md](../../../../docs/WORKFLOW-REVIEW-SCHEMA.md).
+
 Specialist agents write one file under `<workspace>/findings/`. Plan review uses the same severity vocabulary as code-reviewer except **no BLOCKER** (no code under review).
 
 ## plan.json envelope

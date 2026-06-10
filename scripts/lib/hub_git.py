@@ -18,15 +18,7 @@ def _validate_branch(branch: str) -> str:
     return name
 
 
-def _run(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        ["git", "-C", str(repo), *args],
-        capture_output=True,
-        text=True,
-        check=check,
-        timeout=_GIT_TIMEOUT_SEC,
-    )
-
+from git_run import run_git as _run
 
 def fetch_upstream(repo_dir: Path) -> None:
     """Fetch all refs from origin."""

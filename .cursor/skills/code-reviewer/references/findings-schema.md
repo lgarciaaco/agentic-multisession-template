@@ -1,5 +1,7 @@
 # Findings JSON schema
 
+Canonical shared envelope and severity vocabulary: [docs/WORKFLOW-REVIEW-SCHEMA.md](../../../../docs/WORKFLOW-REVIEW-SCHEMA.md).
+
 Every specialist agent writes one file under `<workspace>/findings/`.
 
 ## Envelope

@@ -202,7 +202,10 @@ hub root (main)                           # hook-blocked when bound; refresh via
 
 ## Guards
 
+Bound sessions use `guard_path_decision()` — **allow** under the session tree and worktrees; **deny** hub root product paths and `repos/`.
+
 - **`repos/`** — read-only (hook denies edits)
 - **`sessions/<codename>/worktrees/`** — writable product code
+- **`sessions/<codename>/`** — writable session metadata, `workflow.json`, `artifacts/`, `reviews/` (guard returns **allow** by design — not hub root)
 - **Hub root product paths** — blocked for bound sessions (`scripts/`, `.cursor/`, `docs/`, root markdown)
 - **Hub root** — blocked for bound sessions (including `repos.yaml`, `.hub-version`, `.hub-upstream`); registry pins unbound-only

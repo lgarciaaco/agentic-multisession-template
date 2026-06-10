@@ -78,9 +78,13 @@ AGENTS.md             agent entry (read first)
 |------|-----|
 | First run / bootstrap | [AGENTS.md](AGENTS.md) · `.cursor/skills/bootstrap-hub` |
 | Daily work | `.cursor/skills/session-orchestrator` · [SESSIONS.md](SESSIONS.md) |
+| Workflow pipeline | `.cursor/skills/workflow-orchestrator` · [docs/WORKFLOW.md](docs/WORKFLOW.md) |
+| Code review | `.cursor/skills/code-reviewer` |
 | Coding guidelines | `.cursor/rules/agent-guidelines.mdc` · [docs/PROJECT.md](docs/PROJECT.md) (customize from [example](docs/PROJECT.md.example)) |
 | Hub upgrade | `.cursor/skills/hub-upgrade` · `./scripts/hub-status.sh` |
 | End session | `.cursor/skills/session-end` |
+
+Full skills index: [AGENTS.md](AGENTS.md#skills).
 
 ## Env (optional)
 
@@ -93,9 +97,10 @@ AGENTS.md             agent entry (read first)
 
 ## Tests
 
+Hub PR preflight suite: [.cursor/rules/hub-contributing.mdc](.cursor/rules/hub-contributing.mdc). Quick smoke:
+
 ```bash
-python3 scripts/test_session_binding.py
-python3 scripts/test_hub_upgrade.py
+python3 -m unittest discover -s scripts -p 'test_*.py'
 ```
 
 ## License

@@ -24,7 +24,9 @@ UPSTREAM_CACHE_DIR = ".hub-upstream-cache"
 UPGRADE_STAGING_DIR = ".hub-upgrade-staging"
 _GIT_TIMEOUT_SEC = 300
 
-_VERSION_RE = re.compile(r"^## \[([0-9]+\.[0-9]+\.[0-9]+)\]\s*(?:-\s*(\d{4}-\d{2}-\d{2}))?")
+_VERSION_RE = re.compile(
+    r"^## \[([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)\]\s*(?:-\s*(\d{4}-\d{2}-\d{2}))?"
+)
 _IMPACT_RE = re.compile(r"\*\*Impact:\*\*\s*(none|optional|required)\b", re.IGNORECASE)
 _SECTION_RE = re.compile(r"^### (.+)$")
 _SEMVER_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
@@ -76,7 +78,8 @@ class UpstreamSnapshot:
 
 
 def parse_version(value: str) -> tuple[int, ...]:
-    parts = value.strip().lstrip("v").split(".")
+    base = value.strip().lstrip("v").split("-", 1)[0]
+    parts = base.split(".")
     if len(parts) != 3 or not all(part.isdigit() for part in parts):
         raise ValueError(f"invalid semver: {value!r}")
     return tuple(int(part) for part in parts)
@@ -84,7 +87,7 @@ def parse_version(value: str) -> tuple[int, ...]:
 
 def validate_semver(value: str) -> str:
     name = value.strip().lstrip("v")
-    if not _SEMVER_RE.fullmatch(name):
+    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?", name):
         raise ValueError(f"invalid semver: {value!r}")
     return name
 

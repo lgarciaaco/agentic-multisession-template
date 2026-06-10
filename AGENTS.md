@@ -22,22 +22,13 @@ Hub install if needed: `pip install -r scripts/requirements.txt` && `./scripts/i
 
 ## Start work
 
-**Tmux:** `$(cat .hub-launcher)` — not bare `agent`.
+**Tmux:** `$(cat .hub-launcher)` — not bare `agent`. **Cursor:** **start work** / **`/start-work`** → `.cursor/skills/session-orchestrator/SKILL.md`
 
-**Cursor:** **start work** / **`/start-work`** → `.cursor/skills/session-orchestrator/SKILL.md`
+1. `./scripts/repos-status.sh` → bind via `./scripts/resolve-session.sh` or picker
+2. Scope + worktrees before product edits → `./scripts/set-session-scope.sh`, `./scripts/ensure-worktrees.sh`
+3. Edit in `sessions/<codename>/worktrees/<repo>/` only; sync metadata with `./scripts/sync-session.sh`
 
-1. `./scripts/repos-status.sh` — if not `ready` and user wants **product** work, bootstrap repos first (ask if missing).
-2. `./scripts/resolve-session.sh` or picker → bind codename
-3. **Scope metadata** — when work intent is clear, run `./scripts/set-session-scope.sh <codename> --title "…" --goal "…"` before the first product edit (see [SESSIONS.md](SESSIONS.md))
-4. `session.json` tasks need `"repo": "<alias>"` matching `repos.yaml`; then `./scripts/ensure-worktrees.sh <codename>`
-5. Edit product in `sessions/<codename>/worktrees/<repo>/` only — hub-root blocked when bound ([docs/REPOS.md](docs/REPOS.md) Guards); hub refresh via `./scripts/hub-upgrade.sh`
-6. `./scripts/sync-session.sh <codename>` after other metadata edits
-
-Optional session fields in `session.json`: **`next`** (resume hint); per-task **`pr`**, **`ci`**, **`note`** (shown in chat context). See [docs/REPOS.md](docs/REPOS.md).
-
-When `repos.yaml` uses **GitHub fork workflow** (`github_fork_user`, `remote: github`): push feature branches to **`fork`**, not upstream `origin`. Run `./scripts/configure-git-remotes.sh` if remotes look wrong. See `.cursor/rules/git-fork-pr.mdc`.
-
-Regenerate a multi-root editor workspace: `./scripts/generate-workspace.sh` → `<hub-slug>.code-workspace`.
+Full bind/end/commands: [SESSIONS.md](SESSIONS.md). Fork pushes: `.cursor/rules/git-fork-pr.mdc`.
 
 ## Workflow pipeline
 
@@ -55,13 +46,13 @@ Single-session **Problem → Plan → Code → Review** in one chat. State: `ses
 
 | Phase scripts | Command |
 |---------------|---------|
-| Plan loop | `python3 scripts/workflow-plan-synthesize.py <codename> sessions/.../wf-...` |
+| Plan loop | `python3 scripts/workflow-plan-synthesize.py <codename> sessions/<codename>/reviews/workspace/wf-<timestamp>` |
 | Code review enter | `python3 scripts/workflow-mark-implementation-ready.py <codename> <task-id>` |
 | Accept plan | `./scripts/workflow-accept-plan.sh <codename>` |
-| Code review | `python3 scripts/workflow-code-review-enrich-scope.py`, `python3 scripts/workflow-code-review-advance.py` |
+| Code review | `python3 scripts/workflow-code-review-enrich-scope.py <codename> <workspace>`, `python3 scripts/workflow-code-review-advance.py <codename> [r-NNN]` |
 | Delivery | `python3 scripts/workflow-write-delivery-report.py <codename>` |
 
-User gates **only at brief and plan**. Autonomous inner loops for plan and code review — no commit/PR pause before review. Plan loop: author dispositions → reviewer validates. Code loop: fixer dispositions SUGGESTION/NIT → specialists validate → **PASS**; include uncommitted worktree in review scope. Delivery report is inform only. Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
+**Autopilot:** user gates at brief and plan only; mark-ready → code review in the same conductor turn; no pause closings between inner loops. Plan loop: author dispositions → reviewer validates. Code loop: fixer dispositions SUGGESTION/NIT → specialists validate → **PASS**; include uncommitted worktree in review scope. Delivery report is inform only. Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
 
 ## End
 

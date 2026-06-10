@@ -2,6 +2,8 @@
 
 Project-agnostic **multi-session Cursor agent hub**. Each chat/tmux tab binds to a codename; hooks enforce scope and inject context.
 
+**Release:** **1.0.0-rc.1** is the **first stable candidate** — a feature-complete hub template (workflow pipeline, self-hosted guards, consolidated docs) ready for real-world use. Feedback on rc.1 tunes the path to **1.0.0**. See [CHANGELOG.md](CHANGELOG.md).
+
 Use **GitHub → Use this template**, or clone this repo as your hub.
 
 ## Prerequisites
@@ -31,7 +33,7 @@ cd my-hub
 
 Hub-only (no product repos yet) is valid — `repos: {}` until you tell the agent what to add.
 
-**Staying current:** ask the agent *"Is there a new template version?"* then *"Upgrade"* when ready — refreshes scripts/hooks/docs without rebuilding sessions or repos. See [CHANGELOG.md](CHANGELOG.md) session notes per release.
+**Staying current:** ask the agent *"Is there a new template version?"* then *"Upgrade"* when ready — `./scripts/hub-status.sh` compares your installed `.hub-version` to upstream template releases. Upgrades refresh scripts/hooks/docs without rebuilding sessions or repos. See [CHANGELOG.md](CHANGELOG.md) session notes per release.
 
 Optional manual install before tmux:
 

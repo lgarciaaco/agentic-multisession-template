@@ -86,6 +86,10 @@ Example mid-plan: phase `plan_loop`, iteration 2, last `REVISE` → resume plan-
 
 **`/workflow status`** — one-screen summary from `workflow.json` and artifact paths.
 
+## RC release smoke
+
+Before tagging **1.0.0-rc.1**, run [RC-SMOKE-CHECKLIST.md](RC-SMOKE-CHECKLIST.md) once on the merged rc tip and record pass/fail in the delivery report.
+
 ## Scripts reference
 
 | Script | When |

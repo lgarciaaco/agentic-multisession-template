@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from hub_paths import resolve_review_workspace, resolve_session_artifact
 from workflow_plan import (
     dedupe_findings,
     load_workflow,
@@ -17,7 +18,6 @@ from workflow_plan import (
 
 CODE_REVIEW_COMPLETE = frozenset({"PASS", "PASS_WITH_NITS"})
 CODE_REVIEW_ESCALATE_VERDICTS = frozenset({"FAIL"})
-SEVERITY_RANK = {"NIT": 0, "SUGGESTION": 1, "REQUIRED": 2, "BLOCKER": 3}
 
 
 def synthesize_code_review_verdict(
@@ -196,7 +196,10 @@ def workflow_acceptance_criteria(session_dir: Path) -> list[dict[str, Any]]:
     workflow = json.loads(workflow_path.read_text())
     artifacts = workflow.get("artifacts") or {}
     plan_rel = artifacts.get("plan", "artifacts/action-plan.md")
-    plan_path = session_dir / plan_rel
+    try:
+        plan_path = resolve_session_artifact(session_dir, plan_rel)
+    except ValueError:
+        plan_path = session_dir / "artifacts" / "action-plan.md"
 
     by_id: dict[str, dict[str, Any]] = {}
     if plan_path.exists():
@@ -268,24 +271,7 @@ def enrich_scope_manifest(
 
 def resolve_code_review_workspace(root: Path, codename: str, workspace_arg: str) -> Path:
     """Resolve workspace path; must stay under sessions/<codename>/reviews/workspace/."""
-    rel = workspace_arg.strip().lstrip("/")
-    parts = Path(rel).parts
-    expected = ("sessions", codename, "reviews", "workspace")
-    if len(parts) < len(expected) or parts[: len(expected)] != expected:
-        raise ValueError(
-            f"workspace must be under sessions/{codename}/reviews/workspace/: {workspace_arg}"
-        )
-    if ".." in parts:
-        raise ValueError(f"workspace path must not contain ..: {workspace_arg}")
-    resolved = (root / rel).resolve()
-    allowed = (root / "sessions" / codename / "reviews" / "workspace").resolve()
-    try:
-        resolved.relative_to(allowed)
-    except ValueError as exc:
-        raise ValueError(
-            f"workspace must resolve under sessions/{codename}/reviews/workspace/"
-        ) from exc
-    return resolved
+    return resolve_review_workspace(root, codename, workspace_arg)
 
 
 def implementation_tasks_complete(session_dir: Path) -> bool:

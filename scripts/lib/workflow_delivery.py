@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from hub_paths import resolve_session_artifact
 from workflow_plan import load_workflow, save_workflow
 from workflow_resume import (
     latest_code_review_id,
@@ -136,7 +137,7 @@ def write_delivery_report(
     workflow = load_workflow(session_dir)
     artifacts = workflow.get("artifacts") or {}
     delivery_rel = artifacts.get("delivery", "artifacts/delivery-report.md")
-    delivery_path = session_dir / delivery_rel
+    delivery_path = resolve_session_artifact(session_dir, delivery_rel)
     delivery_path.parent.mkdir(parents=True, exist_ok=True)
     delivery_path.write_text(render_delivery_report(session_dir, codename=codename, title=title))
     workflow["phase"] = "completed"

@@ -31,11 +31,11 @@ Summarize hub changes + session impact (`none` / `optional` / `required`). Wait 
 
 `--allow-untrusted-upstream` only for non-default `.hub-upstream`.
 
-Run `post_upgrade_steps` from status JSON (pip, `install-workspace-agent.sh`, tests).
+Run `post_upgrade_steps` from status JSON (pip, `./scripts/install-workspace-agent.sh`, tests).
 
 ## 3. Session catch-up
 
-When release impact is `optional` or `required`: worktrees + `"repo"` on tasks; refresh stale `BOUNDARIES.md` from template; mention `session-inbox.sh` if relevant. No bulk session edits without user OK unless `required`.
+When release impact is `optional` or `required`: worktrees + `"repo"` on tasks; refresh stale `BOUNDARIES.md` from template; mention `./scripts/session-inbox.sh` if relevant. No bulk session edits without user OK unless `required`.
 
 ## Rules
 

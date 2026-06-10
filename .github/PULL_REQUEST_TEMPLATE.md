@@ -4,6 +4,6 @@
 
 ## Checklist
 
-- [ ] `python3 scripts/test_session_binding.py` passes
+- [ ] Full hub test suite passes (see [CONTRIBUTING.md](../CONTRIBUTING.md))
 - [ ] No project-specific names in docs or examples
 - [ ] Changes are generic (skeleton only, no domain logic)

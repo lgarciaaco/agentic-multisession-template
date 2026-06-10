@@ -16,7 +16,7 @@ Entry: [SKILL.md](SKILL.md)
 
 ## Subagent isolation
 
-Plan loop roles run in **separate Task subagents**. The conductor spawns them, writes the workspace manifest, and runs `workflow-plan-synthesize.py`. See [rules/conductor.md](rules/conductor.md) **Subagent isolation (mandatory)**.
+Plan loop roles run in **separate Task subagents**. The conductor spawns them, writes the workspace manifest, and runs `python3 scripts/workflow-plan-synthesize.py <codename> <workspace>`. See [rules/conductor.md](rules/conductor.md) **Subagent isolation (mandatory)**.
 
 ## References (agent internals)
 

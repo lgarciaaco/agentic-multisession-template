@@ -56,7 +56,8 @@ def _load_hook_payload() -> dict:
         return {}
     try:
         data = json.loads(raw)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
+        print(f"Warning: invalid hook payload JSON: {exc}", file=sys.stderr)
         return {}
     return data if isinstance(data, dict) else {}
 

@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from hub_paths import resolve_review_workspace, resolve_session_artifact
+
 SEVERITY_RANK = {"NIT": 0, "SUGGESTION": 1, "REQUIRED": 2, "BLOCKER": 3}
 
 
@@ -215,7 +217,12 @@ def persist_plan_review(
 
 def load_workflow(session_dir: Path) -> dict[str, Any]:
     path = session_dir / "workflow.json"
-    return json.loads(path.read_text())
+    if not path.exists():
+        raise FileNotFoundError(f"missing workflow: {path}")
+    try:
+        return json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"invalid JSON in {path}") from exc
 
 
 def save_workflow(session_dir: Path, workflow: dict[str, Any]) -> None:
@@ -239,24 +246,7 @@ def update_plan_loop_state(
 
 def resolve_plan_workspace(root: Path, codename: str, workspace_arg: str) -> Path:
     """Resolve workspace path; must stay under sessions/<codename>/reviews/workspace/."""
-    rel = workspace_arg.strip().lstrip("/")
-    parts = Path(rel).parts
-    expected = ("sessions", codename, "reviews", "workspace")
-    if len(parts) < len(expected) or parts[: len(expected)] != expected:
-        raise ValueError(
-            f"workspace must be under sessions/{codename}/reviews/workspace/: {workspace_arg}"
-        )
-    if ".." in parts:
-        raise ValueError(f"workspace path must not contain ..: {workspace_arg}")
-    resolved = (root / rel).resolve()
-    allowed = (root / "sessions" / codename / "reviews" / "workspace").resolve()
-    try:
-        resolved.relative_to(allowed)
-    except ValueError as exc:
-        raise ValueError(
-            f"workspace must resolve under sessions/{codename}/reviews/workspace/"
-        ) from exc
-    return resolved
+    return resolve_review_workspace(root, codename, workspace_arg)
 
 
 def plan_loop_complete(verdict: str) -> bool:
@@ -269,7 +259,7 @@ def plan_loop_escalate(verdict: str, iteration: int, maximum: int) -> bool:
 
 def set_action_plan_reviewer_approved(session_dir: Path, plan_rel: str) -> None:
     """Update only Status header in action-plan.md."""
-    plan_path = session_dir / plan_rel
+    plan_path = resolve_session_artifact(session_dir, plan_rel)
     if not plan_path.exists():
         return
     text = plan_path.read_text()
@@ -445,7 +435,7 @@ def set_tasks_table_section(session_dir: Path, tasks: list[dict[str, Any]]) -> N
 
 
 def set_action_plan_user_approved(session_dir: Path, plan_rel: str) -> None:
-    plan_path = session_dir / plan_rel
+    plan_path = resolve_session_artifact(session_dir, plan_rel)
     if not plan_path.exists():
         return
     text = plan_path.read_text()
@@ -467,7 +457,7 @@ def sync_action_plan_tasks(root: Path, codename: str) -> list[dict[str, Any]]:
     workflow = load_workflow(session_dir)
     artifacts = workflow.get("artifacts") or {}
     plan_rel = artifacts.get("plan", "artifacts/action-plan.md")
-    plan_path = session_dir / plan_rel
+    plan_path = resolve_session_artifact(session_dir, plan_rel)
     if not plan_path.exists():
         raise FileNotFoundError(f"missing {plan_path}")
 

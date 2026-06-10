@@ -62,6 +62,10 @@ class ValidateCloneUrlTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_clone_url("git@github.com:ORG/repo.git\n--upload-pack=sh")
 
+    def test_rejects_file_url_by_default(self) -> None:
+        with self.assertRaises(ValueError):
+            validate_clone_url("file:///tmp/repo.git")
+
 
 class ConfigureRepoRemotesTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -141,7 +145,7 @@ class GenerateWorkspaceSmokeTests(unittest.TestCase):
         lib = scripts / "lib"
         lib.mkdir(parents=True)
         hub_root_path = Path(__file__).resolve().parent
-        for rel in ("generate-workspace.sh", "lib/hub-env.sh", "lib/repos.py"):
+        for rel in ("generate-workspace.sh", "lib/hub-env.sh", "lib/hub_paths.py", "lib/repos.py"):
             src = hub_root_path / rel
             dst = scripts / rel
             dst.parent.mkdir(parents=True, exist_ok=True)

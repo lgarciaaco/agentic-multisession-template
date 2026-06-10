@@ -16,3 +16,12 @@ jobs:
           python-version: "3.11"
       - run: pip install -r scripts/requirements.txt
       - run: python3 scripts/test_session_binding.py -v
+      - run: python3 scripts/test_git_remotes.py -v
+      - run: python3 scripts/test_hub_upgrade.py -v
+      - run: python3 scripts/test_workflow_plan_loop.py -v
+      - run: python3 scripts/test_workflow_gates.py -v
+      - run: python3 scripts/test_workflow_code_review.py -v
+      - run: python3 scripts/test_workflow_resume.py -v
+      - run: python3 scripts/test_workflow_plan_reviewer_rules.py -v
+      - run: python3 scripts/test_hub_git.py -v
+      - run: python3 scripts/test_workflow_delivery.py -v

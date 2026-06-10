@@ -66,7 +66,9 @@ repos:
 | `fork_user` | Per-repo fork user (overrides `github_fork_user`) |
 | `remote: gitlab` | Push to `origin` only (no fork remote) |
 
-`clone-repos.sh` and `ensure-worktrees.sh` configure remotes automatically. Repair with `./scripts/configure-git-remotes.sh [alias]`.
+`./scripts/clone-repos.sh` and `./scripts/ensure-worktrees.sh` configure remotes automatically. Repair with `./scripts/configure-git-remotes.sh [alias]`.
+
+`file://` clone URLs are rejected by default (`validate_clone_url`); set `WORKSPACE_ALLOW_FILE_CLONES=1` only for local debugging.
 
 See `.cursor/rules/git-fork-pr.mdc` when using fork workflow.
 
@@ -171,7 +173,7 @@ Launcher runs `clone-repos` + `ensure-worktrees` when `repos.yaml` exists and st
 | `repos.yaml.example` | `repos.yaml` (your URLs) |
 | `docs/REPOS.md`, `scripts/clone-repos.sh` | `repos/*` |
 | `docs/PROJECT.md.example` | `docs/PROJECT.md` (your project guidelines) |
-| | `sessions/<codename>/`, `worktrees/*` |
+| | `sessions/<codename>/`, `sessions/*/worktrees/*` |
 | | `*.code-workspace` (generated locally) |
 
 ---
@@ -206,3 +208,5 @@ hub root (main)                           # hook-blocked when bound; refresh via
 - **`sessions/<codename>/worktrees/`** — writable product code
 - **Hub root product paths** — blocked for bound sessions (`scripts/`, `.cursor/`, `docs/`, root markdown)
 - **Hub root** — blocked for bound sessions (including `repos.yaml`, `.hub-version`, `.hub-upstream`); registry pins unbound-only
+
+**Limitations:** `beforeFileEdit` hooks constrain **Cursor file edits** only. Shell commands, terminal tools, and hub scripts can still read or write paths hooks block — workflow scripts validate session artifact paths in code for the same reason. Cross-session inbox messages are untrusted input and are sanitized before injection.

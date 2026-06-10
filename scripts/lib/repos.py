@@ -10,14 +10,14 @@ from pathlib import Path
 
 import yaml
 
+from hub_paths import hub_root
+
 _GIT_TIMEOUT_SEC = 300
 
 
 def workspace_root() -> Path:
-    env = __import__("os").environ.get("WORKSPACE_ROOT", "").strip()
-    if env:
-        return Path(env)
-    return Path(__file__).resolve().parent.parent.parent
+    """Alias for hub_root — single canonical resolver."""
+    return hub_root()
 
 
 def repos_yaml_path(root: Path | None = None) -> Path:

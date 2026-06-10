@@ -517,10 +517,9 @@ def _is_goal_heading(line: str) -> bool:
 
 
 def hub_root() -> Path:
-    env = os.environ.get("WORKSPACE_ROOT", "").strip()
-    if env:
-        return Path(env)
-    return Path(__file__).resolve().parent.parent.parent
+    from hub_paths import hub_root as _hub_root
+
+    return _hub_root()
 
 
 def tmux_pane_option() -> str:
@@ -731,7 +730,7 @@ def resume_session_on_bind(root: Path, codename: str) -> None:
 
     progress_path = root / "sessions" / codename / "progress.json"
     if progress_path.exists():
-        progress = json.loads(progress_path.read_text())
+        progress = _load_json_file(progress_path)
         progress["status"] = "active"
         progress["updated"] = today
         progress["last_bound_at"] = now
@@ -757,7 +756,7 @@ def read_inbox(root: Path, codename: str) -> str | None:
 
 def write_inbox(root: Path, from_codename: str, to_codename: str, message: str) -> Path:
     """Append a message from one session into another session's inbox file."""
-    message = message.strip()
+    message = sanitize_goal_text(message.strip())
     if not message:
         raise ValueError("inbox message must not be empty")
     for raw in (from_codename, to_codename):
@@ -934,7 +933,10 @@ def guard_unbound_path_decision(root: Path, file_path: str) -> dict:
         return _guard_deny("Invalid path.", "Could not resolve file path.")
 
     if not _path_is_within(resolved, root):
-        return _GUARD_ALLOW
+        return _guard_deny(
+            "Path is outside the hub workspace.",
+            "Edit only under this hub root.",
+        )
 
     protected = _guard_protected_session_paths(root, resolved)
     if protected:
@@ -992,7 +994,10 @@ def guard_path_decision(root: Path, codename: str, file_path: str) -> dict:
         return _guard_deny("Invalid path.", "Could not resolve file path.")
 
     if not _path_is_within(resolved, root):
-        return _GUARD_ALLOW
+        return _guard_deny(
+            "Path is outside the hub workspace.",
+            "Edit only under this hub root or bind a session for worktree paths.",
+        )
 
     protected = _guard_protected_session_paths(root, resolved)
     if protected:
@@ -1097,8 +1102,9 @@ def format_workflow_section(root: Path, codename: str) -> str:
         resume_text = sanitize_context_text(resume, max_len=300)
         if resume_text:
             lines.append(f"- **Resume:** {resume_text}")
-    except Exception:
-        pass
+    except (ImportError, KeyError, TypeError, ValueError) as exc:
+        hint = sanitize_context_text(str(exc), max_len=120)
+        lines.append(f"- **Resume:** unavailable ({hint})")
     return "\n".join(lines) + "\n"
 
 
@@ -1330,7 +1336,9 @@ def read_binding(root: Path, conversation_id: str, *, active_only: bool = True) 
     path = binding_path(root, conversation_id)
     if not path.exists():
         return None
-    data = json.loads(path.read_text())
+    data = _load_json_file(path)
+    if not data:
+        return None
     if active_only and data.get("status") == "ended":
         return None
     return data

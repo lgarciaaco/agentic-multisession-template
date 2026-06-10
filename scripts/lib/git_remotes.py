@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
@@ -25,6 +26,10 @@ def validate_clone_url(url: str) -> str:
         raise ValueError(f"invalid clone URL: {url!r}")
     if not _CLONE_URL_RE.fullmatch(candidate):
         raise ValueError(f"invalid clone URL: {url!r}")
+    if candidate.lower().startswith("file://") and os.environ.get("WORKSPACE_ALLOW_FILE_CLONES") != "1":
+        raise ValueError(
+            f"file:// clone URLs are disabled; set WORKSPACE_ALLOW_FILE_CLONES=1 to override: {url!r}"
+        )
     return candidate
 
 

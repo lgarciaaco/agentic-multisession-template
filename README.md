@@ -93,9 +93,11 @@ AGENTS.md             agent entry (read first)
 
 ## Tests
 
+Hub PRs: run the full suite in [CONTRIBUTING.md](CONTRIBUTING.md) (also listed in `.cursor/rules/hub-contributing.mdc`). Quick smoke:
+
 ```bash
-python3 scripts/test_session_binding.py
-python3 scripts/test_hub_upgrade.py
+python3 scripts/test_session_binding.py -v
+python3 scripts/test_hub_upgrade.py -v
 ```
 
 ## License

@@ -157,6 +157,14 @@ class WorkflowGatesTests(unittest.TestCase):
         decision = guard_path_decision(self.root, self.codename, path)
         self.assertEqual(decision["permission"], "deny")
 
+    def test_sync_action_plan_rejects_traversal_artifact_path(self) -> None:
+        workflow_path = self.session_dir / "workflow.json"
+        workflow = json.loads(workflow_path.read_text())
+        workflow["artifacts"]["plan"] = "../../../repos/evil.md"
+        workflow_path.write_text(json.dumps(workflow, indent=2) + "\n")
+        with self.assertRaises(ValueError):
+            sync_action_plan_tasks(self.root, self.codename)
+
 
 if __name__ == "__main__":
     unittest.main()

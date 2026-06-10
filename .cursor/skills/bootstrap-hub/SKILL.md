@@ -17,7 +17,7 @@ Triggers: first chat, `bootstrap hub`, `set up template`
 
 | `state` | Action |
 |---------|--------|
-| `no_repos_yaml` / `empty_registry` | Ask user for alias + clone URL + branch; write `repos.yaml`; `clone-repos.sh` |
+| `no_repos_yaml` / `empty_registry` | Ask user for alias + clone URL + branch; write `repos.yaml`; `./scripts/clone-repos.sh` |
 | `needs_clone` | `./scripts/clone-repos.sh` |
 | `ready` | Session + worktree flow |
 
@@ -33,9 +33,9 @@ Optional codename theme: `sessions/_codenames.yaml` — see [sessions/_codenames
 
 ## 3. Add repo later
 
-Edit `repos.yaml` → `clone-repos.sh` → task `"repo": "<alias>"` in `session.json` → `ensure-worktrees.sh`.
+Edit `repos.yaml` → `./scripts/clone-repos.sh` → task `"repo": "<alias>"` in `session.json` → `./scripts/ensure-worktrees.sh <codename>`.
 
-Prefer `clone-repos.sh` over manual `git clone`.
+Prefer `./scripts/clone-repos.sh` over manual `git clone`.
 
 ## Rules
 

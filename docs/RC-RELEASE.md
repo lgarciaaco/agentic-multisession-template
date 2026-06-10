@@ -1,6 +1,6 @@
 # 1.0.0-rc.1 release record
 
-**First stable candidate** — hub template release completing the kerrigan rc track (seven PRs, June 2026).
+**First stable candidate** — hub template release completing the rc track (seven PRs, June 2026).
 
 Installed version: `.hub-version` → `1.0.0-rc.1`  
 Git tag (after PR-7 merge): `v1.0.0-rc.1`
@@ -9,12 +9,12 @@ Git tag (after PR-7 merge): `v1.0.0-rc.1`
 
 | PR | Scope | Session |
 |----|-------|---------|
-| [#19](https://github.com/lgarciaaco/agentic-multisession-template/pull/19) | Skills audit + workflow subagent isolation | kerrigan |
-| [#20](https://github.com/lgarciaaco/agentic-multisession-template/pull/20) | Codebase audit + doc consolidation | raynor |
-| [#21](https://github.com/lgarciaaco/agentic-multisession-template/pull/21) | Version bump + CHANGELOG rc.1 | kerrigan |
-| [#22](https://github.com/lgarciaaco/agentic-multisession-template/pull/22) | Release positioning (stable candidate) | tychus |
-| [#23](https://github.com/lgarciaaco/agentic-multisession-template/pull/23) | RC smoke checklist | nova |
-| [#24](https://github.com/lgarciaaco/agentic-multisession-template/pull/24) | Final polish + tag prep | artanis |
+| #19 | Skills audit + workflow subagent isolation | alpha |
+| #20 | Codebase audit + doc consolidation | bravo |
+| #21 | Version bump + CHANGELOG rc.1 | alpha |
+| #22 | Release positioning (stable candidate) | charlie |
+| #23 | RC smoke checklist | delta |
+| #24 | Final polish + tag prep | echo |
 
 ## Success criteria evidence
 

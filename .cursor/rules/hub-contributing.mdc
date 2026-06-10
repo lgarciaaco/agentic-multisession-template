@@ -21,6 +21,8 @@ python3 scripts/test_workflow_gates.py
 python3 scripts/test_workflow_code_review.py
 python3 scripts/test_workflow_resume.py
 python3 scripts/test_workflow_plan_reviewer_rules.py
+python3 scripts/test_hub_git.py
+python3 scripts/test_workflow_delivery.py
 ```
 
 - Open from a feature branch; wait for CI (`test` workflow)

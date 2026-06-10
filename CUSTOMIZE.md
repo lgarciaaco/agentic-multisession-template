@@ -17,7 +17,7 @@ Run from the **new project root** (not the template repo path unless that is the
 | 3 | `./scripts/install-workspace-agent.sh` | `which $(cat .hub-launcher)` |
 | 4 | Create/edit `repos.yaml`; `./scripts/clone-repos.sh` when user gave URLs | `state: ready` |
 | 5 | Update `README.md` with project name when user cares | Human-readable |
-| 6 | `python3 scripts/test_session_binding.py` && `python3 scripts/test_git_remotes.py` | All tests pass |
+| 6 | Run hub test suite per [CONTRIBUTING.md](CONTRIBUTING.md) (or `.cursor/rules/hub-contributing.mdc`) | All tests pass |
 | 7 | Customize [docs/PROJECT.md](docs/PROJECT.md) from [docs/PROJECT.md.example](docs/PROJECT.md.example) — project name, stack, doc map | Project guidelines ready |
 
 **Do not** skip install after copy — each hub gets its own command (e.g. `my-app` → `my-agent`) and config `~/.config/<project-slug>/hub`.

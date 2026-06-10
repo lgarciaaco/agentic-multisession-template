@@ -57,8 +57,8 @@ Single-session **Problem → Plan → Code → Review** in one chat. State: `ses
 |---------------|---------|
 | Plan loop | `python3 scripts/workflow-plan-synthesize.py <codename> sessions/.../wf-...` |
 | Code review enter | `python3 scripts/workflow-mark-implementation-ready.py <codename> <task-id>` |
-| Accept plan | `./scripts/workflow-accept-plan.sh <codename>` |
-| Code review | `python3 scripts/workflow-code-review-enrich-scope.py`, `python3 scripts/workflow-code-review-advance.py` |
+| Code review | `python3 scripts/workflow-code-review-enrich-scope.py <codename> sessions/<codename>/reviews/workspace/<review-id>` |
+| Code review advance | `python3 scripts/workflow-code-review-advance.py <codename> [r-NNN]` |
 | Delivery | `python3 scripts/workflow-write-delivery-report.py <codename>` |
 
 User gates **only at brief and plan**. Autonomous inner loops for plan and code review — no commit/PR pause before review. Plan loop: author dispositions → reviewer validates. Code loop: fixer dispositions SUGGESTION/NIT → specialists validate → **PASS**; include uncommitted worktree in review scope. Delivery report is inform only. Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
@@ -113,7 +113,7 @@ Session context lists which guideline files exist on bind. Optional `guidelines:
 
 ## Cross-session inbox
 
-`./scripts/session-inbox.sh write <from> <to> "message"` · read on bind or `session-inbox.sh read <codename>`
+`./scripts/session-inbox.sh write <from> <to> "message"` · read on bind or `./scripts/session-inbox.sh read <codename>`
 
 ## Git / PRs
 

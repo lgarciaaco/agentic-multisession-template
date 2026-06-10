@@ -282,8 +282,12 @@ def ensure_upstream_tree(
             if cache.exists():
                 resolved = cache.resolve()
                 root_resolved = root.resolve()
-                if not str(resolved).startswith(str(root_resolved)):
-                    raise RuntimeError(f"refusing to remove cache outside hub root: {cache}")
+                try:
+                    resolved.relative_to(root_resolved)
+                except ValueError as exc:
+                    raise RuntimeError(
+                        f"refusing to remove cache outside hub root: {cache}"
+                    ) from exc
                 if cache.is_symlink():
                     raise RuntimeError(f"refusing to remove symlink cache: {cache}")
                 shutil.rmtree(cache)

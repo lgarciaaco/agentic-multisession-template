@@ -96,10 +96,11 @@ Before tagging **1.0.0-rc.1**, run [RC-SMOKE-CHECKLIST.md](RC-SMOKE-CHECKLIST.md
 |--------|------|
 | `workflow-plan-synthesize.py` | After plan reviewer Task |
 | `workflow-accept-plan.sh` | User accept plan |
-| `workflow-begin-code-review.py` | All tasks done |
+| `workflow-mark-implementation-ready.py` | Per-task slice complete |
 | `workflow-code-review-enrich-scope.py` | After code-reviewer scope collector |
 | `workflow-code-review-advance.py` | After code-reviewer synthesizer |
 | `workflow-write-delivery-report.py` | Code review PASS |
 | `workflow-reopen-brief.py` / `workflow-reopen-plan.py` | Unfreeze gates |
+| `workflow-begin-code-review.py` | Legacy — all tasks done (prefer mark-implementation-ready) |
 
 Full skill: `.cursor/skills/workflow-orchestrator/SKILL.md`

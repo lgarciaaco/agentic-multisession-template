@@ -24,12 +24,14 @@ Load .cursor/skills/workflow-orchestrator/rules/plan-author.md
 
 Read frozen problem-brief.md (brief_path).
 Read repos.yaml for valid repo aliases.
-If prior_findings: read findings/plan.json; fix every REQUIRED.
+If prior_findings: read findings/plan.json.
+  REQUIRED: fix every item in plan or Revision notes.
+  SUGGESTION/NIT: decide accepted or refused for each; record in ## Reviewer disposition with rationale.
 If user_feedback path set: read artifacts/plan-feedback.md.
 
 Write action-plan.md to plan_path. Template in plan-author rules.
 Do not edit worktrees, session.json, or brief.
 Acceptance column: no pipe (|) characters.
 
-Return: version, task count, SC-n → task IDs.
+Return: version, task count, SC-n → task IDs, disposition summary (accepted/refused counts).
 ```

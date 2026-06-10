@@ -34,3 +34,13 @@ Concrete commands to run; add tests where needed.
 | Risk | Mitigation |
 |------|------------|
 | … | … |
+
+## Reviewer disposition
+
+| Finding (summary) | Severity | Decision | Rationale |
+|-------------------|----------|----------|-----------|
+| | | accepted / refused | |
+
+## Revision notes
+
+<!-- On REVISE only -->

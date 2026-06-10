@@ -15,7 +15,7 @@ Single-chat orchestrator for Problem → Plan → Code → Review. Autonomous in
 | `intake` | problem-analyst.md | `problem-brief.md` drafted |
 | `brief_review` | problem-analyst.md | user `accept brief` |
 | `plan_loop` | plan-author + plan-reviewer (Task) | synthesizer APPROVE |
-| `plan_user_review` | plan-author.md (if feedback) | user `accept plan` |
+| `plan_user_review` | conductor presents plan + **Reviewer disposition** | user `accept plan` |
 | `implementation` | session-orchestrator + developer section below | all plan tasks done |
 | `code_review_loop` | code-reviewer skill | PASS or PASS_WITH_NITS |
 | `delivery` | delivery template | `delivery-report.md` shown |
@@ -74,10 +74,24 @@ loop while iteration < workflow.loops.plan.max (default 5):
   if REVISE: iteration++; pass findings to next plan-author spawn
 
 if iteration >= max: escalate with pr-NNN-report paths
-else: present plan to user
+else: present plan to user (see **Plan user review** below)
 ```
 
 **User feedback at plan gate:** append to `artifacts/plan-feedback.md`; re-enter `plan_loop` (do not ask "should I send to reviewer?").
+
+## Plan user review (gate 2 presentation)
+
+When phase is `plan_user_review` after synthesizer **APPROVE**:
+
+1. Read `artifacts/action-plan.md` and latest `artifacts/plan-review/pr-NNN-report.md` (or workspace `findings/plan.json` if report missing)
+2. Present to user in one screen:
+   - Plan **Approach** + task table summary (ids, repos, depends)
+   - **Reviewer disposition** — every SUGGESTION/NIT from the last loop iteration with **accepted** or **refused** and author **rationale** (from plan table; if missing, conductor summarizes from `findings/plan.json` and flags gap)
+   - Open **Revision notes** if REVISE iterations occurred
+3. End with gate command only: **`accept plan`** or corrections → `plan-feedback.md` + re-enter `plan_loop`
+4. Do not ask open-ended "any questions?" — user accepts or sends feedback
+
+If disposition table is empty but findings had SUGGESTION/NIT, do not present for acceptance — re-spawn plan-author with findings.
 
 **Workspace IDs:** `wf-YYYYMMDD-HHMMSS` for plan; keep `review-*` for code-reviewer unchanged.
 

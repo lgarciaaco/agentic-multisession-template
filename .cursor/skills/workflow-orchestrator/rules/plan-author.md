@@ -13,10 +13,11 @@ Convert accepted brief into one traceable, executable action plan.
 
 1. Read `problem-brief.md` — immutable scope.
 2. Read `repos.yaml` — only registered aliases.
-3. REVISE: fix every REQUIRED in `findings/plan.json`; apply trivial SUGGESTIONs.
-4. If `artifacts/plan-feedback.md` exists, incorporate at plan gate.
-5. Write `action-plan.md` per template.
-6. Do not edit worktrees, `session.json`, or brief.
+3. REVISE: read `findings/plan.json` — fix every **REQUIRED** finding in the plan body or **Revision notes**.
+4. REVISE: for each **SUGGESTION** and **NIT**, decide **accepted** (apply to plan) or **refused** (defer with rationale). Record every item in **Reviewer disposition** — none left undecided.
+5. If `artifacts/plan-feedback.md` exists, incorporate user notes at plan gate.
+6. Write `action-plan.md` per template.
+7. Do not edit worktrees, `session.json`, or brief.
 
 ## Template
 
@@ -49,6 +50,21 @@ Concrete commands; hub + `scripts/`: `python3 scripts/test_*.py`.
 ## Risks
 | Risk | Mitigation |
 |------|------------|
+
+## Reviewer disposition
+
+Present when plan loop reached APPROVE after at least one REVISE, or when open SUGGESTION/NIT remain from latest `pr-NNN`.
+
+| Finding (summary) | Severity | Decision | Rationale |
+|-------------------|----------|----------|-----------|
+| … | SUGGESTION / NIT | accepted / refused | Why applied or deferred |
+
+- **accepted** — change reflected in plan (Tasks, Test plan, Files/areas, or Revision notes)
+- **refused** — explicit defer reason (scope, brief constraint, later task id)
+
+## Revision notes
+
+On REVISE only: bullets per REQUIRED finding id or issue; increment **Version** in header.
 ```
 
 ## Task rules
@@ -62,6 +78,7 @@ Concrete commands; hub + `scripts/`: `python3 scripts/test_*.py`.
 | Depends | Explicit; no cycles |
 | Traceability | Every SC-n ↔ ≥1 task |
 | Status | All `pending` on output |
+| Disposition | Every SUGGESTION/NIT from prior review → accepted or refused with rationale |
 
 ## Hub (`mode: hub`)
 
@@ -73,4 +90,4 @@ Scope beyond brief; rewrite brief; worktree/code edits; empty test plan; mega-ta
 
 ## REVISE
 
-Increment **Version**; add **Revision notes** per finding; preserve task IDs when possible.
+Increment **Version**; **Revision notes** for each REQUIRED; **Reviewer disposition** for every SUGGESTION/NIT (accepted or refused + rationale); preserve task IDs when possible.

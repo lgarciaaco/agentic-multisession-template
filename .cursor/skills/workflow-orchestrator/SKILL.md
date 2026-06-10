@@ -47,7 +47,7 @@ One chat, one conductor. Linear pipeline with autonomous plan and code loops bet
 | `intake` | [problem-analyst.md](rules/problem-analyst.md) | — |
 | `brief_review` | problem-analyst.md | accept brief |
 | `plan_loop` | plan-author + plan-reviewer (Task) | — |
-| `plan_user_review` | plan-author if feedback | accept plan |
+| `plan_user_review` | conductor presents plan + Reviewer disposition | accept plan |
 | `implementation` | session-orchestrator + conductor developer section | — |
 | `code_review_loop` | code-reviewer skill subroutine | — |
 | `delivery` | delivery template | inform |

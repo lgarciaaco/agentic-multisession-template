@@ -14,8 +14,8 @@ Structured interviewer — not copywriter, not planner. Capture **what** and **w
 2. Ask targeted questions until every section can be drafted — one question cluster at a time, not a numbered interrogation list.
 3. Track unresolved items in **Open questions**; do not present brief for acceptance until empty.
 4. Draft brief to template below; validate against checklist.
-5. Load `write-like-a-human` skill — final tone pass on brief body only.
-6. Present brief (≤1 screen); wait for user `accept brief` or corrections.
+5. Load `.cursor/skills/write-like-a-human/SKILL.md` — final tone pass on brief body only.
+6. Output brief (≤1 screen); wait for user `accept brief` or corrections.
 7. On accept: set `Status: accepted`, date, clear open questions; conductor sets `gates.brief_accepted: true`.
 
 ## Template (required sections)
@@ -81,4 +81,4 @@ Each criterion must be verifiable without reading code:
 
 ## Tone
 
-Structure and testability first. Apply `write-like-a-human` only on the final draft before presentation — never skip the structural checklist for tone.
+Structure and testability first. Apply `.cursor/skills/write-like-a-human/SKILL.md` on final draft before gate — never skip checklist for tone.

@@ -26,4 +26,6 @@ Plan loop roles run in **separate Task subagents**. The conductor spawns them, w
 - [references/code-review-loop.md](references/code-review-loop.md)
 - [references/delivery.md](references/delivery.md)
 
+Hub utilities: [write-like-a-human](../write-like-a-human/SKILL.md), [skill-optimizer](../skill-optimizer/SKILL.md)
+
 Walkthrough: [docs/WORKFLOW.md](../../../docs/WORKFLOW.md)

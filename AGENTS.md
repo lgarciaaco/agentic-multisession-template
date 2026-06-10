@@ -105,6 +105,8 @@ Session context lists which guideline files exist on bind. Optional `guidelines:
 | Code review | `.cursor/skills/code-reviewer` |
 | Hub upgrade | `.cursor/skills/hub-upgrade` |
 | End | `.cursor/skills/session-end` |
+| Human tone | `.cursor/skills/write-like-a-human` |
+| Skill streamline | `.cursor/skills/skill-optimizer` |
 
 ## Cross-session inbox
 

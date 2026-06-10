@@ -38,11 +38,10 @@ class PlanReviewerRulesSmokeTests(unittest.TestCase):
 
     def test_required_rubric_sections_present(self) -> None:
         for section in (
-            "Completeness vs brief",
+            "Brief coverage",
             "Task quality",
-            "Test and verification",
-            "Traceability matrix",
-            "Acceptance testability",
+            "Process",
+            "Traceability",
         ):
             self.assertIn(section, self.rules_text)
 
@@ -95,6 +94,18 @@ class PlanReviewerRulesSmokeTests(unittest.TestCase):
             self.assertIn(phrase, conductor_text)
         self.assertIn("Subagent isolation", skill_text)
         self.assertIn("Never write", skill_text)
+
+    def test_hub_utility_skills_present(self) -> None:
+        for rel in (
+            ".cursor/skills/write-like-a-human/SKILL.md",
+            ".cursor/skills/skill-optimizer/SKILL.md",
+        ):
+            self.assertTrue((HUB_ROOT / rel).is_file(), rel)
+
+    def test_code_reviewer_mandates_task_specialists(self) -> None:
+        text = (HUB_ROOT / ".cursor/skills/code-reviewer/SKILL.md").read_text()
+        self.assertIn("Subagent isolation", text)
+        self.assertIn("must **not**", text)
 
 
 if __name__ == "__main__":

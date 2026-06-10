@@ -83,7 +83,9 @@ else: present plan to user
 
 ## Code loop (autonomous — no user)
 
-See SKILL.md **Code review loop** for executable steps. Helpers: `scripts/lib/workflow_code_review.py`, `scripts/workflow-code-review-enrich-scope.py`, `scripts/workflow-code-review-advance.py`. Layout: [references/code-review-loop.md](../references/code-review-loop.md).
+Specialists run via **code-reviewer** skill Task subagents — orchestrator must not inline specialist findings. Inline allowed: scope collector, synthesizer only.
+
+See SKILL.md **Code review loop** and [../code-reviewer/SKILL.md](../code-reviewer/SKILL.md) **Subagent isolation**.
 
 ```text
 when all session.json tasks done: phase → code_review_loop

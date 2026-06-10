@@ -1,24 +1,23 @@
 ---
 name: code-reviewer
 description: >-
-  Multi-agent code and documentation review with auto-computed scope. Orchestrates
-  parallel specialists (code per language, docs, tests, intent, optional security)
-  and synthesizes a unified report. Use for code review, audit codebase, check whole
-  repo, review changes, quality gate, documentation review, or verify session work.
+  Multi-agent code and documentation review with auto-computed scope. Spawns
+  specialist Task subagents; synthesizes unified report. Use for code review,
+  audit, quality gate, docs review, or verify session work.
 ---
 
-# Code reviewer (orchestrator)
+# Code reviewer
 
-Multi-agent review. Not PR workflow. Orchestrator computes scope, spawns specialists via Task, synthesizes report.
+Multi-agent review. Orchestrator computes scope, spawns specialists via Task, synthesizes report.
 
 ## Target
 
-1. `./scripts/resolve-session.sh` → session-bound or ad hoc
-2. Product (all repos, including self-hosted template): `sessions/<codename>/worktrees/<repo>/`
-3. Session metadata only at hub root: `sessions/<codename>/` (not hub-root `scripts/` or docs)
+1. `./scripts/resolve-session.sh` when session-bound
+2. Product: `sessions/<codename>/worktrees/<repo>/`
+3. Session metadata: `sessions/<codename>/` only
 4. Ad hoc: user directory
 
-## Scope
+## Scope modes
 
 | Mode | Triggers |
 |------|----------|
@@ -42,96 +41,82 @@ Default: audit → `full`; bound session → `changeset`. Delta: [references/sco
 mkdir -p "<workspace>/findings"
 ```
 
+## Subagent isolation (mandatory)
+
+| Role | Runner |
+|------|--------|
+| Code (per language), docs, test, intent, security, performance | **Task subagent** — orchestrator spawns parallel |
+| Scope collector | Orchestrator inline → `scope_manifest.json` |
+| Synthesizer | Orchestrator inline → `report.md` + persistence |
+
+Orchestrator must **not** write specialist `findings/*.json` inline. Violations invalidate the review run.
+
+Workflow code loop: load this skill; enrich via `workflow-code-review-enrich-scope.py`; advance via `workflow-code-review-advance.py`.
+
 ## Pipeline
 
 ### 1. Scope collector (inline)
 
-Follow [agents/scope-collector.md](agents/scope-collector.md) + [rules/agents/scope-collector.md](rules/agents/scope-collector.md).
+[agents/scope-collector.md](agents/scope-collector.md) + [rules/agents/scope-collector.md](rules/agents/scope-collector.md) → `scope_manifest.json`.
 
-Write `<workspace>/scope_manifest.json` per [references/findings-schema.md](references/findings-schema.md).
+### 2. Specialists (Task, parallel)
 
-### 2. Spawn specialists (Task, parallel)
+Wait for all. Skip empty scopes.
 
-Wait for all. Skip agents with nothing to do.
-
-| Agent | Spawn when | Spec |
-|-------|------------|------|
-| Code Python | manifest has `language: python` | [agents/code-reviewer.md](agents/code-reviewer.md) |
-| Code TypeScript | manifest has `language: typescript` | [agents/code-reviewer.md](agents/code-reviewer.md) |
-| Docs | always (corpus in manifest) | [agents/docs-reviewer.md](agents/docs-reviewer.md) |
-| Test | scope is `changeset` or `task` | [agents/test-reviewer.md](agents/test-reviewer.md) |
-| Intent | session + acceptance/goal, or user intent | [agents/intent-reviewer.md](agents/intent-reviewer.md) |
+| Agent | When | Spec |
+|-------|------|------|
+| Code Python | `language: python` in manifest | [agents/code-reviewer.md](agents/code-reviewer.md) |
+| Code TypeScript | `language: typescript` | [agents/code-reviewer.md](agents/code-reviewer.md) |
+| Docs | always | [agents/docs-reviewer.md](agents/docs-reviewer.md) |
+| Test | `changeset` or `task` | [agents/test-reviewer.md](agents/test-reviewer.md) |
+| Intent | session acceptance/goal or user intent | [agents/intent-reviewer.md](agents/intent-reviewer.md) |
 | Security | `triggers.security` | [agents/security-reviewer.md](agents/security-reviewer.md) |
 | Performance | `triggers.performance` | [agents/performance-reviewer.md](agents/performance-reviewer.md) |
 
-Use Task prompt templates in each `agents/*.md`. Pass `workspace` path. Each agent writes `findings/<agent>.json`.
+Use Task prompts in each `agents/*.md`. Pass `workspace`. Output: `findings/<agent>.json`.
 
-**Readability** stays in code agents (no separate agent).
+Readability stays in code agents.
 
 ### 3. Synthesizer (inline)
 
-Follow [agents/synthesizer.md](agents/synthesizer.md) + [rules/agents/synthesizer.md](rules/agents/synthesizer.md).
-
-Merge, dedupe, verdict, write `report.md`. Persist: [references/persistence.md](references/persistence.md).
+[agents/synthesizer.md](agents/synthesizer.md) + [rules/agents/synthesizer.md](rules/agents/synthesizer.md) → merge, dedupe, verdict, `report.md`. Persist: [references/persistence.md](references/persistence.md).
 
 ## Verdict
 
 | Verdict | When |
 |---------|------|
-| FAIL | Any BLOCKER (code or security agents) |
-| INCOMPLETE | Any REQUIRED (docs, tests, intent, code) without BLOCKER |
-| PASS_WITH_NITS | Only SUGGESTION/NIT |
+| FAIL | Any BLOCKER (code or security) |
+| INCOMPLETE | Any REQUIRED without BLOCKER |
+| PASS_WITH_NITS | SUGGESTION/NIT only |
 | PASS | Clean |
 
-Docs agent: REQUIRED max (no BLOCKER). See [rules/documentation.md](rules/documentation.md).
+Docs: REQUIRED max (no BLOCKER). [rules/documentation.md](rules/documentation.md).
 
-## Report template
+## Report sections
 
-```markdown
-# Code Review — [scope] — [target]
-
-## Summary
-## Scope
-review-id, workspace, files by kind/lang, delta
-
-## Verdict: PASS | PASS_WITH_NITS | INCOMPLETE | FAIL
-
-## Code
-[blocker/required/suggestion by language]
-
-## Documentation
-[corpus findings]
-
-## Tests
-[if test agent ran]
-
-## Intent
-[if intent agent ran]
-
-## Security
-[if security agent ran]
-
-## Positive notes
-## Deferred to CI
-```
+Summary, Scope, Verdict, Code, Documentation, Tests, Intent, Security (if ran), Positive notes, Deferred to CI.
 
 ## Pre-delivery
 
 - [ ] All spawned agents wrote findings JSON or explicit empty findings
-- [ ] Dedupe applied; BLOCKER only from code/security
-- [ ] Session: `reviews/r-NNN.json`, `progress.last_review`, optional checkpoint
-- [ ] `./scripts/sync-session.sh <codename>` when session-bound
+- [ ] Dedupe; BLOCKER only from code/security
+- [ ] Session: `reviews/r-NNN.json`, `progress.last_review`
+- [ ] `./scripts/sync-session.sh <codename>` when bound
 
 ## Writable
 
-`sessions/<codename>/`: `reviews/workspace/`, `reviews/r-*.json`, `checkpoints.json`, `progress.json`. Ad hoc: `~/.cursor/reviews/**`. Never edit worktrees.
+`sessions/<codename>/reviews/**`, `progress.json`. Never edit worktrees from review agents.
 
 ## Rule index
 
 | Layer | Files |
 |-------|-------|
 | Code | [rules/universal.md](rules/universal.md) → [rules/agents/code-reviewer.md](rules/agents/code-reviewer.md) → [languages/*.md](languages/) |
-| Docs | [rules/documentation.md](rules/documentation.md) → [rules/agents/docs-reviewer.md](rules/agents/docs-reviewer.md) → [languages/docs-*.md](languages/) |
-| Tests | universal (tests) → [rules/agents/test-reviewer.md](rules/agents/test-reviewer.md) |
+| Docs | [rules/documentation.md](rules/documentation.md) → [rules/agents/docs-reviewer.md](rules/agents/docs-reviewer.md) |
+| Tests | universal → [rules/agents/test-reviewer.md](rules/agents/test-reviewer.md) |
 | Security | [rules/security.md](rules/security.md) → [rules/agents/security-reviewer.md](rules/agents/security-reviewer.md) |
 | Performance | [rules/performance.md](rules/performance.md) → [rules/agents/performance-reviewer.md](rules/agents/performance-reviewer.md) |
+
+## Hub skills
+
+Improve skill copy with [skill-optimizer](../skill-optimizer/SKILL.md). Human-facing report tone: [write-like-a-human](../write-like-a-human/SKILL.md).

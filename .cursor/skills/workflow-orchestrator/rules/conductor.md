@@ -42,9 +42,23 @@ On guard violation: state current phase, missing gate, and required user command
 
 **Reopen:** `workflow-reopen-brief.py` clears `brief_accepted` + `plan_user_accepted`, resets plan loop, `phase → intake`. `workflow-reopen-plan.py` clears `plan_user_accepted`, `phase → plan_loop` (brief gate must stay true).
 
+## Subagent isolation (mandatory)
+
+The conductor **must not** substitute for role subagents. Inline plan authoring or plan review causes context contamination and review bias.
+
+| Forbidden (conductor) | Required instead |
+|-----------------------|------------------|
+| Write or rewrite `artifacts/action-plan.md` in `plan_loop` | **Task(plan-author)** per `agents/plan-author.md` |
+| Write `findings/plan.json` or set review verdict from conductor judgment | **Task(plan-reviewer)** per `agents/plan-reviewer.md` |
+| Run synthesize before reviewer output exists on disk | Synthesize only after `findings/plan.json` is written by the reviewer Task |
+
+Conductor **may**: spawn Tasks, write manifest, run `workflow-plan-synthesize.py`, update `workflow.json` phase from script output, present artifacts to user.
+
+Violations invalidate the plan loop iteration — reopen plan and re-run with fresh Task spawns.
+
 ## Plan loop (autonomous — no user)
 
-See SKILL.md **Plan loop (M4)** for executable steps. Helpers: `scripts/lib/workflow_plan.py`, `scripts/workflow-plan-synthesize.py`. Layout: [references/workspace.md](../references/workspace.md).
+See SKILL.md **Plan loop** for executable steps. Helpers: `scripts/lib/workflow_plan.py`, `scripts/workflow-plan-synthesize.py`. Layout: [references/workspace.md](../references/workspace.md).
 
 ```text
 workspace = sessions/<codename>/reviews/workspace/wf-<timestamp>/
@@ -69,7 +83,7 @@ else: present plan to user
 
 ## Code loop (autonomous — no user)
 
-See SKILL.md **Code review loop (M6)** for executable steps. Helpers: `scripts/lib/workflow_code_review.py`, `scripts/workflow-code-review-enrich-scope.py`, `scripts/workflow-code-review-advance.py`. Layout: [references/code-review-loop.md](../references/code-review-loop.md).
+See SKILL.md **Code review loop** for executable steps. Helpers: `scripts/lib/workflow_code_review.py`, `scripts/workflow-code-review-enrich-scope.py`, `scripts/workflow-code-review-advance.py`. Layout: [references/code-review-loop.md](../references/code-review-loop.md).
 
 ```text
 when all session.json tasks done: phase → code_review_loop
@@ -139,7 +153,7 @@ Present stuck summary with:
 
 Never use `session-inbox.sh` for workflow handoff.
 
-## Delivery (M7)
+## Delivery
 
 After code review PASS, `phase: delivery`. Generate report:
 

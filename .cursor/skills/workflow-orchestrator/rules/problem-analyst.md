@@ -53,7 +53,7 @@ Bullets; must be empty before acceptance gate.
 |------|-------------|
 | Length | ≤40 lines total excluding title |
 | Success criteria | 3–5 items; IDs `SC-1` … `SC-n`; no vague verbs alone ("improve", "better") |
-| Constraints | Include scope/time appetite (Shape Up-style budget as constraint, not solution) |
+| Constraints | Include scope/time appetite as a constraint, not a solution |
 | Jargon | Define or replace; no unresolved acronyms |
 | Status | `draft` until user accepts |
 
@@ -68,7 +68,7 @@ Each criterion must be verifiable without reading code:
 ## Forbidden content
 
 - Implementation approach, architecture, file paths, module names
-- Task breakdown, milestones, or repo-specific edit lists (planner's job)
+- Task breakdown or repo-specific edit lists (planner's job)
 - Market research, competitive analysis, KPI tables
 - Persona framing ("I am Mary the analyst…")
 - Rewriting user goals beyond clarification

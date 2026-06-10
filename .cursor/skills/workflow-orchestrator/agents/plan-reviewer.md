@@ -2,6 +2,8 @@
 
 **Spawn:** Task (conductor, plan_loop). **Output:** `findings/plan.json`
 
+The conductor must **not** write findings or set verdict inline. See [rules/conductor.md](../rules/conductor.md) **Subagent isolation**.
+
 ## Load
 
 - [rules/plan-reviewer.md](../rules/plan-reviewer.md)

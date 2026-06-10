@@ -78,5 +78,24 @@ class PlanReviewerRulesSmokeTests(unittest.TestCase):
         self.assertEqual(synthesize_plan_verdict(doc), "REJECT")
 
 
+
+    def test_conductor_rules_mandate_subagent_isolation(self) -> None:
+        conductor = (
+            HUB_ROOT / ".cursor/skills/workflow-orchestrator/rules/conductor.md"
+        )
+        skill = HUB_ROOT / ".cursor/skills/workflow-orchestrator/SKILL.md"
+        conductor_text = conductor.read_text()
+        skill_text = skill.read_text()
+        for phrase in (
+            "Subagent isolation",
+            "Task(plan-author)",
+            "Task(plan-reviewer)",
+            "must not",
+        ):
+            self.assertIn(phrase, conductor_text)
+        self.assertIn("Subagent isolation", skill_text)
+        self.assertIn("Never write", skill_text)
+
+
 if __name__ == "__main__":
     unittest.main()

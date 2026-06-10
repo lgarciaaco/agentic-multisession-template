@@ -95,6 +95,8 @@ mkdir -p "${WORKSPACE}/findings"
 Each iteration:
 
 1. **Manifest** — write `plan_scope_manifest.json` (see [references/workspace.md](references/workspace.md)). On REVISE, set `prior_findings: findings/plan.json` and pass prior workspace findings to plan-author via manifest paths.
+**Subagent isolation:** The conductor must spawn separate Task subagents for plan-author and plan-reviewer. Never write `action-plan.md` or `findings/plan.json` inline. See [rules/conductor.md](rules/conductor.md) **Subagent isolation**.
+
 2. **Task(plan-author)** — [agents/plan-author.md](agents/plan-author.md); updates `artifacts/action-plan.md`.
 3. **Task(plan-reviewer)** — [agents/plan-reviewer.md](agents/plan-reviewer.md); writes `${WORKSPACE}/findings/plan.json`.
 4. **Synthesize** — conductor inline per [rules/agents/plan-synthesizer.md](rules/agents/plan-synthesizer.md), or:
@@ -156,7 +158,7 @@ python3 scripts/workflow-code-review-advance.py <codename> [r-NNN]
 Omit `r-NNN` to use latest `reviews/r-NNN.json`. Prints: review id, verdict, phase, iteration/max.
 
 4. **Branch** (read `workflow.json` after advance):
-   - `PASS` | `PASS_WITH_NITS` → `phase: delivery`; write delivery report (M7)
+   - `PASS` | `PASS_WITH_NITS` → `phase: delivery`; write delivery report
    - `INCOMPLETE` | `FAIL` → parent fixes in worktrees; increment loop; goto step 1 (new `review-id` workspace)
    - iteration ≥ `loops.code_review.max` → escalate with `reviews/r-NNN.json` paths
 

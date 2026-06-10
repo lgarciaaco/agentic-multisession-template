@@ -25,7 +25,7 @@ python3 scripts/workflow-code-review-advance.py <codename> [r-NNN]
 
 | Verdict | Phase after advance | Conductor action |
 |---------|-------------------|------------------|
-| `PASS`, `PASS_WITH_NITS` | `delivery` | Write delivery report (M7) |
+| `PASS`, `PASS_WITH_NITS` | `delivery` | Write delivery report |
 | `INCOMPLETE` | `code_review_loop` | Fix per report; re-run if iteration < max |
 | `FAIL` | `code_review_loop` | Escalate to user immediately |
 

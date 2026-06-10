@@ -2,6 +2,8 @@
 
 **Spawn:** Task (conductor, plan_loop). **Output:** `artifacts/action-plan.md`
 
+The conductor must **not** write this file inline. See [rules/conductor.md](../rules/conductor.md) **Subagent isolation**.
+
 ## Load
 
 - [rules/plan-author.md](../rules/plan-author.md)

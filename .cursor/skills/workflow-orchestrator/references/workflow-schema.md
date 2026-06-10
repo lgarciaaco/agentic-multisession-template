@@ -18,10 +18,10 @@ Canonical path: `sessions/<codename>/workflow.json`. Created when user runs `/wo
 |-------|---------|
 | `intake` | Analyst interviewing user |
 | `brief_review` | Brief drafted; awaiting user accept |
-| `plan_loop` | Autonomous plan author ↔ reviewer (M4) |
+| `plan_loop` | Autonomous plan author ↔ reviewer |
 | `plan_user_review` | Plan APPROVED internally; user gate |
 | `implementation` | Parent agent implements action plan |
-| `code_review_loop` | Autonomous code review (M6) |
+| `code_review_loop` | Autonomous code review |
 | `delivery` | Writing delivery report |
 | `completed` | Pipeline finished |
 

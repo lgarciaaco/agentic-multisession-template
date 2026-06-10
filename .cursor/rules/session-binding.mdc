@@ -24,6 +24,7 @@ Each Cursor composer chat has its own codename binding. There is no global `sess
    - Manual tmux rename: `./scripts/rename-tmux-session.sh <codename>`
    - Do **not** call `new-session.sh` until the user confirms **new**.
 3. If `sessions/context/<conversation_id>.md` exists for this chat, read it for codename and goal.
+4. Hooks **auto-persist** `sessions/bindings/<conversation_id>.json` on session start **and first prompt as a fallback** when resolution is tmux pane or window name (not sibling inherit alone). Full semantics: [SESSIONS.md](../../SESSIONS.md) Chat auto-bind. Correlate with `./scripts/session-audit.sh`.
 
 ## Scope metadata (before product edits)
 

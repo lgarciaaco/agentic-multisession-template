@@ -36,6 +36,8 @@ Project launcher (see `.hub-launcher`) shows the interactive picker by default. 
 
 **Remaining limitation:** pane option `@workspace-codename` is still a bare codename (no hub qualifier). Cross-hub confusion is prevented by path filtering and prefix refresh, not by namespacing the option value. Separate tmux sessions per hub is still the most isolated layout.
 
+**Chat auto-bind:** On session start (and first prompt as a fallback), Cursor hooks persist `sessions/bindings/<conversation_id>.json` when resolution is via **tmux pane** or **window name** — not sibling inherit alone. Sibling inherit (`tmux-session`) still requires an explicit codename or `./scripts/bind-session.sh`. Use `./scripts/session-audit.sh` to correlate chats, bindings, and tmux panes.
+
 ---
 
 ## What gets updated when
@@ -161,6 +163,7 @@ Canonical status lives in `session.json`. Run `sync-session.sh` if local `index.
 | `./scripts/unbind-session.sh` | Clear binding only |
 | `./scripts/end-session.sh [name]` | Close work + unbind this chat |
 | `./scripts/list-active-sessions.sh` | Table of open sessions |
+| `./scripts/session-audit.sh` | Correlate chat bindings, tmux panes, and active sessions (`--json`) |
 | `./scripts/prompt-session-start.sh` | Agent-facing picker text |
 | `./scripts/new-session.sh [name] [title]` | Create new codename directory |
 | `./scripts/rename-tmux-session.sh [name]` | Rename tmux window |
@@ -183,7 +186,7 @@ Tab 3: my-agent → pick bravo  →  separate branch + worktree
 ## Cursor chat workflow
 
 1. **start work** / `/start-work` — orchestrator lists sessions, you pick codename or **new**
-2. Agent runs `./scripts/bind-session.sh <codename>`
+2. Hooks may have **auto-persisted** the binding from tmux pane/window — run `./scripts/session-audit.sh` to verify. Use `./scripts/bind-session.sh <codename>` when unbound or after sibling inherit (`tmux-session`) only
 3. When work intent is clear: `./scripts/set-session-scope.sh <codename> --title "…" --goal "…"` before product edits
 4. `./scripts/ensure-worktrees.sh <codename>` when tasks have `repo` (required for self-hosted hubs — `repos-status` → `self_hosted: true`)
 5. Hooks inject `sessions/context/<conversation_id>.md` on session start (includes `workflow.json` summary and **Resume** when present)

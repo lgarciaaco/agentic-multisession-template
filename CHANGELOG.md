@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.0-rc.1] - 2026-06-10
+
+First stable candidate — workflow pipeline, path guards, skills/docs hygiene since `0.6.0`.
+
 ### Added
 
 - **workflow-orchestrator** skill — role rules, `SKILL.md`, `workflow.json` schema, artifact templates under `sessions/_template/artifacts/`
@@ -15,6 +19,8 @@ All notable changes to this project will be documented in this file.
 - **Hub docs + tests** — `test_workflow_plan_reviewer_rules.py`; expanded pre-PR suite; walkthrough in `docs/WORKFLOW.md`
 - **Self-hosted hub detection** — `repos-status.sh` reports `self_hosted` when a registry clone URL matches hub `origin`
 - Session-start nudge when self-hosted but worktree is missing
+- **Structure reviewer** — code-reviewer pipeline specialist for layout and cross-file consistency
+- **Generic `docs/PROJECT.md`** — shipped template replaces domain-specific project copy
 
 ### Changed
 
@@ -23,6 +29,12 @@ All notable changes to this project will be documented in this file.
 - Hub-root registry pins (`repos.yaml`, `.hub-version`, `.hub-upstream`) blocked for bound sessions (unbound-only)
 - `normalize_git_url` handles `ssh://` URLs; session-start emits scope and worktree nudges together
 - Self-hosted playbook in `docs/REPOS.md`, bootstrap/orchestrator skills, and `BOUNDARIES.md`
+- **Skills audit (PR-1)** — all six hub skills reviewed; workflow conductor rules mandate Task subagents for plan author/reviewer (no inline plan writes)
+- **Doc consolidation (PR-2+3)** — canonical cross-links across `AGENTS.md`, `SESSIONS.md`, `CUSTOMIZE.md`, and `README.md`; milestone/WIP jargon removed from shipped skill and hub docs
+
+### Fixed
+
+- **`parse_action_plan_tasks`** — acceptance cells containing pipe characters no longer break task sync (+ unit test)
 
 ### Session notes
 

@@ -14,7 +14,7 @@ User cloned **agentic-multisession-template**, `cd` here, started you. **You** d
 | `needs_clone` | `./scripts/clone-repos.sh` |
 | `ready` | Sessions + worktrees (below) |
 
-Full playbook: `.cursor/skills/bootstrap-hub/SKILL.md` · [docs/REPOS.md](docs/REPOS.md)
+Full playbook: `.cursor/skills/bootstrap-hub/SKILL.md` · [docs/REPOS.md](docs/REPOS.md) · human overview [README.md](README.md#quick-start-agentic-first)
 
 Hub install if needed: `pip install -r scripts/requirements.txt` && `./scripts/install-workspace-agent.sh`
 
@@ -92,7 +92,7 @@ Two levels — read together:
 |-------|--------|
 | **Template** | `.cursor/rules/agent-guidelines.mdc` — docs sync + test minimum (always on) |
 | **Hub PRs** | `.cursor/rules/hub-contributing.mdc` — always injected (`alwaysApply: true`); follow only when `session.json` `"mode": "hub"` |
-| **Project** | `docs/PROJECT.md` — copy from [docs/PROJECT.md.example](docs/PROJECT.md.example) and fill stack, doc map, test commands |
+| **Project** | `docs/PROJECT.md` — generic template shipped with the hub; customize from [docs/PROJECT.md.example](docs/PROJECT.md.example) for your stack |
 
 Session context lists which guideline files exist on bind. Optional `guidelines:` in `repos.yaml` — see [docs/REPOS.md](docs/REPOS.md).
 

@@ -86,6 +86,19 @@ class WorkflowGatesTests(unittest.TestCase):
         self.assertEqual(tasks[0]["repo"], "my-app")
         self.assertEqual(tasks[1]["depends"], "t1")
 
+    def test_parse_action_plan_tasks_pipe_in_acceptance(self) -> None:
+        plan = """## Tasks
+
+| ID | Repo | Summary | Acceptance | Depends |
+|----|------|---------|------------|---------|
+| t1 | hub | Doc sweep | `rg -i 'foo|bar'` returns clean | — |
+| t2 | hub | Depends t1 | Done when t1 merged | t1 |
+"""
+        tasks = parse_action_plan_tasks(plan)
+        self.assertEqual(len(tasks), 2)
+        self.assertIn("foo|bar", tasks[0]["acceptance"])
+        self.assertEqual(tasks[1]["depends"], "t1")
+
     def test_accept_plan_syncs_session_and_tasks_md(self) -> None:
         result = accept_action_plan(self.root, self.codename)
         self.assertEqual(result["phase"], "implementation")

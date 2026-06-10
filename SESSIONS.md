@@ -2,7 +2,9 @@
 
 Parallel Cursor chats → **codenames** under `sessions/<codename>/`.
 
-**Quick links:** [AGENTS.md](AGENTS.md) · [docs/REPOS.md](docs/REPOS.md) · `sessions/<codename>/BOUNDARIES.md`
+**Quick links:** [AGENTS.md](AGENTS.md) (agent bootstrap) · [docs/WORKFLOW.md](docs/WORKFLOW.md) (pipeline) · [docs/REPOS.md](docs/REPOS.md) (registry) · `sessions/<codename>/BOUNDARIES.md`
+
+**Canonical topics:** install/bootstrap → [AGENTS.md](AGENTS.md); session bind/end → this file; `/workflow` gates → [docs/WORKFLOW.md](docs/WORKFLOW.md); repos/worktrees → [docs/REPOS.md](docs/REPOS.md).
 
 ---
 
@@ -226,9 +228,9 @@ See [sessions/_inbox/README.md](sessions/_inbox/README.md).
 
 | Commit | Do not commit (see `.gitignore`) |
 |--------|----------------------------------|
-| `scripts/`, `.cursor/`, `SESSIONS.md`, `docs/REPOS.md`, `docs/PROJECT.md.example`, `repos.yaml.example`, `.hub-version`, `.hub-upstream.example` | `repos.yaml`, `repos/*` — your clone URLs + reference repos |
+| `scripts/`, `.cursor/`, `SESSIONS.md`, `docs/REPOS.md`, `docs/PROJECT.md`, `docs/PROJECT.md.example`, `repos.yaml.example`, `.hub-version`, `.hub-upstream.example` | `repos.yaml`, `repos/*` — your clone URLs + reference repos |
 | `sessions/_template/`, `sessions/_codenames.example.yaml`, `sessions/index.example.json` | `sessions/<codename>/`, `sessions/*/worktrees/*` |
-| | `docs/PROJECT.md` — your project coding guidelines |
+| | Customize committed `docs/PROJECT.md` from the example when you add a product stack |
 | | `sessions/index.json`, `sessions/_codenames.yaml` — local index |
 | | `sessions/bindings/`, `sessions/context/` — per-chat bindings |
 | | `sessions/_inbox/*.md` — inbox bodies |

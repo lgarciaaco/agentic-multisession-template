@@ -4,11 +4,11 @@
 2. Dedupe: same `file` + `line` + similar `issue` → keep highest severity
 3. Resolve conflicts: security BLOCKER beats performance SUGGESTION; prefer specific agent over code-agent duplicate
 4. Intent: any `criteria[].met: false` → contributes to INCOMPLETE
-5. Verdict:
+5. Open **SUGGESTION** or **NIT** in merged findings → **INCOMPLETE** (fixer dispositions; validate on next pass). See [disposition-validation.md](../disposition-validation.md).
+6. Verdict:
    - **FAIL**: any BLOCKER (code or security agents only)
-   - **INCOMPLETE**: any REQUIRED (docs, tests, intent, code) without BLOCKER
-   - **PASS_WITH_NITS**: only SUGGESTION/NIT
-   - **PASS**: clean
-6. Write `report.md` to workspace; copy summary to session `reviews/r-NNN.json`
+   - **INCOMPLETE**: any REQUIRED; any SUGGESTION/NIT in findings; unmet intent criteria
+   - **PASS**: clean findings (validated refusals in `artifacts/code-review-disposition.md` only)
+7. Write `report.md` to workspace; copy summary to session `reviews/r-NNN.json`
 7. Update `progress.last_review`; `./scripts/sync-session.sh <codename>` if session-bound
 8. Optional: remove workspace dir after successful persist

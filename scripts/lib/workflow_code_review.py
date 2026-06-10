@@ -8,10 +8,121 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from workflow_plan import load_workflow, parse_action_plan_tasks, save_workflow
+from workflow_plan import (
+    dedupe_findings,
+    load_workflow,
+    parse_action_plan_tasks,
+    save_workflow,
+)
 
 CODE_REVIEW_COMPLETE = frozenset({"PASS", "PASS_WITH_NITS"})
 CODE_REVIEW_ESCALATE_VERDICTS = frozenset({"FAIL"})
+SEVERITY_RANK = {"NIT": 0, "SUGGESTION": 1, "REQUIRED": 2, "BLOCKER": 3}
+
+
+def synthesize_code_review_verdict(
+    findings_docs: list[dict[str, Any]],
+) -> str:
+    """Compute PASS | INCOMPLETE | FAIL from merged specialist findings."""
+    raw_findings: list[dict[str, Any]] = []
+    for doc in findings_docs:
+        raw_findings.extend(doc.get("findings") or [])
+        if str(doc.get("agent") or "") == "intent":
+            continue
+        for item in doc.get("criteria") or []:
+            if not item.get("met", True):
+                raw_findings.append(
+                    {
+                        "severity": "REQUIRED",
+                        "issue": f"intent criterion not met: {item.get('id', '')}",
+                    }
+                )
+    merged = dedupe_findings(raw_findings)
+
+    def severity(item: dict[str, Any]) -> str:
+        return str(item.get("severity") or "").upper()
+
+    if any(severity(item) == "BLOCKER" for item in merged):
+        return "FAIL"
+    if any(severity(item) == "REQUIRED" for item in merged):
+        return "INCOMPLETE"
+    open_items = raw_findings + merged
+    if any(severity(item) in ("SUGGESTION", "NIT") for item in open_items):
+        return "INCOMPLETE"
+    return "PASS"
+
+
+def _load_session_tasks(session_dir: Path) -> list[dict[str, Any]]:
+    session_path = session_dir / "session.json"
+    if not session_path.exists():
+        return []
+    return json.loads(session_path.read_text()).get("tasks") or []
+
+
+def active_code_review_task_id(session_dir: Path) -> str | None:
+    """Task id under review for the current slice (multi-PR plans)."""
+    workflow = load_workflow(session_dir)
+    code_loop = (workflow.get("loops") or {}).get("code_review") or {}
+    task_id = str(code_loop.get("task_id") or "").strip()
+    if task_id:
+        return task_id
+    impl = (workflow.get("loops") or {}).get("implementation") or {}
+    active = str(impl.get("active_task") or "").strip()
+    return active or None
+
+
+def implementation_ready_for_review(session_dir: Path) -> tuple[bool, str | None]:
+    """
+    True when a task slice is ready for autonomous code review.
+    Does not require every plan task to be done (supports sequential PR tasks).
+    """
+    tasks = _load_session_tasks(session_dir)
+    if not tasks:
+        return False, None
+
+    workflow = load_workflow(session_dir)
+    impl = (workflow.get("loops") or {}).get("implementation") or {}
+    if impl.get("ready_for_review"):
+        active = str(impl.get("active_task") or "").strip()
+        if active:
+            return True, active
+
+    for task in tasks:
+        task_id = str(task.get("id") or "").strip()
+        if not task_id:
+            continue
+        status = str(task.get("status") or "").lower()
+        if status == "done" and not task.get("code_review_passed"):
+            return True, task_id
+
+    if implementation_tasks_complete(session_dir):
+        last = str(tasks[-1].get("id") or "").strip()
+        return True, last or None
+
+    return False, None
+
+
+def mark_implementation_ready(session_dir: Path, task_id: str) -> dict[str, Any]:
+    """Conductor calls when coding slice is complete — auto-enters code review next."""
+    task_id = str(task_id).strip()
+    if not task_id:
+        raise ValueError("task_id required")
+    tasks = _load_session_tasks(session_dir)
+    if not any(str(t.get("id")) == task_id for t in tasks):
+        raise ValueError(f"unknown task id: {task_id}")
+
+    workflow = load_workflow(session_dir)
+    phase = str(workflow.get("phase") or "")
+    if phase not in ("implementation", "code_review_loop"):
+        raise ValueError(f"cannot mark implementation ready in phase '{phase}'")
+
+    loops = workflow.setdefault("loops", {})
+    impl = loops.setdefault("implementation", {})
+    impl["active_task"] = task_id
+    impl["ready_for_review"] = True
+    workflow["loops"] = loops
+    save_workflow(session_dir, workflow)
+    return workflow
 
 
 def code_review_loop_complete(verdict: str) -> bool:
@@ -141,10 +252,15 @@ def enrich_scope_manifest(
     workflow = load_workflow(session_dir)
     artifacts = workflow.get("artifacts") or {}
     plan_rel = artifacts.get("plan", "artifacts/action-plan.md")
+    task_id = active_code_review_task_id(session_dir)
+    if task_id:
+        criteria = [item for item in criteria if item.get("id") == task_id] or criteria
     manifest["workflow"] = {
         "codename": codename,
         "action_plan_path": f"sessions/{codename}/{plan_rel}",
         "acceptance_criteria": criteria,
+        "active_task": task_id,
+        "include_working_tree": True,
     }
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest_path
@@ -183,11 +299,31 @@ def implementation_tasks_complete(session_dir: Path) -> bool:
     return all(str(task.get("status") or "").lower() == "done" for task in tasks)
 
 
-def begin_code_review_loop(session_dir: Path) -> dict[str, Any]:
-    """Transition implementation → code_review_loop when tasks are done."""
+def begin_code_review_loop(session_dir: Path, *, task_id: str | None = None) -> dict[str, Any]:
+    """Transition implementation → code_review_loop when a task slice is ready."""
+    ready, inferred = implementation_ready_for_review(session_dir)
+    active = task_id or inferred
+    if not ready or not active:
+        if implementation_tasks_complete(session_dir):
+            tasks = _load_session_tasks(session_dir)
+            active = active or (str(tasks[-1].get("id") or "").strip() if tasks else None)
+            ready = bool(active)
+        if not ready or not active:
+            raise ValueError(
+                "implementation slice not ready for code review — "
+                "run workflow-mark-implementation-ready.py <codename> <task-id> after coding"
+            )
+
     workflow = load_workflow(session_dir)
-    if not implementation_tasks_complete(session_dir):
-        raise ValueError("implementation tasks are not all done")
+    loops = workflow.setdefault("loops", {})
+    code_loop = loops.setdefault(
+        "code_review",
+        {"iteration": 0, "max": 5, "last_verdict": None},
+    )
+    code_loop["task_id"] = active
+    impl = loops.setdefault("implementation", {})
+    impl["ready_for_review"] = False
+    workflow["loops"] = loops
     workflow["phase"] = "code_review_loop"
     save_workflow(session_dir, workflow)
     return workflow
@@ -235,6 +371,15 @@ def advance_code_review_loop(
 
     if code_review_loop_complete(normalized):
         workflow["phase"] = "delivery"
+        task_id = active_code_review_task_id(session_dir)
+        if task_id:
+            session_path = session_dir / "session.json"
+            if session_path.exists():
+                session = json.loads(session_path.read_text())
+                for task in session.get("tasks") or []:
+                    if str(task.get("id")) == task_id:
+                        task["code_review_passed"] = True
+                session_path.write_text(json.dumps(session, indent=2) + "\n")
     elif code_review_loop_escalate(normalized, iteration, maximum):
         workflow["phase"] = "code_review_loop"
     else:

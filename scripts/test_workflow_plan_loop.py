@@ -116,6 +116,37 @@ class WorkflowPlanLoopTests(unittest.TestCase):
         }
         self.assertEqual(synthesize_plan_verdict(doc), "REVISE")
 
+    def test_synthesize_revise_on_open_nit(self) -> None:
+        doc = {
+            "agent": "plan",
+            "criteria": [{"id": "SC-1", "criterion": "x", "met": True}],
+            "findings": [{"severity": "nit", "issue": "clarify t2 acceptance"}],
+            "verdict": "APPROVE",
+        }
+        self.assertEqual(synthesize_plan_verdict(doc), "REVISE")
+
+    def test_plan_loop_suggestion_then_approve(self) -> None:
+        suggest_doc = {
+            "agent": "plan",
+            "criteria": [{"id": "SC-1", "criterion": "message", "met": True, "evidence": "t1"}],
+            "findings": [{"severity": "SUGGESTION", "issue": "add rollback note", "fix": "t2"}],
+            "verdict": "REVISE",
+        }
+        approve_doc = {
+            "agent": "plan",
+            "criteria": [{"id": "SC-1", "criterion": "message", "met": True, "evidence": "t1"}],
+            "findings": [],
+            "verdict": "APPROVE",
+        }
+        result = run_plan_loop(
+            self.root,
+            self.codename,
+            [suggest_doc, approve_doc],
+            workflow_id="wf-suggest-pass",
+        )
+        self.assertEqual(result["verdicts"], ["REVISE", "APPROVE"])
+        self.assertEqual(result["workflow"]["phase"], "plan_user_review")
+
     def test_dedupe_keeps_higher_severity(self) -> None:
         findings = [
             {"severity": "SUGGESTION", "issue": "same issue"},

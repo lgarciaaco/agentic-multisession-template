@@ -29,8 +29,9 @@ Document where code belongs. Structure reviewer checks new/changed files against
 |------|---------|
 | `src/` or `packages/` | Application source (adjust to your stack) |
 | `tests/` or `**/*.test.*` | Tests colocated or mirrored |
-| `docs/` | Committed product documentation |
 | `scripts/` | CLI and automation (if applicable) |
+| `.cursor/skills/` | Hub agent skills (self-hosted template only) |
+| `docs/` | Committed hub or product documentation |
 
 Add rows for your repo. Update when adding a new top-level directory.
 

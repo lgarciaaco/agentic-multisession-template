@@ -1,40 +1,53 @@
 # Code review loop persistence
 
+Autonomous fix loop: **review → INCOMPLETE → fixer (parent) → review** until **PASS**. User gates only at brief and plan.
+
 | File | Writer | Role |
 |------|--------|------|
-| `reviews/workspace/review-*/` | code-reviewer orchestrator + agents | transient handoff |
-| `reviews/r-NNN.json` | code-reviewer synthesizer | append-only summary |
-| `progress.json` `last_review` | advance script + synthesizer | latest review pointer |
-| `workflow.json` `loops.code_review` | advance script | iteration + last_verdict |
+| `reviews/workspace/review-*/` | code-reviewer + agents | transient handoff |
+| `reviews/r-NNN.json` | synthesizer | append-only summary |
+| `artifacts/code-review-disposition.md` | fixer (parent) | SUGGESTION/NIT accept/refuse + fix log |
+| `progress.json` `last_review` | advance script | latest review pointer |
+| `workflow.json` `loops.code_review` | advance script | iteration + last_verdict + task_id |
+| `workflow.json` `loops.implementation` | mark-ready script | active_task + ready_for_review |
+
+## Enter loop (no user gate)
+
+When implementation slice for task `tN` is complete:
+
+```bash
+python3 scripts/workflow-mark-implementation-ready.py <codename> tN
+```
+
+Replaces the old "all tasks done" guard — sequential multi-PR plans review per task slice.
+
+Legacy (all tasks done):
+
+```bash
+python3 scripts/workflow-begin-code-review.py <codename>
+```
 
 ## Helper scripts
 
-After code-reviewer scope collector writes `scope_manifest.json`:
-
 ```bash
 python3 scripts/workflow-code-review-enrich-scope.py <codename> sessions/<codename>/reviews/workspace/<review-id>
-```
-
-After synthesizer persists `reviews/r-NNN.json`:
-
-```bash
 python3 scripts/workflow-code-review-advance.py <codename> [r-NNN]
 ```
 
-## loops.code_review updates
+## Verdict → phase
 
 | Verdict | Phase after advance | Conductor action |
-|---------|-------------------|------------------|
-| `PASS`, `PASS_WITH_NITS` | `delivery` | Write delivery report |
-| `INCOMPLETE` | `code_review_loop` | Fix per report; re-run if iteration < max |
-| `FAIL` | `code_review_loop` | Escalate to user immediately |
+|---------|---------------------|------------------|
+| `PASS` | `delivery` | Auto `workflow-write-delivery-report.py` |
+| `INCOMPLETE` | `code_review_loop` | Fixer: REQUIRED + dispositions → re-review |
+| `FAIL` | `code_review_loop` | Escalate BLOCKER to user |
 
-`advance_code_review_loop` keeps `phase: code_review_loop` for non-pass verdicts — the conductor must read `loops.code_review.iteration` vs `max` to decide fix-and-retry vs escalate (same pattern as plan loop REVISE).
+Open **SUGGESTION/NIT** in merged findings → synthesizer **INCOMPLETE** (disposition sub-loop). **PASS_WITH_NITS** is legacy alias for PASS when findings are empty.
 
-## Intent acceptance source
+## Intent acceptance
 
-`workflow.acceptance_criteria` in `scope_manifest.json` comes from `artifacts/action-plan.md` ## Tasks. Intent reviewer prefers this over `TASKS.md` for the same task id.
+`scope_manifest.workflow.acceptance_criteria` filtered to `loops.code_review.task_id` when set.
 
 ## Writable
 
-`sessions/<codename>/reviews/`, `workflow.json`, `progress.json`. Then `./scripts/sync-session.sh <codename>`.
+`sessions/<codename>/reviews/`, `artifacts/code-review-disposition.md`, worktrees during fixer phase. `./scripts/sync-session.sh <codename>`.

@@ -142,14 +142,15 @@ Canonical status lives in `session.json`. Run `sync-session.sh` if local `index.
 | `./scripts/generate-workspace.sh [path]` | Write multi-root `.code-workspace` from `repos.yaml` |
 | `./scripts/ensure-worktrees.sh <name>` | Create git worktrees from `session.json` tasks |
 | `./scripts/sync-session.sh [name]` | Sync index/context from `session.json` |
-| `./scripts/workflow-plan-synthesize.py <name> <workspace>` | Synthesize plan review iteration |
+| `python3 scripts/workflow-plan-synthesize.py <name> <workspace>` | Synthesize plan review iteration |
 | `./scripts/workflow-accept-plan.sh <name>` | Accept action plan; sync tasks + worktrees |
-| `./scripts/workflow-begin-code-review.py <name>` | Begin code review loop when tasks done |
-| `./scripts/workflow-code-review-enrich-scope.py <name> <workspace>` | Add action-plan acceptance to review manifest |
-| `./scripts/workflow-code-review-advance.py <name> [r-NNN]` | Advance code review loop after synthesizer |
-| `./scripts/workflow-write-delivery-report.py <name>` | Generate delivery report; phase → completed |
-| `./scripts/workflow-reopen-brief.py <name>` | Reopen brief gate; phase → intake |
-| `./scripts/workflow-reopen-plan.py <name>` | Reopen plan gate; phase → plan_loop |
+| `python3 scripts/workflow-mark-implementation-ready.py <name> <task-id>` | Mark slice ready and enter code review (no commit gate) |
+| `python3 scripts/workflow-begin-code-review.py <name>` | Legacy: begin when all tasks done |
+| `python3 scripts/workflow-code-review-enrich-scope.py <name> <workspace>` | Add action-plan acceptance to review manifest |
+| `python3 scripts/workflow-code-review-advance.py <name> [r-NNN]` | Advance code review loop after synthesizer |
+| `python3 scripts/workflow-write-delivery-report.py <name>` | Generate delivery report; phase → completed |
+| `python3 scripts/workflow-reopen-brief.py <name>` | Reopen brief gate; phase → intake |
+| `python3 scripts/workflow-reopen-plan.py <name>` | Reopen plan gate; phase → plan_loop |
 | `./scripts/set-session-scope.sh [name] --title T [--goal G] [--next N]` | Set title, TASKS.md goal, and/or `next` hint |
 | `./scripts/unbind-session.sh` | Clear binding only |
 | `./scripts/end-session.sh [name]` | Close work + unbind this chat |
@@ -194,8 +195,9 @@ Optional pipeline in **one chat** — Problem → Plan → Code → Review. Repl
 |------|-------|-----------|
 | Analyst intake | `intake` → `brief_review` | `accept brief` |
 | Plan loop | `plan_loop` → `plan_user_review` | `accept plan` |
+| Plan disposition | SUGGESTION/NIT → author table → reviewer validates → APPROVE | — (autonomous) |
 | Implementation | `implementation` | — |
-| Code review loop | `code_review_loop` | — |
+| Code review loop | `code_review_loop` (fixer dispositions SUGGESTION/NIT) | — |
 | Delivery | `delivery` → `completed` | inform (report) |
 
 **Start or resume:** `/workflow` loads `.cursor/skills/workflow-orchestrator/SKILL.md`, reads `sessions/<codename>/workflow.json` `phase` and context **Resume** — continues without replaying chat history.

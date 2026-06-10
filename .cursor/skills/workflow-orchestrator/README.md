@@ -1,6 +1,6 @@
 # Workflow orchestrator
 
-Single-session pipeline: **Problem → Plan → Code → Review**. One chat, three user gates.
+Single-session pipeline: **Problem → Plan → Code → Review**. One chat, **two user gates** (brief and plan).
 
 Entry: [SKILL.md](SKILL.md)
 
@@ -23,6 +23,7 @@ Plan loop roles run in **separate Task subagents**. The conductor spawns them, w
 - [references/workflow-schema.md](references/workflow-schema.md)
 - [references/workspace.md](references/workspace.md)
 - [references/findings-schema.md](references/findings-schema.md)
+- [references/research-rationale.md](references/research-rationale.md)
 - [references/code-review-loop.md](references/code-review-loop.md)
 - [references/delivery.md](references/delivery.md)
 

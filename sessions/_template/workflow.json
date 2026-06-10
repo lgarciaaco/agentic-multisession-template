@@ -14,13 +14,19 @@
     "code_review": {
       "iteration": 0,
       "max": 5,
-      "last_verdict": null
+      "last_verdict": null,
+      "task_id": null
+    },
+    "implementation": {
+      "active_task": null,
+      "ready_for_review": false
     }
   },
   "artifacts": {
     "brief": "artifacts/problem-brief.md",
     "plan": "artifacts/action-plan.md",
     "delivery": "artifacts/delivery-report.md",
-    "plan_feedback": "artifacts/plan-feedback.md"
+    "plan_feedback": "artifacts/plan-feedback.md",
+    "code_review_disposition": "artifacts/code-review-disposition.md"
   }
 }

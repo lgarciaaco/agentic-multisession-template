@@ -45,10 +45,15 @@ class PlanReviewerRulesSmokeTests(unittest.TestCase):
             "Traceability",
         ):
             self.assertIn(section, self.rules_text)
+        for phrase in ("Missing row", "Accepted not applied", "Invalid refusal"):
+            self.assertIn(phrase, self.rules_text)
+        self.assertIn("no open SUGGESTION/NIT in findings", self.rules_text)
 
     def test_findings_schema_documents_plan_agent(self) -> None:
         self.assertIn("plan.json", self.schema_text)
         self.assertIn("criteria", self.schema_text)
+        self.assertIn("Disposition loop", self.schema_text)
+        self.assertIn("no SUGGESTION or NIT in findings", self.schema_text)
 
     def test_synthesize_plan_verdict_approve_clean(self) -> None:
         doc = {
@@ -64,15 +69,6 @@ class PlanReviewerRulesSmokeTests(unittest.TestCase):
             "agent": "plan",
             "criteria": [{"id": "SC-1", "met": True}],
             "findings": [{"severity": "REQUIRED", "issue": "missing test plan"}],
-            "verdict": "APPROVE",
-        }
-        self.assertEqual(synthesize_plan_verdict(doc), "REVISE")
-
-    def test_synthesize_plan_verdict_revise_on_open_suggestion(self) -> None:
-        doc = {
-            "agent": "plan",
-            "criteria": [{"id": "SC-1", "met": True}],
-            "findings": [{"severity": "SUGGESTION", "issue": "split t2"}],
             "verdict": "APPROVE",
         }
         self.assertEqual(synthesize_plan_verdict(doc), "REVISE")
@@ -99,7 +95,7 @@ class PlanReviewerRulesSmokeTests(unittest.TestCase):
             "Subagent isolation",
             "Task(plan-author)",
             "Task(plan-reviewer)",
-            "must not",
+            "Forbidden (conductor)",
         ):
             self.assertIn(phrase, conductor_text)
         self.assertIn("Subagent isolation", skill_text)

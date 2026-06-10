@@ -87,9 +87,10 @@ Readability stays in code agents.
 | Verdict | When |
 |---------|------|
 | FAIL | Any BLOCKER (code or security) |
-| INCOMPLETE | Any REQUIRED without BLOCKER |
-| PASS_WITH_NITS | SUGGESTION/NIT only |
-| PASS | Clean |
+| INCOMPLETE | Any REQUIRED; any open SUGGESTION/NIT in findings; unmet intent criteria |
+| PASS | Clean findings (validated refusals in disposition artifact only) |
+
+Workflow: open SUGGESTION/NIT → fixer dispositions → specialist validation ([disposition-validation.md](rules/disposition-validation.md)). `PASS_WITH_NITS` is legacy when findings are empty after validation.
 
 Docs: REQUIRED max (no BLOCKER). [rules/documentation.md](rules/documentation.md).
 

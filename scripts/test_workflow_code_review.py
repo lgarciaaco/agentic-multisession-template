@@ -18,10 +18,13 @@ from workflow_code_review import (  # noqa: E402
     code_review_loop_complete,
     code_review_loop_escalate,
     enrich_scope_manifest,
+    implementation_ready_for_review,
     implementation_tasks_complete,
+    mark_implementation_ready,
     next_code_review_id,
     resolve_code_review_workspace,
     run_code_review_loop,
+    synthesize_code_review_verdict,
     workflow_acceptance_criteria,
 )
 
@@ -137,14 +140,39 @@ class WorkflowCodeReviewTests(unittest.TestCase):
         self.assertEqual(result["progress"]["last_review"]["id"], "r-002")
         self.assertEqual(result["progress"]["last_review"]["verdict"], "PASS")
 
-    def test_begin_code_review_requires_done_tasks(self) -> None:
+    def test_begin_code_review_requires_ready_slice(self) -> None:
         session_path = self.session_dir / "session.json"
         session = json.loads(session_path.read_text())
-        session["tasks"][1]["status"] = "in_progress"
+        for task in session["tasks"]:
+            task["status"] = "in_progress"
         session_path.write_text(json.dumps(session, indent=2) + "\n")
-        self.assertFalse(implementation_tasks_complete(self.session_dir))
+        self.assertFalse(implementation_ready_for_review(self.session_dir)[0])
         with self.assertRaises(ValueError):
             begin_code_review_loop(self.session_dir)
+
+    def test_mark_implementation_ready_begins_review_for_task(self) -> None:
+        session_path = self.session_dir / "session.json"
+        session = json.loads(session_path.read_text())
+        session["tasks"][0]["status"] = "done"
+        session["tasks"][1]["status"] = "pending"
+        session_path.write_text(json.dumps(session, indent=2) + "\n")
+        mark_implementation_ready(self.session_dir, "t1")
+        workflow = begin_code_review_loop(self.session_dir)
+        self.assertEqual(workflow["phase"], "code_review_loop")
+        self.assertEqual(workflow["loops"]["code_review"]["task_id"], "t1")
+
+    def test_synthesize_incomplete_on_open_suggestion(self) -> None:
+        docs = [
+            {
+                "agent": "code-python",
+                "findings": [{"severity": "SUGGESTION", "issue": "refactor"}],
+            }
+        ]
+        self.assertEqual(synthesize_code_review_verdict(docs), "INCOMPLETE")
+
+    def test_synthesize_pass_when_clean(self) -> None:
+        docs = [{"agent": "code-python", "findings": []}]
+        self.assertEqual(synthesize_code_review_verdict(docs), "PASS")
 
     def test_code_review_loop_escalate_on_fail(self) -> None:
         self.assertTrue(code_review_loop_escalate("FAIL", 1, 5))

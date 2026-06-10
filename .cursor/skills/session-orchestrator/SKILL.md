@@ -8,7 +8,7 @@ description: Bind or create a workspace session, then execute the user's task.
 Triggers: `start work`, `/start-work`, `new task`
 
 1. `./scripts/repos-status.sh` — bootstrap if not `ready` ([bootstrap-hub](../bootstrap-hub/SKILL.md))
-2. `./scripts/resolve-session.sh` — unbound: `prompt-session-start.sh` → wait → bind or `new-session.sh` + bind
+2. `./scripts/resolve-session.sh` — unbound: `./scripts/prompt-session-start.sh` → wait → bind or `./scripts/new-session.sh` + bind
 3. **Scope before edits:** `./scripts/set-session-scope.sh <codename> --title "…" --goal "…" [--next "…"]`
 4. Tasks need `"repo"` from `repos.yaml` → `./scripts/ensure-worktrees.sh <codename>`
 5. Edit `sessions/<codename>/worktrees/<repo>/` only — hub-root blocked when bound ([docs/REPOS.md](../../../docs/REPOS.md))
@@ -24,3 +24,5 @@ Triggers: `start work`, `/start-work`, `new task`
 ```
 
 Full delivery pipeline: [workflow-orchestrator](../workflow-orchestrator/SKILL.md) (`/workflow`).
+
+When `sessions/<codename>/workflow.json` exists, **do not** ask the user to commit, open a PR, or choose between coding and code review — the workflow conductor auto-enters the code review loop after each implementation slice.

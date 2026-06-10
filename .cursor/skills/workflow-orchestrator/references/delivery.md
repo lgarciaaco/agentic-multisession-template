@@ -26,8 +26,8 @@ Chat context **Workflow** section includes **Resume** from `workflow_next_action
 
 | Command | Effect |
 |---------|--------|
-| `workflow-reopen-brief.py` | `brief_accepted` + `plan_user_accepted` false; plan loop reset; `phase: intake` |
-| `workflow-reopen-plan.py` | `plan_user_accepted` false; `phase: plan_loop` |
+| `python3 scripts/workflow-reopen-brief.py <codename>` | `brief_accepted` + `plan_user_accepted` false; plan loop reset; `phase: intake` |
+| `python3 scripts/workflow-reopen-plan.py <codename>` | `plan_user_accepted` false; `phase: plan_loop` |
 
 ## Writable
 

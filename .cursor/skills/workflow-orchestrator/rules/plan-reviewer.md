@@ -1,95 +1,81 @@
 # Plan reviewer rules
 
-**Runner:** Task subagent (conductor spawns).  
-**Input:** `artifacts/problem-brief.md`, `artifacts/action-plan.md`, `plan_scope_manifest.json`.  
+**Runner:** Task subagent only (conductor spawns).  
+**Input:** brief, `action-plan.md`, `plan_scope_manifest.json`.  
 **Output:** `<workspace>/findings/plan.json` per [findings-schema.md](../references/findings-schema.md).  
-**Read-only:** never edit `action-plan.md` or brief.
+**Read-only:** never edit plan or brief.
 
 ## Purpose
 
-Intent-review for plans — map brief success criteria to plan evidence; apply Definition-of-Ready checks on tasks. Same rigor as code-reviewer; no BLOCKER severity.
+Intent-review: map brief SC-n to plan evidence; Definition-of-Ready on tasks. No BLOCKER severity.
 
 ## Severity
 
 | Severity | Use |
 |----------|-----|
 | REQUIRED | Must fix before APPROVE |
-| SUGGESTION | Should fix; does not block APPROVE |
-| NIT | Clarity polish |
-| BLOCKER | **Never** — no code under review |
+| SUGGESTION | Should fix; author must disposition before APPROVE |
+| NIT | Clarity; author must disposition before APPROVE |
+| BLOCKER | Never |
 
 ## Verdict
 
 | Verdict | When |
 |---------|------|
-| APPROVE | All criteria MET; no REQUIRED findings |
-| REVISE | Any REQUIRED finding or `met: false` (brief still valid) |
-| REJECT | Plan misunderstands brief fundamentals — escalate `reopen brief` |
+| APPROVE | All criteria met; no REQUIRED; **no open SUGGESTION/NIT in findings**; every disposition row validated (see below) |
+| REVISE | Any REQUIRED or `met: false`; or open SUGGESTION/NIT awaiting author disposition; or invalid/missing disposition validation |
+| REJECT | Plan misunderstands brief → `reopen brief` |
 
-## Completeness vs brief
+## Brief coverage (REQUIRED on fail)
 
-| Check | Severity | FAIL when |
-|-------|----------|-----------|
-| Success criterion coverage | REQUIRED | Any SC-n has no plan task or approach coverage |
-| Constraint respect | REQUIRED | Plan violates brief Constraints or Out of scope |
-| Out-of-scope creep | REQUIRED | Plan task not justified by brief |
-| Traceability matrix | REQUIRED | Traceability table missing or SC-n without task mapping |
+| Check | FAIL when |
+|-------|-----------|
+| SC coverage | SC-n without task or approach |
+| Constraints | Plan violates brief constraints |
+| Out-of-scope creep | Task unjustified by brief |
+| Traceability | Matrix missing or incomplete |
 
-Populate `criteria[]` — one entry per SC-n from brief. `met: false` → add REQUIRED finding with evidence requirement.
+Populate `criteria[]` per SC-n; `met: false` → REQUIRED finding with evidence.
 
-## Task quality (Definition of Ready)
+## Task quality (REQUIRED on fail)
 
-| Check | Severity | FAIL when |
-|-------|----------|-----------|
-| Acceptance testability | REQUIRED | Vague acceptance ("works", "clean up", "improve", "done") |
-| Task sizing | REQUIRED | Task bundles unrelated deliverables |
-| Repo mapping | REQUIRED | Missing `repo` or alias not in `repos.yaml` |
-| Dependency order | REQUIRED | Implied order but Depends missing, wrong, or circular |
-| ID stability | SUGGESTION | Non-stable IDs (not `t1`, `t2`, …) |
+Vague acceptance; mega-task; bad/missing repo alias; broken Depends; missing test plan; hub/scripts touch without `python3 scripts/test_*.py`; acceptance with `\|` breaking sync.
 
-## Test and verification
+## Disposition validation (REQUIRED on fail)
 
-| Check | Severity | FAIL when |
-|-------|----------|-----------|
-| Test plan present | REQUIRED | Non-trivial plan with no Test plan section |
-| Test ↔ acceptance | REQUIRED | Task acceptance has no verification path in Test plan |
-| Hub test commands | REQUIRED | `mode: hub` or `scripts/` in Files/areas but no `python3 scripts/test_*.py` |
+When `action-plan.md` has **Reviewer disposition** rows, or prior `findings/plan.json` had SUGGESTION/NIT:
 
-Hub test rule: fire when `plan_scope_manifest.session_mode == "hub"` **or** plan Files/areas mentions `scripts/`.
+| Check | FAIL when → REQUIRED |
+|-------|----------------------|
+| Missing row | Prior SUGGESTION/NIT has no matching disposition row |
+| Undecided | Row missing **accepted** or **refused** decision |
+| Accepted not applied | Decision **accepted** but plan body unchanged for that finding |
+| Refused without rationale | Decision **refused** but rationale empty or generic |
+| Invalid refusal | **refused** rationale contradicts brief, ignores constraint, or defers without task/out-of-scope cite |
 
-## Clarity and feasibility
+On validation pass:
 
-| Check | Severity | FAIL when |
-|-------|----------|-----------|
-| Approach coherence | REQUIRED | Approach contradicts brief constraints |
-| Ambiguity | REQUIRED | Multiple interpretations of "done" for same task |
-| Risk awareness | SUGGESTION | Non-trivial plan with empty Risks table |
+- **Do not** re-emit SUGGESTION/NIT for rows you validated — drop them from `findings[]`.
+- **refused** rows validated → omit from findings; they remain in the plan table for the user gate only.
+- **accepted** rows validated → omit from findings; change must be visible in plan.
 
-Non-trivial: >2 tasks or any task touching security/auth/guards.
+First pass (no disposition table, or new SUGGESTION/NIT): emit SUGGESTION/NIT in `findings[]`; verdict **REVISE** until author dispositions and you validate.
 
-## Process
+## Process (REQUIRED on fail)
 
-| Check | Severity | FAIL when |
-|-------|----------|-----------|
-| Read-only | REQUIRED | Reviewer edits plan (process violation — conductor issue) |
-| Evidence | REQUIRED | Any `met: false` or REQUIRED finding without brief + plan citation |
-| Verdict consistency | REQUIRED | REQUIRED present but verdict APPROVE |
+Reviewer edited plan; missing evidence citations; APPROVE with REQUIRED present; APPROVE while open SUGGESTION/NIT remain in `findings[]`.
 
 ## Evidence format
 
-Each finding and unmet criterion must cite:
-
-- Brief: section + SC-n or constraint text
-- Plan: section + task ID or line reference
-
-Example: `SC-2 not met — brief requires expired-token error UI; plan has no task covering SC-2`
+Cite brief section + SC-n and plan section + task ID.
 
 ## Procedure
 
-1. Read brief — extract SC-1…SC-n, Constraints, Out of scope.
-2. Read plan — Approach, Traceability, Tasks, Test plan, Risks.
-3. Read `repos.yaml` when repo aliases referenced.
-4. Map each SC-n → MET | NOT MET with evidence.
-5. Run task-quality and test checks on every task row.
-6. Emit findings; set `verdict` per rules above.
-7. Write `findings/plan.json` only.
+1. Extract SC-n, constraints, out-of-scope from brief.
+2. Read plan sections: Approach, Traceability, Tasks, Test plan, Risks, **Reviewer disposition**.
+3. Read `repos.yaml` for aliases.
+4. Map SC-n → criteria[] with evidence.
+5. DoR on every task row.
+6. If disposition table or prior SUGGESTION/NIT: run **Disposition validation**; emit REQUIRED for failures.
+7. Else: emit new SUGGESTION/NIT for quality gaps.
+8. Write `findings/plan.json` only — empty `findings[]` allowed on APPROVE when only validated **refused** rows remain in the plan.

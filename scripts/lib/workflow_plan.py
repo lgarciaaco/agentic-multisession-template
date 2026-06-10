@@ -63,11 +63,19 @@ def synthesize_plan_verdict(findings_doc: dict[str, Any]) -> str:
         return "REJECT"
 
     criteria = findings_doc.get("criteria") or []
-    findings = dedupe_findings(findings_doc.get("findings") or [])
+    raw_findings = findings_doc.get("findings") or []
+    findings = dedupe_findings(raw_findings)
 
-    if any(str(item.get("severity")) == "REQUIRED" for item in findings):
+    def severity(item: dict[str, Any]) -> str:
+        return str(item.get("severity") or "").upper()
+
+    if any(severity(item) == "REQUIRED" for item in findings):
         return "REVISE"
     if any(not item.get("met", True) for item in criteria):
+        return "REVISE"
+    # Open SUGGESTION/NIT → author must disposition; reviewer must validate on a later pass.
+    open_items = raw_findings + findings
+    if any(severity(item) in ("SUGGESTION", "NIT") for item in open_items):
         return "REVISE"
     return "APPROVE"
 

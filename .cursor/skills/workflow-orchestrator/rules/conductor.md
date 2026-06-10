@@ -6,7 +6,7 @@
 
 ## Purpose
 
-Single-chat orchestrator for Problem → Plan → Code → Review. Autonomous inner loops; user gates only at brief, plan, and delivery.
+Single-chat orchestrator for Problem → Plan → Code → Review → Delivery. Autonomous inner loops; **user gates only at brief and plan**.
 
 ## Phase state machine
 
@@ -15,10 +15,10 @@ Single-chat orchestrator for Problem → Plan → Code → Review. Autonomous in
 | `intake` | problem-analyst.md | `problem-brief.md` drafted |
 | `brief_review` | problem-analyst.md | user `accept brief` |
 | `plan_loop` | plan-author + plan-reviewer (Task) | synthesizer APPROVE |
-| `plan_user_review` | plan-author.md (if feedback) | user `accept plan` |
-| `implementation` | session-orchestrator + developer section below | all plan tasks done |
-| `code_review_loop` | code-reviewer skill | PASS or PASS_WITH_NITS |
-| `delivery` | delivery template | `delivery-report.md` shown |
+| `plan_user_review` | conductor presents plan + **refused dispositions only** | user `accept plan` |
+| `implementation` | session-orchestrator + developer section | slice ready → **auto** code review |
+| `code_review_loop` | code-reviewer + code-fixer (parent) | synthesizer PASS |
+| `delivery` | delivery template | auto → `completed` |
 | `completed` | — | optional end session |
 
 ## Phase guards
@@ -27,124 +27,140 @@ Refuse phase skip:
 
 - `plan_loop` until `gates.brief_accepted`
 - `implementation` until `gates.plan_user_accepted`
-- `code_review_loop` until implementation tasks complete
-- Never spawn Task subagent for implementation — parent implements
+- `code_review_loop` until implementation slice marked ready (see below)
+- Never spawn Task subagent for implementation or code-fixer — parent implements
 
 On guard violation: state current phase, missing gate, and required user command.
 
-## Human gates (three)
+## Human gates (two)
 
 | Gate | Command | Effect |
 |------|---------|--------|
 | 1 | `accept brief` / `accept` | `gates.brief_accepted: true`; freeze brief |
 | 2 | `accept plan` | `gates.plan_user_accepted: true`; sync tasks → session.json |
-| 3 | delivery report | inform only |
 
-**Reopen:** `workflow-reopen-brief.py` clears `brief_accepted` + `plan_user_accepted`, resets plan loop, `phase → intake`. `workflow-reopen-plan.py` clears `plan_user_accepted`, `phase → plan_loop` (brief gate must stay true).
+Delivery report is **inform only** — not a gate. Never ask the user to approve delivery, commit, or open a PR before the autonomous code review loop runs.
+
+**Reopen:** `python3 scripts/workflow-reopen-brief.py <codename>` · `python3 scripts/workflow-reopen-plan.py <codename>`
+
+## Autonomy (mandatory)
+
+When `workflow.json` exists, the conductor runs the pipeline **without** pausing for:
+
+- uncommitted worktree changes (include in review scope)
+- "commit + PR when ready"
+- "code review loop or commit?"
+- relay between agents
+
+After coding a task slice finishes → immediately:
+
+```bash
+python3 scripts/workflow-mark-implementation-ready.py <codename> <task-id>
+```
+
+Then enter the code review loop — no user prompt.
+
+## Subagent isolation (mandatory)
+
+| Forbidden (conductor) | Required instead |
+|-----------------------|------------------|
+| Write or rewrite `artifacts/action-plan.md` in `plan_loop` | **Task(plan-author)** |
+| Write `findings/plan.json` or plan verdict inline | **Task(plan-reviewer)** |
+| Write specialist `findings/*.json` in code review | **Task** per code-reviewer SKILL |
+| Skip fixer after INCOMPLETE | Parent loads [code-fixer.md](code-fixer.md) and fixes before re-review |
 
 ## Plan loop (autonomous — no user)
 
-See SKILL.md **Plan loop (M4)** for executable steps. Helpers: `scripts/lib/workflow_plan.py`, `scripts/workflow-plan-synthesize.py`. Layout: [references/workspace.md](../references/workspace.md).
+See SKILL.md **Plan loop**. Summary:
 
 ```text
-workspace = sessions/<codename>/reviews/workspace/wf-<timestamp>/
-iteration = workflow.loops.plan.iteration
-
-loop while iteration < workflow.loops.plan.max (default 5):
-  write plan_scope_manifest.json
-  spawn Task(plan-author)  → artifacts/action-plan.md
-  spawn Task(plan-reviewer) → findings/plan.json
-  python3 scripts/workflow-plan-synthesize.py <codename> <workspace-rel>
-  if APPROVE: phase → plan_user_review; break
-  if REJECT: escalate user — suggest reopen brief
-  if REVISE: iteration++; pass findings to next plan-author spawn
-
-if iteration >= max: escalate with pr-NNN-report paths
-else: present plan to user
+plan-author → plan-reviewer → synthesize
+REVISE until APPROVE (disposition validation for SUGGESTION/NIT)
+→ plan_user_review (refused dispositions only) → user accept plan
 ```
-
-**User feedback at plan gate:** append to `artifacts/plan-feedback.md`; re-enter `plan_loop` (do not ask "should I send to reviewer?").
-
-**Workspace IDs:** `wf-YYYYMMDD-HHMMSS` for plan; keep `review-*` for code-reviewer unchanged.
 
 ## Code loop (autonomous — no user)
 
-See SKILL.md **Code review loop (M6)** for executable steps. Helpers: `scripts/lib/workflow_code_review.py`, `scripts/workflow-code-review-enrich-scope.py`, `scripts/workflow-code-review-advance.py`. Layout: [references/code-review-loop.md](../references/code-review-loop.md).
+Specialists via **code-reviewer** skill Task subagents. Fixer is parent agent. Reviewer is authoritative.
+
+See SKILL.md **Code review loop** and [../../code-reviewer/SKILL.md](../../code-reviewer/SKILL.md).
 
 ```text
-when all session.json tasks done: phase → code_review_loop
+# Enter (after implementation slice — no user gate)
+python3 scripts/workflow-mark-implementation-ready.py <codename> <task-id>
 
-loop while iteration < workflow.loops.code_review.max (default 5):
-  run code-reviewer skill (scope: changeset)
-  enrich scope_manifest with action-plan acceptance
-  workflow-code-review-advance.py after synthesizer
-  if PASS | PASS_WITH_NITS: phase → delivery; break
-  if INCOMPLETE | FAIL: fix per report; re-run (new review-id workspace)
+loop while iteration < loops.code_review.max:
+  scope collector (changeset + working tree when workflow session)
+  enrich scope → workflow-code-review-enrich-scope.py
+  Task specialists (parallel) → findings/*.json
+  synthesizer → report.md + reviews/r-NNN.json
+  workflow-code-review-advance.py
+  if PASS: phase → delivery; break
+  if FAIL (BLOCKER): escalate user immediately
+  if INCOMPLETE:
+    parent: code-fixer.md — fix REQUIRED; disposition SUGGESTION/NIT
+    iteration++; new review-* workspace; goto loop top
+
 if iteration >= max: escalate with reviews/r-NNN paths
+else: auto delivery report → completed
 ```
+
+**Disposition:** Same model as plan loop — fixer accepts/refuses SUGGESTION/NIT; specialists validate; synthesizer **INCOMPLETE** while open SUGGESTION/NIT remain in findings. **PASS** only when findings clear (validated refusals in `artifacts/code-review-disposition.md` only).
+
+## Plan user review (gate 2)
+
+When phase is `plan_user_review` after synthesizer **APPROVE**:
+
+1. Present Approach + task summary + **refused dispositions only**
+2. End with **`accept plan`** or `plan-feedback.md` → re-enter `plan_loop`
+3. Do not ask open-ended questions
 
 ## Developer (implementation phase)
 
 Parent agent — not Task subagent.
 
-1. Read frozen `problem-brief.md` and user-accepted `action-plan.md` — not chat history.
-2. Run `./scripts/set-session-scope.sh` if title/goal thin.
-3. On **accept plan**: `./scripts/workflow-accept-plan.sh <codename>` (sync tasks, gates, worktrees).
-4. `./scripts/ensure-worktrees.sh <codename>` also run by accept-plan script.
-5. Edit only `sessions/<codename>/worktrees/**` (self-hosted hubs: hub repo via worktree, not hub root).
-6. Mark tasks `in_progress` → `done` in dependency order.
-7. `./scripts/sync-session.sh <codename>` after metadata edits.
+1. Read frozen `problem-brief.md` and user-accepted `action-plan.md`.
+2. Edit `sessions/<codename>/worktrees/**` only.
+3. Mark task `in_progress` while coding.
+4. When task slice meets plan acceptance for this PR → mark task `done` (or ready) and **immediately** run `workflow-mark-implementation-ready.py` — do **not** ask about commits or PRs.
+5. `./scripts/sync-session.sh <codename>` after metadata edits.
 
-**Discovery during implementation:**
-
-- New scope not in brief → stop; ask user to `reopen plan` or `reopen brief`
-- Small gap / nit / typo in plan → fix inline; note in task `note` field
-- Do not expand scope without gate
+**Discovery during implementation:** new scope → stop; ask user to `reopen plan` or `reopen brief`.
 
 ## Status updates (between gates)
 
-One-line progress only — not questions:
+One-line progress only:
 
-- "Plan review iteration 2 — REVISE (3 REQUIRED)"
-- "Implementing t3…"
-- "Code review iteration 1 — INCOMPLETE, fixing…"
+- "Implementing t1…"
+- "Code review iteration 2 — INCOMPLETE (4 REQUIRED), fixing…"
+- "Code review PASS — writing delivery report"
 
-Never ask user to relay messages between agents or sessions.
+Never ask user to relay messages or choose the next pipeline step.
 
 ## Escalation (max iterations)
 
-Present stuck summary with:
-
-- Phase, iteration count, last verdict
-- Paths: `artifacts/plan-review/pr-NNN-report.md` or `reviews/r-NNN.json`
-- Suggested user action: feedback, `reopen plan`, or narrow scope
+Present stuck summary with phase, iteration, verdict, artifact paths. Suggested: `reopen plan`, narrow scope, or manual fix + resume.
 
 ## Subroutines
 
 | Phase | Invoke |
 |-------|--------|
 | plan_loop | Task agents per `agents/plan-*.md` |
-| code_review_loop | `.cursor/skills/code-reviewer/SKILL.md` unchanged |
-| implementation | `.cursor/skills/session-orchestrator/SKILL.md` |
+| code_review_loop | code-reviewer SKILL + [code-fixer.md](code-fixer.md) |
+| implementation | [session-orchestrator/SKILL.md](../../session-orchestrator/SKILL.md) |
 
 ## Writable (conductor)
 
-- `sessions/<codename>/workflow.json`
-- `sessions/<codename>/artifacts/**`
-- `sessions/<codename>/reviews/workspace/wf-*/`
-- `sessions/<codename>/artifacts/plan-review/`
-- `sessions/<codename>/session.json`, `TASKS.md`, `progress.json` (metadata)
-- `sessions/<codename>/worktrees/**` in implementation only
-- Hub mode: `scripts/`, `.cursor/`, docs per BOUNDARIES.md
+- `sessions/<codename>/workflow.json`, `artifacts/**`, `reviews/**`
+- `sessions/<codename>/worktrees/**` in implementation and code_review_loop (fixer)
+- Hub mode: hub worktree paths per BOUNDARIES.md
 
-Never use `session-inbox.sh` for workflow handoff.
+## Delivery
 
-## Delivery (M7)
-
-After code review PASS, `phase: delivery`. Generate report:
+After code review **PASS**, auto-run:
 
 ```bash
 python3 scripts/workflow-write-delivery-report.py <codename>
 ```
 
-Present `artifacts/delivery-report.md` to user; `phase → completed`. Template: `sessions/_template/artifacts/delivery-report.md`. See [references/delivery.md](../references/delivery.md).
+Present `artifacts/delivery-report.md` in one screen; `phase → completed`. Not a user gate.

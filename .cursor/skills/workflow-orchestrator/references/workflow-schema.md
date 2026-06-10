@@ -18,10 +18,10 @@ Canonical path: `sessions/<codename>/workflow.json`. Created when user runs `/wo
 |-------|---------|
 | `intake` | Analyst interviewing user |
 | `brief_review` | Brief drafted; awaiting user accept |
-| `plan_loop` | Autonomous plan author ↔ reviewer (M4) |
-| `plan_user_review` | Plan APPROVED internally; user gate |
+| `plan_loop` | Autonomous plan author ↔ reviewer |
+| `plan_user_review` | Plan APPROVED internally; user gate — conductor presents **refused dispositions only** |
 | `implementation` | Parent agent implements action plan |
-| `code_review_loop` | Autonomous code review (M6) |
+| `code_review_loop` | Autonomous code review |
 | `delivery` | Writing delivery report |
 | `completed` | Pipeline finished |
 
@@ -40,13 +40,21 @@ Canonical path: `sessions/<codename>/workflow.json`. Created when user runs `/wo
 | `max` | integer | Escalate after this many iterations (default 5) |
 | `last_verdict` | string \| null | `APPROVE`, `REVISE`, `REJECT`, or null |
 
+## loops.implementation
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `active_task` | string | Task id for current PR slice (e.g. `t1`) |
+| `ready_for_review` | boolean | Conductor set when coding complete; triggers code review |
+
 ## loops.code_review
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `iteration` | integer | Current code review loop count |
 | `max` | integer | Default 5 |
-| `last_verdict` | string \| null | `PASS`, `PASS_WITH_NITS`, `INCOMPLETE`, `FAIL`, or null |
+| `last_verdict` | string \| null | `PASS`, `INCOMPLETE`, `FAIL`, or null |
+| `task_id` | string \| null | Task under review for this slice |
 
 ## artifacts
 
@@ -56,6 +64,7 @@ Canonical path: `sessions/<codename>/workflow.json`. Created when user runs `/wo
 | `plan` | `artifacts/action-plan.md` | Action plan |
 | `delivery` | `artifacts/delivery-report.md` | Final report |
 | `plan_feedback` | `artifacts/plan-feedback.md` | User notes at plan gate (optional) |
+| `code_review_disposition` | `artifacts/code-review-disposition.md` | Fixer SUGGESTION/NIT dispositions |
 
 ## Example
 

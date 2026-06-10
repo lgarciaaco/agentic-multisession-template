@@ -48,9 +48,16 @@ Specialist agents write one file under `<workspace>/findings/`. Plan review uses
 
 | Verdict | When |
 |---------|------|
-| `APPROVE` | All `criteria[].met: true`; no REQUIRED findings |
-| `REVISE` | Any REQUIRED finding; or any `criteria[].met: false` where brief is still valid |
+| `APPROVE` | All `criteria[].met: true`; no REQUIRED findings; **no SUGGESTION or NIT in findings** (dispositions validated; refusals live in plan table only) |
+| `REVISE` | Any REQUIRED finding; any `criteria[].met: false`; **any SUGGESTION or NIT** (author must disposition; reviewer must validate on a later pass) |
 | `REJECT` | Plan reveals fundamental misunderstanding of brief — user must `reopen brief` |
+
+## Disposition loop
+
+1. Reviewer emits SUGGESTION/NIT → synthesizer **REVISE** (even when no REQUIRED).
+2. Plan-author records **accepted** / **refused** + rationale in **Reviewer disposition**.
+3. Reviewer re-runs: validates each row; drops validated items from `findings[]`.
+4. **APPROVE** when criteria met and `findings[]` has no REQUIRED, SUGGESTION, or NIT — user gate shows **refused** rows only.
 
 ## plan_scope_manifest.json (plan loop workspace)
 

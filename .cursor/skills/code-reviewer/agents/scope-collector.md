@@ -22,3 +22,5 @@
 - manifest has `api|db|workers|handlers` paths AND code file count > 20
 
 Default both false for small hub-only audits unless security trigger matches.
+
+`triggers.structure` = true when manifest includes any file with `kind: code`.

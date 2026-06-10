@@ -1,28 +1,32 @@
-# Workflow orchestrator (in progress)
+# Workflow orchestrator
 
-Single-session pipeline: Problem → Plan → Code → Review.
+Single-session pipeline: **Problem → Plan → Code → Review**. One chat, **two user gates** (brief and plan).
 
-| Milestone | Status |
-|-----------|--------|
-| M2 Role specs | done |
-| M3 Spine | done |
-| M4 Plan loop | done |
-| M5 Implementation wiring | done — workflow-accept-plan.sh, gates |
-| M6 Code review loop | done — enrich-scope, advance scripts, intent action-plan |
-| M7 Delivery + resume | done — delivery report, reopen CLIs, context resume hint |
-| M8 Docs + hub review | done — AGENTS/SESSIONS, test trio, walkthrough |
+Entry: [SKILL.md](SKILL.md)
 
-## Rule index
+## Roles
 
 | Role | Rules | Agent procedure |
 |------|-------|-----------------|
 | Analyst | [rules/problem-analyst.md](rules/problem-analyst.md) | parent agent (conductor) |
-| Plan author | [rules/plan-author.md](rules/plan-author.md) | [rules/agents/plan-author.md](rules/agents/plan-author.md) |
-| Plan reviewer | [rules/plan-reviewer.md](rules/plan-reviewer.md) | [rules/agents/plan-reviewer.md](rules/agents/plan-reviewer.md) |
-| Conductor | [rules/conductor.md](rules/conductor.md) | inline |
-| Plan synthesizer | — | [rules/agents/plan-synthesizer.md](rules/agents/plan-synthesizer.md) |
+| Plan author | [rules/plan-author.md](rules/plan-author.md) | [agents/plan-author.md](agents/plan-author.md) — **Task subagent only** |
+| Plan reviewer | [rules/plan-reviewer.md](rules/plan-reviewer.md) | [agents/plan-reviewer.md](agents/plan-reviewer.md) — **Task subagent only** |
+| Conductor | [rules/conductor.md](rules/conductor.md) | inline — must not inline plan author/reviewer |
+| Code review | [../code-reviewer/SKILL.md](../code-reviewer/SKILL.md) | subroutine |
 
-## References
+## Subagent isolation
 
+Plan loop roles run in **separate Task subagents**. The conductor spawns them, writes the workspace manifest, and runs `workflow-plan-synthesize.py`. See [rules/conductor.md](rules/conductor.md) **Subagent isolation (mandatory)**.
+
+## References (agent internals)
+
+- [references/workflow-schema.md](references/workflow-schema.md)
+- [references/workspace.md](references/workspace.md)
 - [references/findings-schema.md](references/findings-schema.md)
 - [references/research-rationale.md](references/research-rationale.md)
+- [references/code-review-loop.md](references/code-review-loop.md)
+- [references/delivery.md](references/delivery.md)
+
+Hub utilities: [write-like-a-human](../write-like-a-human/SKILL.md), [skill-optimizer](../skill-optimizer/SKILL.md)
+
+Walkthrough: [docs/WORKFLOW.md](../../../docs/WORKFLOW.md)

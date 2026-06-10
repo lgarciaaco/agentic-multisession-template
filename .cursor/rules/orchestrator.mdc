@@ -17,7 +17,7 @@ alwaysApply: true
 
 **`accept plan`** → workflow gate 2 → `./scripts/workflow-accept-plan.sh <codename>`.
 
-**`reopen brief`** / **`reopen plan`** → `workflow-reopen-brief.py` / `workflow-reopen-plan.py`.
+**`reopen brief`** / **`reopen plan`** → `python3 scripts/workflow-reopen-brief.py <codename>` / `python3 scripts/workflow-reopen-plan.py <codename>`.
 
 **End session** / `/end-session` → load `.cursor/skills/session-end/SKILL.md`.
 

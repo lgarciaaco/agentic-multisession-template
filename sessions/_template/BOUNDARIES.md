@@ -5,7 +5,8 @@ Bound to codename `CODENAME` via `sessions/bindings/` (see `sessions/context/`).
 ## Writable
 
 - `sessions/CODENAME/worktrees/**` — product code (git worktrees from `repos.yaml`)
-- `sessions/CODENAME/session.json`, `TASKS.md`, `progress.json`
+- `sessions/CODENAME/session.json`, `TASKS.md`, `progress.json`, `workflow.json`
+- `sessions/CODENAME/artifacts/**`, `sessions/CODENAME/reviews/**` — workflow and code-review state
 - Cross-session: `sessions/_inbox/` via `./scripts/session-inbox.sh write`
 
 ## Read-only

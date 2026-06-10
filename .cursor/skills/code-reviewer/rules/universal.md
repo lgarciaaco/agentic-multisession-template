@@ -5,7 +5,7 @@ Skip unless requested: `node_modules/`, `.venv/`, `venv/`, `dist/`, `build/`, `c
 ## Design
 
 - Flag functions >50 lines, god objects, speculative future code, unchecked public API changes
-- Flag nesting >4 levels, duplicated logic across files
+- Flag nesting >4 levels; light duplication hint only — defer deep duplication/layout/dead-code to structure agent
 
 ## Correctness
 

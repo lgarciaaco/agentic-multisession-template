@@ -21,6 +21,22 @@ Add your project-specific rows above.
 
 ---
 
+## Layout
+
+Document where code belongs. Structure reviewer checks new/changed files against this map.
+
+| Path | Purpose |
+|------|---------|
+| `src/` or `packages/` | Application source (adjust to your stack) |
+| `tests/` or `**/*.test.*` | Tests colocated or mirrored |
+| `scripts/` | CLI and automation (if applicable) |
+| `.cursor/skills/` | Hub agent skills (self-hosted template only) |
+| `docs/` | Committed hub or product documentation |
+
+Add rows for your repo. Update when adding a new top-level directory.
+
+---
+
 ## Test minimum
 
 Before opening a product PR from a worktree:

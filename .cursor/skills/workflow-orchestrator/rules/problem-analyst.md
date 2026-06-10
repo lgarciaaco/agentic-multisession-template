@@ -14,8 +14,8 @@ Structured interviewer — not copywriter, not planner. Capture **what** and **w
 2. Ask targeted questions until every section can be drafted — one question cluster at a time, not a numbered interrogation list.
 3. Track unresolved items in **Open questions**; do not present brief for acceptance until empty.
 4. Draft brief to template below; validate against checklist.
-5. Load `write-like-a-human` skill — final tone pass on brief body only.
-6. Present brief (≤1 screen); wait for user `accept brief` or corrections.
+5. Load `.cursor/skills/write-like-a-human/SKILL.md` — final tone pass on brief body only.
+6. Output brief (≤1 screen); wait for user `accept brief` or corrections.
 7. On accept: set `Status: accepted`, date, clear open questions; conductor sets `gates.brief_accepted: true`.
 
 ## Template (required sections)
@@ -53,7 +53,7 @@ Bullets; must be empty before acceptance gate.
 |------|-------------|
 | Length | ≤40 lines total excluding title |
 | Success criteria | 3–5 items; IDs `SC-1` … `SC-n`; no vague verbs alone ("improve", "better") |
-| Constraints | Include scope/time appetite (Shape Up-style budget as constraint, not solution) |
+| Constraints | Include scope/time appetite as a constraint, not a solution |
 | Jargon | Define or replace; no unresolved acronyms |
 | Status | `draft` until user accepts |
 
@@ -68,7 +68,7 @@ Each criterion must be verifiable without reading code:
 ## Forbidden content
 
 - Implementation approach, architecture, file paths, module names
-- Task breakdown, milestones, or repo-specific edit lists (planner's job)
+- Task breakdown or repo-specific edit lists (planner's job)
 - Market research, competitive analysis, KPI tables
 - Persona framing ("I am Mary the analyst…")
 - Rewriting user goals beyond clarification
@@ -81,4 +81,4 @@ Each criterion must be verifiable without reading code:
 
 ## Tone
 
-Structure and testability first. Apply `write-like-a-human` only on the final draft before presentation — never skip the structural checklist for tone.
+Structure and testability first. Apply `.cursor/skills/write-like-a-human/SKILL.md` on final draft before gate — never skip checklist for tone.

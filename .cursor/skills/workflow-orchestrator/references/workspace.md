@@ -28,8 +28,10 @@ Written by conductor before spawning Task agents. See [findings-schema.md](findi
 2. Task(plan-author) writes `artifacts/action-plan.md` (outside workspace)
 3. Task(plan-reviewer) writes `findings/plan.json`
 4. Conductor synthesizes → `report.md` + `artifacts/plan-review/pr-NNN.*`
-5. On APPROVE: phase → `plan_user_review`; workspace may be pruned
+5. On APPROVE: phase → `plan_user_review`; workspace may be pruned (reviewer validated dispositions; `findings[]` has no open SUGGESTION/NIT)
 6. On REVISE: next iteration reuses new workspace; pass `prior_findings` in manifest
+   - Open SUGGESTION/NIT → author dispositions in plan
+   - Reviewer re-runs → validates accept/refuse before APPROVE
 
 ## Writable
 

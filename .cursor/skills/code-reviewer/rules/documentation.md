@@ -1,6 +1,6 @@
 # Documentation rules
 
-Corpus review: consistency, duplication, coherence. Doc findings default to **REQUIRED** (not BLOCKER) unless synthesizer maps explicit security lies separately.
+Corpus review: consistency, **documentation** duplication, coherence. Code duplication, layout, and dead code → **structure agent** ([structure.md](structure.md)). Doc findings default to **REQUIRED** (not BLOCKER) unless synthesizer maps explicit security lies separately.
 
 ## Accuracy
 
@@ -15,9 +15,11 @@ Corpus review: consistency, duplication, coherence. Doc findings default to **RE
 - Flag contradictory instructions (e.g. writable paths differ between `BOUNDARIES.md` and `SESSIONS.md`)
 - Flag session lifecycle steps that disagree across `AGENTS.md`, `SESSIONS.md`, skills
 
-## Duplication
+## Duplication (documentation only)
 
-- SUGGESTION: same setup/bootstrap steps repeated in multiple docs with conflicting detail
+- Same install/bootstrap steps in README, AGENTS.md, SESSIONS.md without canonical link
+- Terminology drift for hub concepts (codename, worktree, binding)
+- Code duplication or dead modules → structure agent, not docs agent
 - SUGGESTION: overlapping "start work" / "end session" instructions — prefer single canonical source + links
 
 ## Coherence

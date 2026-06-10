@@ -51,16 +51,17 @@ Single-session **Problem → Plan → Code → Review** in one chat. State: `ses
 | `/workflow status` | One-screen status |
 | `accept brief` / `accept` | Gate 1 |
 | `accept plan` | Gate 2 → `./scripts/workflow-accept-plan.sh <codename>` |
-| `reopen brief` / `reopen plan` | `workflow-reopen-brief.py` / `workflow-reopen-plan.py` |
+| `reopen brief` / `reopen plan` | `python3 scripts/workflow-reopen-brief.py <codename>` / `python3 scripts/workflow-reopen-plan.py <codename>` |
 
 | Phase scripts | Command |
 |---------------|---------|
 | Plan loop | `python3 scripts/workflow-plan-synthesize.py <codename> sessions/.../wf-...` |
+| Code review enter | `python3 scripts/workflow-mark-implementation-ready.py <codename> <task-id>` |
 | Accept plan | `./scripts/workflow-accept-plan.sh <codename>` |
-| Code review | `workflow-begin-code-review.py`, `workflow-code-review-enrich-scope.py`, `workflow-code-review-advance.py` |
+| Code review | `python3 scripts/workflow-code-review-enrich-scope.py`, `python3 scripts/workflow-code-review-advance.py` |
 | Delivery | `python3 scripts/workflow-write-delivery-report.py <codename>` |
 
-User gates only at brief, plan, and delivery report (inform). Autonomous inner loops for plan and code review — no cross-session inbox relay. Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
+User gates **only at brief and plan**. Autonomous inner loops for plan and code review — no commit/PR pause before review. Plan loop: author dispositions → reviewer validates. Code loop: fixer dispositions SUGGESTION/NIT → specialists validate → **PASS**; include uncommitted worktree in review scope. Delivery report is inform only. Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
 
 ## End
 
@@ -105,6 +106,8 @@ Session context lists which guideline files exist on bind. Optional `guidelines:
 | Code review | `.cursor/skills/code-reviewer` |
 | Hub upgrade | `.cursor/skills/hub-upgrade` |
 | End | `.cursor/skills/session-end` |
+| Human tone | `.cursor/skills/write-like-a-human` |
+| Skill streamline | `.cursor/skills/skill-optimizer` |
 
 ## Cross-session inbox
 

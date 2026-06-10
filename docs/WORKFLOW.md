@@ -1,6 +1,6 @@
 # Workflow orchestrator walkthrough
 
-Single-session pipeline: **Problem → Plan → Code → Review**. One Cursor chat, three user gates.
+Single-session pipeline: **Problem → Plan → Code → Review**. One Cursor chat, **two user gates** (brief and plan).
 
 ## Prerequisites
 
@@ -30,10 +30,12 @@ Reopen: `python3 scripts/workflow-reopen-brief.py <codename>`
 
 Phase `plan_loop` — agent runs without asking you to forward messages:
 
-1. Task(plan-author) → `artifacts/action-plan.md`
-2. Task(plan-reviewer) → `findings/plan.json`
+1. Task(plan-author) → `artifacts/action-plan.md` (dispositions SUGGESTION/NIT on REVISE)
+2. Task(plan-reviewer) → `findings/plan.json` (validates dispositions on later passes)
 3. `python3 scripts/workflow-plan-synthesize.py <codename> sessions/<codename>/reviews/workspace/wf-...`
-4. REVISE → fix and repeat; APPROVE → `plan_user_review`
+4. REVISE → author/reviewer repeat until APPROVE (open SUGGESTION/NIT cleared; refusals validated) → `plan_user_review`
+
+Task subagent isolation is mandatory — see [conductor.md Subagent isolation](../.cursor/skills/workflow-orchestrator/rules/conductor.md).
 
 ## 4. Gate 2 — Action plan
 
@@ -45,25 +47,31 @@ Syncs tasks → `session.json`, creates worktrees, `phase: implementation`.
 
 Reopen: `python3 scripts/workflow-reopen-plan.py <codename>`
 
-## 5. Implementation
+## 5. Implementation → code review (automatic)
 
-Parent agent edits `sessions/<codename>/worktrees/**` (or hub paths when `mode: hub`). Marks tasks done in `session.json`.
+Parent agent edits `sessions/<codename>/worktrees/**`. When a task slice is complete, the conductor **immediately** runs:
+
+```bash
+python3 scripts/workflow-mark-implementation-ready.py <codename> <task-id>
+```
+
+No commit gate. Uncommitted worktree changes are included in review scope.
 
 ## 6. Autonomous code review loop
 
-```bash
-python3 scripts/workflow-begin-code-review.py <codename>
-```
+Each iteration: code-reviewer skill (changeset + working tree) → `python3 scripts/workflow-code-review-enrich-scope.py <codename> sessions/<codename>/reviews/workspace/<review-id>` → Task specialists → synthesizer → `python3 scripts/workflow-code-review-advance.py <codename>`.
 
-Each iteration: code-reviewer skill (changeset) → enrich scope → synthesizer → `workflow-code-review-advance.py`. INCOMPLETE/FAIL → agent fixes and re-runs. PASS → `delivery`.
+**INCOMPLETE** → parent fixer ([code-fixer.md](../.cursor/skills/workflow-orchestrator/rules/code-fixer.md)): fix REQUIRED; accept/refuse SUGGESTION/NIT in `artifacts/code-review-disposition.md`; re-run until **PASS**.
 
-## 7. Gate 3 — Delivery report
+## 7. Delivery report (inform only)
+
+After **PASS**, the agent auto-runs:
 
 ```bash
 python3 scripts/workflow-write-delivery-report.py <codename>
 ```
 
-Agent presents `artifacts/delivery-report.md`; `phase: completed`.
+Presents `artifacts/delivery-report.md`; `phase: completed`. Not a user gate.
 
 ## Resume after interruption
 

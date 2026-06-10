@@ -1,22 +1,23 @@
 # Plan author rules
 
-**Runner:** Task subagent (conductor spawns).  
-**Input:** frozen `artifacts/problem-brief.md`; on REVISE: `findings/plan.json` + optional `artifacts/plan-feedback.md`.  
+**Runner:** Task subagent only (conductor spawns).  
+**Input:** frozen `artifacts/problem-brief.md`; REVISE: `findings/plan.json` + optional `artifacts/plan-feedback.md`.  
 **Output:** `sessions/<codename>/artifacts/action-plan.md`  
-**Read-only:** brief, repos.yaml, docs/PROJECT.md when present, prior findings.
+**Read-only:** brief, `repos.yaml`, `docs/PROJECT.md` if present, prior findings.
 
 ## Purpose
 
-Convert accepted brief into a traceable, agent-executable action plan. One artifact — not separate design/tasks files.
+Convert accepted brief into one traceable, executable action plan.
 
 ## Procedure
 
-1. Read `problem-brief.md` — treat as immutable scope.
-2. Read `repos.yaml` — only use aliases that exist.
-3. On REVISE: address every REQUIRED finding in `findings/plan.json`; do not ignore SUGGESTION if trivial to fix.
-4. If `artifacts/plan-feedback.md` exists, incorporate user notes at plan gate.
-5. Write `action-plan.md` per template below.
-6. Do not edit worktrees, `session.json`, or the brief.
+1. Read `problem-brief.md` — immutable scope.
+2. Read `repos.yaml` — only registered aliases.
+3. REVISE: read `findings/plan.json` — fix every **REQUIRED** finding in the plan body or **Revision notes**.
+4. REVISE: for each **SUGGESTION** and **NIT** in `findings/plan.json`, decide **accepted** (apply to plan) or **refused** (defer with rationale). Record every item in **Reviewer disposition** — none left undecided. Loop stays open: plan-reviewer re-runs to validate each row before APPROVE.
+5. If `artifacts/plan-feedback.md` exists, incorporate user notes at plan gate.
+6. Write `action-plan.md` per template.
+7. Do not edit worktrees, `session.json`, or brief.
 
 ## Template
 
@@ -28,66 +29,66 @@ Convert accepted brief into a traceable, agent-executable action plan. One artif
 **Version:** <n>
 
 ## Approach
-Short technical strategy; must respect brief constraints and out-of-scope.
+Strategy respecting brief constraints and out-of-scope.
 
 ## Traceability
 | Brief | Plan tasks |
 |-------|------------|
 | SC-1 | t1, t2 |
-| SC-2 | t3 |
 
 ## Tasks
 | ID | Repo | Summary | Acceptance | Depends |
 |----|------|---------|------------|---------|
-| t1 | <alias> | … | Testable done condition | — |
+| t1 | <alias> | … | Testable done condition (no pipe chars) | — |
 
 ## Files / areas
-Likely touch points (indicative).
+Indicative touch points.
 
 ## Test plan
-Concrete commands; hub: `python3 scripts/test_*.py` when `scripts/` touched.
+Concrete commands; hub + `scripts/`: `python3 scripts/test_*.py`.
 
 ## Risks
 | Risk | Mitigation |
 |------|------------|
+
+## Reviewer disposition
+
+Required whenever `findings/plan.json` contains SUGGESTION/NIT. Keep rows through validation passes.
+
+| Finding (summary) | Severity | Decision | Rationale |
+|-------------------|----------|----------|-----------|
+| … | SUGGESTION / NIT | accepted / refused | Why applied or deferred |
+
+- **accepted** — change reflected in plan (Tasks, Test plan, Files/areas, or Revision notes); reviewer verifies on next pass
+- **refused** — explicit defer reason (brief constraint, out-of-scope, or defer to task id); reviewer validates rationale on next pass
+- After reviewer APPROVE: **refused** rows are shown at user gate; **accepted** rows are already in the plan body
+
+## Revision notes
+
+On REVISE only: bullets per REQUIRED finding id or issue; increment **Version** in header.
 ```
 
-## Task decomposition
+## Task rules
 
 | Rule | Requirement |
 |------|-------------|
-| Sizing | 1–4h agent-sized; one logical deliverable per task |
-| IDs | Stable `t1`, `t2`, … for session.json sync |
-| Repo | Every task has `repo` matching `repos.yaml` alias |
-| Acceptance | Testable — observable pass/fail; no "works", "clean up", "improve" alone |
-| Dependencies | Explicit in Depends column; no circular refs |
-| Traceability | Every SC-n maps to ≥1 task; every task maps to ≥1 SC-n |
-| Status | All tasks `pending` on output |
+| Sizing | 1–4h; one deliverable per task |
+| IDs | Stable `t1`, `t2`, … |
+| Repo | Matches `repos.yaml` alias |
+| Acceptance | Observable pass/fail; no "works"/"improve" alone; **no `\|` in cells** (breaks `workflow-accept-plan.sh` sync) |
+| Depends | Explicit; no cycles |
+| Traceability | Every SC-n ↔ ≥1 task |
+| Status | All `pending` on output |
+| Disposition | Every SUGGESTION/NIT from prior review → accepted or refused with rationale |
 
-## Acceptance wording
+## Hub (`mode: hub`)
 
-- **Good:** "POST /api/orders returns 201 with order id when payload is valid"
-- **Good:** "Unit test `test_checkout_expired_token` fails before fix and passes after"
-- **Bad:** "Implement checkout"
-- **Bad:** "Make it work"
-
-## Hub sessions (`mode: hub`)
-
-When plan touches `scripts/`, `.cursor/`, or hub docs:
-
-- Test plan must include `python3 scripts/test_session_binding.py` at minimum
-- Note hub-contributing test trio when scripts change: `test_session_binding.py`, `test_git_remotes.py`, `test_hub_upgrade.py`
+When plan touches `scripts/`, `.cursor/`, or hub docs: test plan includes at minimum `python3 scripts/test_session_binding.py`; script changes add git_remotes + hub_upgrade tests per hub-contributing.
 
 ## Forbidden
 
-- Expanding scope beyond brief without marking as out-of-scope violation (plan reviewer will REVISE)
-- Rewriting brief sections
-- Code changes or worktree edits
-- Empty test plan for non-trivial scope
-- Mega-tasks bundling unrelated work
+Scope beyond brief; rewrite brief; worktree/code edits; empty test plan; mega-tasks.
 
-## On REVISE iteration
+## REVISE
 
-- Increment **Version** in plan header
-- Add short **Revision notes** subsection listing fixes applied per finding ID
-- Preserve task IDs where possible; do not renumber without reason
+Increment **Version**; **Revision notes** for each REQUIRED; **Reviewer disposition** for every SUGGESTION/NIT (accepted or refused + rationale); preserve task IDs when possible.

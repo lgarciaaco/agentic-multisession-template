@@ -38,17 +38,22 @@ class PlanReviewerRulesSmokeTests(unittest.TestCase):
 
     def test_required_rubric_sections_present(self) -> None:
         for section in (
-            "Completeness vs brief",
+            "Brief coverage",
             "Task quality",
-            "Test and verification",
-            "Traceability matrix",
-            "Acceptance testability",
+            "Disposition validation",
+            "Process",
+            "Traceability",
         ):
             self.assertIn(section, self.rules_text)
+        for phrase in ("Missing row", "Accepted not applied", "Invalid refusal"):
+            self.assertIn(phrase, self.rules_text)
+        self.assertIn("no open SUGGESTION/NIT in findings", self.rules_text)
 
     def test_findings_schema_documents_plan_agent(self) -> None:
         self.assertIn("plan.json", self.schema_text)
         self.assertIn("criteria", self.schema_text)
+        self.assertIn("Disposition loop", self.schema_text)
+        self.assertIn("no SUGGESTION or NIT in findings", self.schema_text)
 
     def test_synthesize_plan_verdict_approve_clean(self) -> None:
         doc = {
@@ -76,6 +81,51 @@ class PlanReviewerRulesSmokeTests(unittest.TestCase):
             "verdict": "REJECT",
         }
         self.assertEqual(synthesize_plan_verdict(doc), "REJECT")
+
+
+
+    def test_conductor_rules_mandate_subagent_isolation(self) -> None:
+        conductor = (
+            HUB_ROOT / ".cursor/skills/workflow-orchestrator/rules/conductor.md"
+        )
+        skill = HUB_ROOT / ".cursor/skills/workflow-orchestrator/SKILL.md"
+        conductor_text = conductor.read_text()
+        skill_text = skill.read_text()
+        for phrase in (
+            "Subagent isolation",
+            "Task(plan-author)",
+            "Task(plan-reviewer)",
+            "Forbidden (conductor)",
+        ):
+            self.assertIn(phrase, conductor_text)
+        self.assertIn("Subagent isolation", skill_text)
+        self.assertIn("Never write", skill_text)
+
+    def test_hub_utility_skills_present(self) -> None:
+        for rel in (
+            ".cursor/skills/write-like-a-human/SKILL.md",
+            ".cursor/skills/skill-optimizer/SKILL.md",
+        ):
+            self.assertTrue((HUB_ROOT / rel).is_file(), rel)
+
+    def test_structure_reviewer_skill_present(self) -> None:
+        base = HUB_ROOT / ".cursor/skills/code-reviewer"
+        for rel in (
+            "agents/structure-reviewer.md",
+            "rules/structure.md",
+            "rules/agents/structure-reviewer.md",
+        ):
+            self.assertTrue((base / rel).is_file(), rel)
+        schema = (
+            HUB_ROOT / ".cursor/skills/code-reviewer/references/findings-schema.md"
+        ).read_text()
+        self.assertIn("structure", schema)
+
+    def test_code_reviewer_mandates_task_specialists(self) -> None:
+        text = (HUB_ROOT / ".cursor/skills/code-reviewer/SKILL.md").read_text()
+        self.assertIn("Subagent isolation", text)
+        self.assertIn("must **not**", text)
+        self.assertIn("structure-reviewer", text)
 
 
 if __name__ == "__main__":

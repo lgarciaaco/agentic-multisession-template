@@ -47,10 +47,10 @@ One chat, one conductor. Linear pipeline with autonomous plan and code loops bet
 | `intake` | [problem-analyst.md](rules/problem-analyst.md) | — |
 | `brief_review` | problem-analyst.md | accept brief |
 | `plan_loop` | plan-author + plan-reviewer (Task) | — |
-| `plan_user_review` | plan-author if feedback | accept plan |
+| `plan_user_review` | conductor presents plan + refused dispositions | accept plan |
 | `implementation` | session-orchestrator + conductor developer section | — |
-| `code_review_loop` | code-reviewer skill subroutine | — |
-| `delivery` | delivery template | inform |
+| `code_review_loop` | code-reviewer + code-fixer (parent) | — |
+| `delivery` | delivery template | — |
 | `completed` | — | — |
 
 ## `/workflow status` (one screen)
@@ -77,7 +77,7 @@ Do not ask the user to relay messages between agents or sessions.
 ```text
 intake → brief_review → [accept brief]
   → plan_loop → plan_user_review → [accept plan]
-  → implementation → code_review_loop → delivery → completed
+  → implementation → [auto] code_review_loop → delivery → completed
 ```
 
 Autonomous loops — conductor runs without user between gates.
@@ -95,6 +95,8 @@ mkdir -p "${WORKSPACE}/findings"
 Each iteration:
 
 1. **Manifest** — write `plan_scope_manifest.json` (see [references/workspace.md](references/workspace.md)). On REVISE, set `prior_findings: findings/plan.json` and pass prior workspace findings to plan-author via manifest paths.
+**Subagent isolation:** The conductor must spawn separate Task subagents for plan-author and plan-reviewer. Never write `action-plan.md` or `findings/plan.json` inline. See [rules/conductor.md](rules/conductor.md) **Subagent isolation**.
+
 2. **Task(plan-author)** — [agents/plan-author.md](agents/plan-author.md); updates `artifacts/action-plan.md`.
 3. **Task(plan-reviewer)** — [agents/plan-reviewer.md](agents/plan-reviewer.md); writes `${WORKSPACE}/findings/plan.json`.
 4. **Synthesize** — conductor inline per [rules/agents/plan-synthesizer.md](rules/agents/plan-synthesizer.md), or:
@@ -104,8 +106,9 @@ python3 scripts/workflow-plan-synthesize.py <codename> sessions/<codename>/revie
 ```
 
 5. **Branch** (read `workflow.json` after synthesize):
-   - `APPROVE` → `phase: plan_user_review`; present plan to user
+   - `APPROVE` → `phase: plan_user_review`; present plan to user (reviewer validated dispositions; open SUGGESTION/NIT must be absent from findings)
    - `REVISE` → increment iteration; new `${WORKFLOW_ID}-iter<n>` workspace if needed; goto step 1
+     - Includes open SUGGESTION/NIT, REQUIRED gaps, invalid **refused** rationale, **accepted** not applied in plan
    - `REJECT` → escalate; suggest `reopen brief`
    - iteration ≥ `loops.plan.max` → escalate with `pr-NNN-report.md` paths
 
@@ -114,6 +117,8 @@ python3 scripts/workflow-plan-synthesize.py <codename> sessions/<codename>/revie
 **Status line (no question):** `Plan review iteration N — REVISE (R REQUIRED)` or `Plan review APPROVE — awaiting your accept plan`
 
 ### Accept plan (gate 2)
+
+After synthesizer **APPROVE**, conductor presents **Approach**, task summary, and **refused dispositions only** (validated deferrals from **Reviewer disposition**). Accepted items are already in the plan. See [rules/conductor.md](rules/conductor.md) **Plan user review**.
 
 After user says **accept plan**:
 
@@ -129,56 +134,60 @@ Load [session-orchestrator/SKILL.md](../session-orchestrator/SKILL.md) + [rules/
 
 ### Code review loop
 
-**Precondition:** all `session.json` tasks `done`; phase `implementation` or `code_review_loop`.
+**Precondition:** implementation slice ready; phase `implementation` or `code_review_loop`. Does **not** require every plan task to be `done` (sequential PR tasks).
+
+**Enter (no user gate)** — when coding for task `<task-id>` is complete:
 
 ```bash
-python3 scripts/workflow-begin-code-review.py <codename>
+python3 scripts/workflow-mark-implementation-ready.py <codename> <task-id>
 ```
 
-Fails if any `session.json` task is not `done`.
+Prints `code_review_loop`. Never ask the user to commit first or choose between review and PR.
 
 Each iteration:
 
-1. **Code reviewer** — load `.cursor/skills/code-reviewer/SKILL.md`; scope `changeset`. After scope collector writes `scope_manifest.json`, enrich for workflow acceptance:
+1. **Code reviewer** — load `.cursor/skills/code-reviewer/SKILL.md`; scope `changeset` **including uncommitted worktree changes** when `workflow.json` exists. After scope collector writes `scope_manifest.json`:
 
 ```bash
 python3 scripts/workflow-code-review-enrich-scope.py <codename> sessions/<codename>/reviews/workspace/<review-id>
 ```
 
-2. Spawn specialists (Task parallel) per code-reviewer SKILL; synthesizer writes `report.md` and persists `reviews/r-NNN.json` + `progress.last_review`.
+2. **Task specialists** (parallel) per code-reviewer SKILL; read `artifacts/code-review-disposition.md` on validation passes ([disposition-validation.md](../code-reviewer/rules/disposition-validation.md)).
 
-3. **Advance loop** — after synthesizer:
+3. **Synthesizer** (conductor inline) — merge findings; verdict via `synthesize_code_review_verdict()` in `scripts/lib/workflow_code_review.py`:
+   - **FAIL** — any BLOCKER
+   - **INCOMPLETE** — any REQUIRED; any open SUGGESTION/NIT (fixer must disposition; reviewer re-validates)
+   - **PASS** — clean findings (validated refusals only in disposition file)
+
+   Persist `reviews/r-NNN.json` + `report.md`.
+
+4. **Advance:**
 
 ```bash
 python3 scripts/workflow-code-review-advance.py <codename> [r-NNN]
 ```
 
-Omit `r-NNN` to use latest `reviews/r-NNN.json`. Prints: review id, verdict, phase, iteration/max.
+5. **Branch:**
+   - **PASS** → `phase: delivery`; auto-write delivery report
+   - **INCOMPLETE** → parent loads [rules/code-fixer.md](rules/code-fixer.md): fix REQUIRED; disposition SUGGESTION/NIT; **re-run loop** (new `review-*` workspace) — no user
+   - **FAIL** (BLOCKER) → escalate immediately
+   - iteration ≥ max → escalate
 
-4. **Branch** (read `workflow.json` after advance):
-   - `PASS` | `PASS_WITH_NITS` → `phase: delivery`; write delivery report (M7)
-   - `INCOMPLETE` | `FAIL` → parent fixes in worktrees; increment loop; goto step 1 (new `review-id` workspace)
-   - iteration ≥ `loops.code_review.max` → escalate with `reviews/r-NNN.json` paths
+6. `./scripts/sync-session.sh <codename>` after each iteration
 
-5. `./scripts/sync-session.sh <codename>` after each iteration
+**Status line:** `Code review iteration N — INCOMPLETE (R REQUIRED), fixing…` or `Code review PASS — writing delivery report`
 
-**Status line (no question):** `Code review iteration N — INCOMPLETE (R REQUIRED), fixing…` or `Code review PASS — writing delivery report`
-
-Intent reviewer reads acceptance from `action-plan.md` (via enriched manifest). See [references/code-review-loop.md](references/code-review-loop.md).
+Intent reviewer uses **active task** acceptance only (via enriched manifest). See [references/code-review-loop.md](references/code-review-loop.md).
 
 ### Delivery
 
-**Precondition:** `phase: delivery` (set by code review advance on PASS).
+**Precondition:** `phase: delivery` (auto after code review PASS).
 
 ```bash
 python3 scripts/workflow-write-delivery-report.py <codename>
 ```
 
-Writes `artifacts/delivery-report.md` from session tasks, plan review `pr-NNN`, code review `r-NNN`, and loop verdicts. Sets `phase: completed`. Present report to user (gate 3 — inform only).
-
-```bash
-./scripts/sync-session.sh <codename>
-```
+Sets `phase: completed`. Present report — **inform only**, not a user gate.
 
 ### Reopen gates
 
@@ -220,7 +229,7 @@ Templates: `sessions/_template/artifacts/`. Schema: [references/workflow-schema.
 
 ## Writable
 
-`sessions/<codename>/workflow.json`, `artifacts/**`, `reviews/workspace/wf-*/`, `plan-review/`, session metadata. Implementation: `sessions/<codename>/worktrees/**` only (self-hosted hub: worktree, not hub root).
+`sessions/<codename>/workflow.json`, `artifacts/**`, `reviews/workspace/wf-*/`, `artifacts/plan-review/`, session metadata. Implementation: `sessions/<codename>/worktrees/**` only (self-hosted hub: worktree, not hub root).
 
 ## References
 

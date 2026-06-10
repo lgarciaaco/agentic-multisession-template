@@ -45,7 +45,7 @@ mkdir -p "<workspace>/findings"
 
 | Role | Runner |
 |------|--------|
-| Code (per language), docs, test, intent, security, performance | **Task subagent** — orchestrator spawns parallel |
+| Code (per language), docs, test, intent, structure, security, performance | **Task subagent** — orchestrator spawns parallel |
 | Scope collector | Orchestrator inline → `scope_manifest.json` |
 | Synthesizer | Orchestrator inline → `report.md` + persistence |
 
@@ -70,6 +70,7 @@ Wait for all. Skip empty scopes.
 | Docs | always | [agents/docs-reviewer.md](agents/docs-reviewer.md) |
 | Test | `changeset` or `task` | [agents/test-reviewer.md](agents/test-reviewer.md) |
 | Intent | session acceptance/goal or user intent | [agents/intent-reviewer.md](agents/intent-reviewer.md) |
+| Structure | `triggers.structure` (code in manifest) | [agents/structure-reviewer.md](agents/structure-reviewer.md) |
 | Security | `triggers.security` | [agents/security-reviewer.md](agents/security-reviewer.md) |
 | Performance | `triggers.performance` | [agents/performance-reviewer.md](agents/performance-reviewer.md) |
 
@@ -94,7 +95,7 @@ Docs: REQUIRED max (no BLOCKER). [rules/documentation.md](rules/documentation.md
 
 ## Report sections
 
-Summary, Scope, Verdict, Code, Documentation, Tests, Intent, Security (if ran), Positive notes, Deferred to CI.
+Summary, Scope, Verdict, Code, Structure, Documentation, Tests, Intent, Security (if ran), Positive notes, Deferred to CI.
 
 ## Pre-delivery
 
@@ -114,6 +115,7 @@ Summary, Scope, Verdict, Code, Documentation, Tests, Intent, Security (if ran), 
 | Code | [rules/universal.md](rules/universal.md) → [rules/agents/code-reviewer.md](rules/agents/code-reviewer.md) → [languages/*.md](languages/) |
 | Docs | [rules/documentation.md](rules/documentation.md) → [rules/agents/docs-reviewer.md](rules/agents/docs-reviewer.md) |
 | Tests | universal → [rules/agents/test-reviewer.md](rules/agents/test-reviewer.md) |
+| Structure | [rules/structure.md](rules/structure.md) → [rules/agents/structure-reviewer.md](rules/agents/structure-reviewer.md) |
 | Security | [rules/security.md](rules/security.md) → [rules/agents/security-reviewer.md](rules/agents/security-reviewer.md) |
 | Performance | [rules/performance.md](rules/performance.md) → [rules/agents/performance-reviewer.md](rules/agents/performance-reviewer.md) |
 

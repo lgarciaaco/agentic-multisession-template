@@ -102,10 +102,24 @@ class PlanReviewerRulesSmokeTests(unittest.TestCase):
         ):
             self.assertTrue((HUB_ROOT / rel).is_file(), rel)
 
+    def test_structure_reviewer_skill_present(self) -> None:
+        base = HUB_ROOT / ".cursor/skills/code-reviewer"
+        for rel in (
+            "agents/structure-reviewer.md",
+            "rules/structure.md",
+            "rules/agents/structure-reviewer.md",
+        ):
+            self.assertTrue((base / rel).is_file(), rel)
+        schema = (
+            HUB_ROOT / ".cursor/skills/code-reviewer/references/findings-schema.md"
+        ).read_text()
+        self.assertIn("structure", schema)
+
     def test_code_reviewer_mandates_task_specialists(self) -> None:
         text = (HUB_ROOT / ".cursor/skills/code-reviewer/SKILL.md").read_text()
         self.assertIn("Subagent isolation", text)
         self.assertIn("must **not**", text)
+        self.assertIn("structure-reviewer", text)
 
 
 if __name__ == "__main__":

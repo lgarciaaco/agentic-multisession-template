@@ -6,11 +6,19 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **workflow-orchestrator** skill — role rules, `SKILL.md`, `workflow.json` schema, artifact templates under `sessions/_template/artifacts/`
+- **`format_workflow_section`** — injects workflow phase, gates, loops, artifact paths, and **Resume** hint into chat context
+- **Plan loop** — `scripts/lib/workflow_plan.py`, `scripts/workflow-plan-synthesize.py`; autonomous REVISE→APPROVE synthesis and `pr-NNN` persistence
+- **Accept plan** — `scripts/workflow-accept-plan.sh`; task sync from `action-plan.md`; workflow gates block worktree edits until plan accepted
+- **Code review loop** — `scripts/lib/workflow_code_review.py`, enrich/advance/begin CLIs; intent reviewer reads `action-plan.md` acceptance
+- **Delivery + resume** — `workflow-write-delivery-report.py`, reopen CLIs, `workflow_next_action()` for `/workflow` continuation
+- **Hub docs + tests** — `test_workflow_plan_reviewer_rules.py`; expanded pre-PR suite; walkthrough in `docs/WORKFLOW.md`
 - **Self-hosted hub detection** — `repos-status.sh` reports `self_hosted` when a registry clone URL matches hub `origin`
 - Session-start nudge when self-hosted but worktree is missing
 
 ### Changed
 
+- `AGENTS.md`, `SESSIONS.md`, `.cursor/skills/README.md`, `orchestrator.mdc`, `CONTRIBUTING.md` — `/workflow` pipeline, trigger routing, inbox demoted to optional
 - Path guards block hub-root product paths for all bound sessions (`mode: hub` no longer unlocks `scripts/`, `.cursor/`, or docs)
 - Hub-root registry pins (`repos.yaml`, `.hub-version`, `.hub-upstream`) blocked for bound sessions (unbound-only)
 - `normalize_git_url` handles `ssh://` URLs; session-start emits scope and worktree nudges together
@@ -20,6 +28,7 @@ All notable changes to this project will be documented in this file.
 
 **Impact:** optional
 
+- **Workflow:** `/workflow` for single-chat delivery; resume from `workflow.json` phase
 - Self-hosted hubs: add `tasks[].repo`, run `ensure-worktrees.sh`, edit worktree — not hub root
 - Hub layer refresh: `./scripts/hub-upgrade.sh` only
 - Refresh `BOUNDARIES.md` from `sessions/_template/BOUNDARIES.md`

@@ -21,6 +21,7 @@ from session_binding import (  # noqa: E402
     allocate_codename,
     bind_session_context,
     build_context_markdown,
+    format_workflow_section,
     close_session_work,
     CodenameAllocationError,
     codename_from_tmux,
@@ -475,6 +476,71 @@ class WorktreeGuardTests(unittest.TestCase):
         self.assertIn("## Worktrees", ctx)
         self.assertIn("sessions/alpha/worktrees/project", ctx)
         self.assertIn("`project`", ctx)
+
+    def test_context_includes_workflow_section(self) -> None:
+        workflow = {
+            "version": 1,
+            "phase": "plan_loop",
+            "gates": {"brief_accepted": True, "plan_user_accepted": False},
+            "loops": {
+                "plan": {"iteration": 2, "max": 5, "last_verdict": "REVISE"},
+                "code_review": {"iteration": 0, "max": 5, "last_verdict": None},
+            },
+            "artifacts": {
+                "brief": "artifacts/problem-brief.md",
+                "plan": "artifacts/action-plan.md",
+            },
+        }
+        session_dir = self.root / "sessions" / self.codename
+        (session_dir / "workflow.json").write_text(json.dumps(workflow, indent=2) + "\n")
+        ctx = build_context_markdown(self.root, self.codename, "chat-1")
+        self.assertIn("## Workflow", ctx)
+        self.assertIn("**Phase:** `plan_loop`", ctx)
+        self.assertIn("**Gate brief_accepted:** True", ctx)
+        self.assertIn("**Plan loop:** 2/5; last `REVISE`", ctx)
+        self.assertIn("sessions/alpha/artifacts/problem-brief.md` (missing)", ctx)
+        self.assertIn("/workflow status", ctx)
+        self.assertIn("**Resume:**", ctx)
+        self.assertIn("plan loop", ctx.lower())
+
+    def test_context_omits_workflow_without_json(self) -> None:
+        ctx = build_context_markdown(self.root, self.codename, "chat-1")
+        self.assertNotIn("## Workflow", ctx)
+
+    def test_format_workflow_section_invalid_json(self) -> None:
+        session_dir = self.root / "sessions" / self.codename
+        (session_dir / "workflow.json").write_text("{ not json\n")
+        section = format_workflow_section(self.root, self.codename)
+        self.assertIn("invalid JSON", section)
+
+    def test_format_workflow_section_skips_traversal_artifact_paths(self) -> None:
+        workflow = {
+            "version": 1,
+            "phase": "intake",
+            "gates": {},
+            "loops": {},
+            "artifacts": {"evil": "../secrets.md", "brief": "artifacts/problem-brief.md"},
+        }
+        session_dir = self.root / "sessions" / self.codename
+        (session_dir / "workflow.json").write_text(json.dumps(workflow) + "\n")
+        section = format_workflow_section(self.root, self.codename)
+        self.assertNotIn("../secrets", section)
+        self.assertIn("problem-brief.md", section)
+
+    def test_format_workflow_section_shows_present_artifact(self) -> None:
+        workflow = {
+            "version": 1,
+            "phase": "intake",
+            "gates": {},
+            "loops": {},
+            "artifacts": {"brief": "artifacts/problem-brief.md"},
+        }
+        session_dir = self.root / "sessions" / self.codename
+        (session_dir / "artifacts").mkdir(parents=True)
+        (session_dir / "artifacts" / "problem-brief.md").write_text("# brief\n")
+        (session_dir / "workflow.json").write_text(json.dumps(workflow) + "\n")
+        section = format_workflow_section(self.root, self.codename)
+        self.assertIn("problem-brief.md` (present)", section)
 
     def test_context_includes_next_step(self) -> None:
         session_path = self.root / "sessions" / self.codename / "session.json"

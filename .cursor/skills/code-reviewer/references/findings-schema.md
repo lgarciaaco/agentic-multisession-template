@@ -60,8 +60,15 @@ Unmet criteria → add `REQUIRED` finding or populate `criteria` with `met: fals
     {"path": "AGENTS.md", "language": null, "kind": "doc"}
   ],
   "doc_corpus": ["AGENTS.md", "SESSIONS.md", "docs/REPOS.md"],
-  "triggers": {"security": true, "performance": false}
+  "triggers": {"security": true, "performance": false},
+  "workflow": {
+    "codename": "alpha",
+    "action_plan_path": "sessions/alpha/artifacts/action-plan.md",
+    "acceptance_criteria": [
+      {"id": "t1", "source": "action-plan", "acceptance": "UI test passes", "title": "…", "repo": "my-app"}
+    ]
+  }
 }
 ```
 
-`triggers` set by orchestrator (see SKILL.md).
+`triggers` set by orchestrator (see SKILL.md). Optional `workflow` block added by `workflow-code-review-enrich-scope.py` when the session uses the workflow pipeline.

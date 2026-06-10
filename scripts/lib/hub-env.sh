@@ -31,10 +31,10 @@ default_tmux_window_prefix() {
   printf '%s-' "$stem"
 }
 
-# Set WORKSPACE_TMUX_WINDOW_PREFIX from hub slug when not already set (even to empty).
+# Set WORKSPACE_TMUX_WINDOW_PREFIX from hub slug (always refresh unless explicitly disabled).
 ensure_tmux_window_prefix() {
   local slug="$1"
-  if [[ -n "${WORKSPACE_TMUX_WINDOW_PREFIX+x}" ]]; then
+  if [[ "${WORKSPACE_TMUX_WINDOW_PREFIX+x}" == "x" && "${WORKSPACE_TMUX_WINDOW_PREFIX}" == "" ]]; then
     return
   fi
   WORKSPACE_TMUX_WINDOW_PREFIX="$(default_tmux_window_prefix "$slug")"

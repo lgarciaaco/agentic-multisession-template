@@ -14,7 +14,7 @@ User cloned **agentic-multisession-template**, `cd` here, started you. **You** d
 | `needs_clone` | `./scripts/clone-repos.sh` |
 | `ready` | Sessions + worktrees (below) |
 
-Full playbook: `.cursor/skills/bootstrap-hub/SKILL.md` · [docs/REPOS.md](docs/REPOS.md)
+Full playbook: `.cursor/skills/bootstrap-hub/SKILL.md` · [docs/REPOS.md](docs/REPOS.md) · human overview [README.md](README.md#quick-start-agentic-first)
 
 Hub install if needed: `pip install -r scripts/requirements.txt` && `./scripts/install-workspace-agent.sh`
 

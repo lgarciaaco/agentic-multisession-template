@@ -375,8 +375,9 @@ def parse_action_plan_tasks(plan_text: str) -> list[dict[str, Any]]:
         cells = [cell.strip() for cell in row.strip("|").split("|")]
         if len(cells) < 4:
             continue
-        task_id, repo, summary, acceptance = cells[0], cells[1], cells[2], cells[3]
-        depends = cells[4].strip() if len(cells) > 4 else ""
+        task_id, repo, summary = cells[0], cells[1], cells[2]
+        depends = cells[-1].strip() if len(cells) > 4 else ""
+        acceptance = cells[3] if len(cells) == 4 else "|".join(cells[3:-1]).strip()
         if not task_id or task_id.lower() == "id":
             continue
         if depends in ("—", "-", ""):

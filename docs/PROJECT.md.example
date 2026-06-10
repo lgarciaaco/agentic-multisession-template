@@ -2,7 +2,7 @@
 
 Project-specific coding guidelines for this hub. Read together with template rule [`.cursor/rules/agent-guidelines.mdc`](../.cursor/rules/agent-guidelines.mdc).
 
-Copy this file to `docs/PROJECT.md` and fill in your project details. `docs/PROJECT.md` is local to your hub (not committed).
+Shipped hubs include a generic [docs/PROJECT.md](PROJECT.md). Copy this example over it and fill in your project details when you customize.
 
 ---
 

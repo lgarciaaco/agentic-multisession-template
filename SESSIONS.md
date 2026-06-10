@@ -2,7 +2,9 @@
 
 Parallel Cursor chats → **codenames** under `sessions/<codename>/`.
 
-**Quick links:** [AGENTS.md](AGENTS.md) · [docs/REPOS.md](docs/REPOS.md) · `sessions/<codename>/BOUNDARIES.md`
+**Quick links:** [AGENTS.md](AGENTS.md) (agent bootstrap) · [docs/WORKFLOW.md](docs/WORKFLOW.md) (pipeline) · [docs/REPOS.md](docs/REPOS.md) (registry) · `sessions/<codename>/BOUNDARIES.md`
+
+**Canonical topics:** install/bootstrap → [AGENTS.md](AGENTS.md); session bind/end → this file; `/workflow` gates → [docs/WORKFLOW.md](docs/WORKFLOW.md); repos/worktrees → [docs/REPOS.md](docs/REPOS.md).
 
 ---
 

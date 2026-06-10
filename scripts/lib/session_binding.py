@@ -550,8 +550,9 @@ def default_tmux_window_prefix(slug: str) -> str:
 
 
 def tmux_window_prefix() -> str:
-    if "WORKSPACE_TMUX_WINDOW_PREFIX" in os.environ:
-        return os.environ["WORKSPACE_TMUX_WINDOW_PREFIX"]
+    """Hub-scoped window prefix; empty env disables rename. Ignores stale foreign values."""
+    if os.environ.get("WORKSPACE_TMUX_WINDOW_PREFIX", None) == "":
+        return ""
     return default_tmux_window_prefix(hub_slug())
 
 
@@ -1260,19 +1261,40 @@ def codename_from_tmux_pane(root: Path | None = None) -> str | None:
     return _codename_from_name(root or hub_root(), get_tmux_pane_codename())
 
 
+def _pane_path_under_hub_root(root: Path, pane_path: str) -> bool:
+    """True when pane cwd is under hub_root (includes worktree subdirs)."""
+    if not pane_path or not pane_path.strip():
+        return False
+    try:
+        resolved = Path(pane_path).expanduser().resolve()
+    except OSError:
+        return False
+    return _path_is_within(resolved, root.resolve())
+
+
 def get_tmux_session_bound_codenames(root: Path | None = None) -> set[str]:
-    """Distinct pane-option codenames set on panes in the current tmux session."""
+    """Distinct pane-option codenames on panes in this tmux session under hub_root."""
     if not os.environ.get("TMUX"):
         return set()
     opt = tmux_pane_option()
-    result = _run_tmux("list-panes", "-s", "-F", f"#{{@{opt}}}")
+    result = _run_tmux(
+        "list-panes",
+        "-s",
+        "-F",
+        f"#{{@{opt}}}\t#{{pane_current_path}}",
+    )
     if not result:
         return set()
-    root = root or hub_root()
+    root = (root or hub_root()).resolve()
     codenames: set[str] = set()
+    index_sessions = _index_sessions(root)
     for line in result.stdout.splitlines():
-        name = line.strip()
-        if name and is_active_session(root, name, _index_sessions(root).get(name, {})):
+        parts = line.split("\t", 1)
+        name = parts[0].strip() if parts else ""
+        pane_path = parts[1].strip() if len(parts) > 1 else ""
+        if not name or not _pane_path_under_hub_root(root, pane_path):
+            continue
+        if is_active_session(root, name, index_sessions.get(name, {})):
             codenames.add(name)
     return codenames
 
@@ -1604,7 +1626,7 @@ def ensure_session(
     if not force_pick:
         codename, source = resolve_codename(root)
         if codename:
-            if source == "tmux-session":
+            if source in ("tmux-session", "tmux-pane"):
                 bind_session_context(root, codename)
             return codename
         if not interactive:

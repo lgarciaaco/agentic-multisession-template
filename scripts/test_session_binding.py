@@ -27,6 +27,8 @@ from session_binding import (  # noqa: E402
     codename_from_tmux,
     codename_from_tmux_session,
     create_new_session,
+    ensure_session,
+    get_tmux_session_bound_codenames,
     default_tmux_window_prefix,
     DEFAULT_CODENAME_POOL,
     format_session_start_prompt,
@@ -159,14 +161,71 @@ class ResolveSessionTests(unittest.TestCase):
         self.assertEqual(codename, "alpha")
         self.assertEqual(source, "tmux-session")
 
+    def test_session_bound_codenames_hub_scoped_paths(self) -> None:
+        """SC-1: foreign-hub sibling panes excluded; worktree cwd counts as same hub."""
+        worktree = self.root / "sessions" / "alpha" / "worktrees" / "template"
+        worktree.mkdir(parents=True, exist_ok=True)
+        foreign = "/other/hub"
+        tmux_out = (
+            f"alpha\t{worktree}\n"
+            f"alpha\t{foreign}\n"
+            f"bravo\t{self.root}\n"
+        )
+
+        def active(root, name, _entry=None):
+            return name != "bravo"
+
+        with patch.dict(os.environ, {"TMUX": "/tmp/tmux"}):
+            with patch("session_binding._run_tmux") as run:
+                run.return_value = subprocess.CompletedProcess([], 0, tmux_out, "")
+                with patch("session_binding.is_active_session", side_effect=active):
+                    codenames = get_tmux_session_bound_codenames(self.root)
+        self.assertEqual(codenames, {"alpha"})
+
+    def test_session_bound_codenames_foreign_only_empty(self) -> None:
+        """SC-1: all panes outside hub_root yield empty set."""
+        tmux_out = "alpha\t/other/hub\nbravo\t/tmp/elsewhere\n"
+        with patch.dict(os.environ, {"TMUX": "/tmp/tmux"}):
+            with patch("session_binding._run_tmux") as run:
+                run.return_value = subprocess.CompletedProcess([], 0, tmux_out, "")
+                with patch("session_binding.is_active_session", return_value=True):
+                    codenames = get_tmux_session_bound_codenames(self.root)
+        self.assertEqual(codenames, set())
+
+    def test_session_bound_codenames_skips_empty_pane_path(self) -> None:
+        tmux_out = "alpha\nalpha\t\n"
+        with patch.dict(os.environ, {"TMUX": "/tmp/tmux"}):
+            with patch("session_binding._run_tmux") as run:
+                run.return_value = subprocess.CompletedProcess([], 0, tmux_out, "")
+                with patch("session_binding.is_active_session", return_value=True):
+                    codenames = get_tmux_session_bound_codenames(self.root)
+        self.assertEqual(codenames, set())
+
+    def test_ensure_session_rebinds_on_tmux_pane_reuse(self) -> None:
+        """SC-4: --reuse path refreshes bind when resolve source is tmux-pane."""
+        with patch("session_binding.resolve_codename", return_value=("alpha", "tmux-pane")):
+            with patch("session_binding.bind_session_context") as bind:
+                result = ensure_session(self.root, interactive=False, force_pick=False)
+        self.assertEqual(result, "alpha")
+        bind.assert_called_once_with(self.root, "alpha")
+
+    def test_ensure_session_rebinds_on_tmux_session_inherit(self) -> None:
+        with patch("session_binding.resolve_codename", return_value=("alpha", "tmux-session")):
+            with patch("session_binding.bind_session_context") as bind:
+                result = ensure_session(self.root, interactive=False, force_pick=False)
+        self.assertEqual(result, "alpha")
+        bind.assert_called_once_with(self.root, "alpha")
+
     def test_default_tmux_window_prefix_from_slug(self) -> None:
         self.assertEqual(default_tmux_window_prefix("my-app"), "my-")
         self.assertEqual(default_tmux_window_prefix("acme-corp-hub"), "acme-")
         self.assertEqual(default_tmux_window_prefix("agentic-multisession-template"), "agentic-")
 
-    def test_tmux_window_prefix_explicit(self) -> None:
-        os.environ["WORKSPACE_TMUX_WINDOW_PREFIX"] = "hub-"
-        self.assertEqual(tmux_window_label("alpha"), "hub-alpha")
+    def test_tmux_window_prefix_ignores_sticky_foreign_env(self) -> None:
+        os.environ["WORKSPACE_TMUX_WINDOW_PREFIX"] = "agentic-"
+        with patch("session_binding.hub_slug", return_value="immo-investor"):
+            self.assertEqual(tmux_window_prefix(), "immo-")
+            self.assertEqual(tmux_window_label("alpha"), "immo-alpha")
 
     def test_tmux_window_prefix_from_hub_slug(self) -> None:
         os.environ.pop("WORKSPACE_TMUX_WINDOW_PREFIX", None)

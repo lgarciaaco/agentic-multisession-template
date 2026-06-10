@@ -27,10 +27,14 @@ There is **no global active session**. Each chat/tab resolves its own codename.
 
 1. **Cursor chat binding** — `sessions/bindings/<conversation_id>.json` (`WORKSPACE_CONVERSATION_ID`)
 2. **tmux pane** — `@workspace-codename` on this pane (`WORKSPACE_TMUX_PANE_OPTION`)
-3. **tmux session** — exactly one codename on sibling tabs → inherit
-4. **tmux window name** — renamed to `{prefix}{codename}` (default prefix from hub slug; override with `WORKSPACE_TMUX_WINDOW_PREFIX`; set to empty to disable)
+3. **tmux session** — exactly one codename on **same-hub** sibling tabs → inherit (pane cwd under this hub's root, including worktrees)
+4. **tmux window name** — renamed to `{prefix}{codename}` (prefix from current hub `.hub-slug`; set `WORKSPACE_TMUX_WINDOW_PREFIX=""` to disable)
 
-Project launcher (see `.hub-launcher`) shows the interactive picker by default. Use `<launcher> --reuse` to skip when already bound.
+**Multi-hub in one tmux session:** sibling inherit (step 3) ignores panes whose cwd is outside the current hub, so NATO codenames on another project's tabs do not bleed across. The launcher always refreshes the window prefix from `.hub-slug` (unless prefix disable is set). `<launcher> --reuse` re-binds via tmux-pane and renames the window for the current hub.
+
+Project launcher (see `.hub-launcher`) shows the interactive picker by default. Use `<launcher> --reuse` to skip the picker when already bound.
+
+**Remaining limitation:** pane option `@workspace-codename` is still a bare codename (no hub qualifier). Cross-hub confusion is prevented by path filtering and prefix refresh, not by namespacing the option value. Separate tmux sessions per hub is still the most isolated layout.
 
 ---
 

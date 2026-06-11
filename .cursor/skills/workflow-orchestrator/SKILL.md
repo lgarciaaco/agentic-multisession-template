@@ -212,8 +212,9 @@ SUCCESS → `phase: ci_observe`. 5-iteration cap before escalation.
 
 Each iteration:
 
-1. Poll CI: `gh pr checks <pr_number> --watch` or `gh run list`.
-2. Classify result:
+1. Check mergeability: `gh pr view <pr_number> --json mergeStateStatus` — if `CONFLICTING`, verdict is `CONFLICT` (skip CI poll).
+2. Poll CI: `gh pr checks <pr_number>` — classify pass/fail/pending.
+3. Classify combined result:
    - **GREEN** → advance to `delivery`
    - **CONFLICT** → rebase onto `pr_target_branch`, force-push, re-poll
    - **TEST_FAILURE** → parent loads [rules/ci-fixer.md](rules/ci-fixer.md): fix, commit, force-push, re-poll

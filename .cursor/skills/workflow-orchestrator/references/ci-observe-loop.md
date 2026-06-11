@@ -7,7 +7,12 @@ Auto-enters after PR creation SUCCESS. No user gate.
 ```text
 pr_creation SUCCESS → phase: ci_observe
   loop:
-    poll CI (gh pr checks)
+    1. check mergeability: gh pr view <number> --json mergeStateStatus
+       → CONFLICTING? verdict = CONFLICT
+    2. poll CI: gh pr checks <number>
+       → all pass? verdict = GREEN
+       → any fail? verdict = TEST_FAILURE
+       → pending/timeout? verdict = TIMEOUT
     classify: GREEN | CONFLICT | TEST_FAILURE | TIMEOUT | FAIL
     GREEN → phase: delivery; break
     CONFLICT → rebase onto pr_target_branch, force-push, re-poll
@@ -16,6 +21,8 @@ pr_creation SUCCESS → phase: ci_observe
     workflow-ci-observe-advance.py <codename> <verdict>
     iteration++; cap at 5
 ```
+
+**Detection order matters:** check mergeability BEFORE CI status. A PR with merge conflicts may still show CI as passing (stale run) or pending (blocked). The conflict must be resolved first.
 
 ## Scripts
 

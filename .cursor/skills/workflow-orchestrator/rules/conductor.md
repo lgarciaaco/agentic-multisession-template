@@ -146,9 +146,19 @@ After PR creation SUCCESS:
 
 ```text
 loop while iteration < loops.ci_observe.max:
-  poll CI: gh pr checks
+  # Step 1: check merge state (detects rebase-needed BEFORE CI status)
+  gh pr view <number> --json mergeStateStatus
+  if mergeStateStatus == "CONFLICTING": verdict = CONFLICT
+
+  # Step 2: poll CI (only if mergeable)
+  gh pr checks <number>
+  if all pass: verdict = GREEN
+  if any fail: verdict = TEST_FAILURE
+  if pending/stale: wait or verdict = TIMEOUT
+
+  # Step 3: act on verdict
   if GREEN: phase → delivery; break
-  if CONFLICT: rebase, force-push, re-poll
+  if CONFLICT: rebase onto pr_target_branch, force-push, re-poll
   if TEST_FAILURE: load ci-fixer.md, fix, commit, force-push, re-poll
   workflow-ci-observe-advance.py <codename> <verdict>
   iteration++
@@ -156,6 +166,8 @@ loop while iteration < loops.ci_observe.max:
 if iteration >= max: escalate
 else: auto delivery report → completed
 ```
+
+**Merge conflict detection:** `gh pr checks` only reports CI check results — it does NOT surface merge conflicts. The conductor MUST run `gh pr view <number> --json mergeStateStatus` first. A `CONFLICTING` state means the branch needs rebasing regardless of CI status.
 
 Never ask user between code review PASS and delivery.
 

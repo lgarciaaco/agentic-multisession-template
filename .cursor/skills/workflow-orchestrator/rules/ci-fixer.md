@@ -8,6 +8,8 @@ Fix CI failures or merge conflicts so the PR goes green without user interventio
 
 ## On CONFLICT
 
+Detected via `gh pr view <number> --json mergeStateStatus` → `CONFLICTING`. This check runs BEFORE CI polling — `gh pr checks` does not surface merge conflicts.
+
 1. Identify target branch from `repos.yaml` `pr_target_branch` (fallback `default_branch`).
 2. Run `git fetch origin <target> && git rebase origin/<target>`.
 3. If rebase succeeds: `git push --force-with-lease`.

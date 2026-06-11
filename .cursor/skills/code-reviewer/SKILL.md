@@ -63,7 +63,7 @@ Workflow code loop: load this skill; enrich via `workflow-code-review-enrich-sco
 
 **Model:** `claude-4.6-sonnet-medium-thinking` — pass as `model` on every specialist Task call. Extended thinking catches cross-cutting issues (data flow, intent violations, subtle security gaps) that fast models surface-read. To update the slug, edit this line and the entry in `.cursor/skills/workflow-orchestrator/SKILL.md ## Model assignments`.
 
-Wait for all. Skip empty scopes.
+Wait for all. Skip agents whose scope is empty — except Docs (always runs; falls back to repo scan when `doc_corpus` is missing).
 
 | Agent | When | Spec |
 |-------|------|------|

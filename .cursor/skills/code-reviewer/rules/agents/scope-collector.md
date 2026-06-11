@@ -5,10 +5,11 @@
 3. Build file list with `path`, `language`, `kind` (`code`|`doc`|`config`|`test`)
 4. Language: extension dispatch (`.py`, `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`)
 5. Doc files: `*.md`, `docs/**`, `README*`, `CONTRIBUTING*`, `.cursor/skills/**/SKILL.md`
-6. Build `doc_corpus`:
+6. Build `doc_corpus` (must always be present in manifest — Docs agent always runs):
    - **Hub repos**: AGENTS.md, SESSIONS.md, CONTRIBUTING.md, docs/, `.cursor/skills/**/SKILL.md`
    - **Product repos (always)**: scan repo root and `docs/` for tracking files — `CURRENT.md`, `CHANGELOG.md`, `ROADMAP.md`, `docs/**/*.md`; include all found even when not in the changeset delta
    - **Changeset mode**: also include any `*.md` / doc files present in the git delta (these are explicitly changed and must be reviewed)
+   - **Fallback**: if no docs found, set `doc_corpus: []` — Docs agent will scan repo root itself (never omit the field)
 7. Set `triggers.security`, `triggers.performance`, and `triggers.structure` (true when any manifest file has `kind: code`) per orchestrator rules
 8. Write `scope_manifest.json` to workspace root — no findings
 9. **Workflow session:** when `sessions/<codename>/workflow.json` exists and `gates.plan_user_accepted` is true:

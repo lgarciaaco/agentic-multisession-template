@@ -5,7 +5,3 @@
 ## Test plan
 
 <!-- How to verify correctness -->
-
-## Ticket
-
-<!-- PROJ-123 or "n/a" -->

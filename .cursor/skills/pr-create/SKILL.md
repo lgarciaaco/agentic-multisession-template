@@ -26,14 +26,7 @@ Resolve PR base branch:
 2. Use `pr_target_branch` if set, else `default_branch`
 3. Never target `main`/`master` unless that's what the config specifies
 
-### 3. Ticket detection
-
-Check sources in order:
-1. **Branch name** — parse for `PROJ-123/desc`, `feature/PROJ-123`, `123-desc`
-2. **Commit messages** — look for ticket references
-3. **Ask user** if no ticket found — skip this step when loaded from workflow `pr_creation` phase (autonomous: proceed without ticket or use "n/a")
-
-### 4. Preflight
+### 3. Preflight
 
 **Fork workflow (GitHub):**
 - Remote `fork` must exist and URL must contain the configured `github_fork_user`
@@ -48,17 +41,17 @@ If `fork` is missing, from hub root:
 
 **Direct push:** verify `origin` is correct; push to `origin`.
 
-### 5. Generate PR content
+### 4. Generate PR content
 
-Use `templates/generic.md` — fill summary, test plan, and ticket reference.
+Use `templates/generic.md` — fill summary and test plan.
 
-### 6. Create draft PR
+### 5. Create draft PR
 
 **Fork workflow:**
 ```bash
 git push -u fork HEAD
 gh pr create --draft \
-  --title "[TICKET] Title" \
+  --title "Title" \
   --body "$(cat <<'EOF'
 <template content>
 EOF
@@ -71,7 +64,7 @@ EOF
 ```bash
 git push -u origin HEAD
 gh pr create --draft \
-  --title "[TICKET] Title" \
+  --title "Title" \
   --body "$(cat <<'EOF'
 <template content>
 EOF
@@ -79,7 +72,7 @@ EOF
   --base <pr_target_branch>
 ```
 
-### 7. Report
+### 6. Report
 
 Tell user:
 - PR created as draft
@@ -90,7 +83,6 @@ Tell user:
 ## Rules
 
 - Always create as draft (`--draft`)
-- Ticket in title when available: `[TICKET] Description`
 - Fork repos: push to `fork` only — never `origin` for feature branches
 - Fork PR head: always `--head <fork_user>:<branch>`
 - No origin fallback: if `fork` missing on fork-configured repo, fix remotes first

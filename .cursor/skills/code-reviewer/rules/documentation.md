@@ -29,6 +29,18 @@ Corpus review: consistency, **documentation** duplication, coherence. Code dupli
 - Flag persistence docs (`checkpoints`, `reviews/`) missing when skill references them
 - Flag code examples in docs that cannot run or are not marked illustrative
 
+## Staleness (product repos, changeset mode)
+
+When a changeset implements a feature, task, or milestone, verify project tracking docs reflect it:
+
+- REQUIRED: milestone/task status tables in `CURRENT.md` (or equivalent) must be updated — pending → done/in-progress
+- REQUIRED: dependency diagrams or task lists in plan docs (`docs/*.md`) must mark completed tasks
+- SUGGESTION: `CHANGELOG.md` should have an entry for features that ship in this PR
+- Check: does the text in tracking docs reference the correct session/branch/PR (not a stale prior session name)?
+- Flag any mismatch between what the code delivers and what tracking docs say is pending/done
+
+These are REQUIRED when a tracking doc file is present in the repo and the changeset implements a trackable deliverable.
+
 ## Hub template (full scope)
 
 Always include in corpus: `AGENTS.md`, `SESSIONS.md`, `CONTRIBUTING.md`, `docs/REPOS.md`, `docs/PROJECT.md.example`, `.cursor/rules/agent-guidelines.mdc`, `.cursor/rules/hub-contributing.mdc`, `.cursor/skills/**/SKILL.md`, `sessions/_template/BOUNDARIES.md`.

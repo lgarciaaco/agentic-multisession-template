@@ -43,7 +43,7 @@ Regenerate a multi-root editor workspace: `./scripts/generate-workspace.sh` → 
 
 **`/workflow`** / **`/workflow status`** → `.cursor/skills/workflow-orchestrator/SKILL.md`
 
-Single-session **Problem → Plan → Code → Review** in one chat. State: `sessions/<codename>/workflow.json`; artifacts under `sessions/<codename>/artifacts/`. Chat context includes phase, gates, loops, artifact paths, and **Resume** when `workflow.json` exists.
+Single-session **Problem → Plan → Code → Review → PR → CI → Delivery** in one chat. State: `sessions/<codename>/workflow.json`; artifacts under `sessions/<codename>/artifacts/`. Chat context includes phase, gates, loops, artifact paths, and **Resume** when `workflow.json` exists.
 
 | Trigger | Action |
 |---------|--------|
@@ -59,9 +59,11 @@ Single-session **Problem → Plan → Code → Review** in one chat. State: `ses
 | Code review enter | `python3 scripts/workflow-mark-implementation-ready.py <codename> <task-id>` |
 | Code review | `python3 scripts/workflow-code-review-enrich-scope.py <codename> sessions/<codename>/reviews/workspace/<review-id>` |
 | Code review advance | `python3 scripts/workflow-code-review-advance.py <codename> [r-NNN]` |
+| PR creation advance | `python3 scripts/workflow-advance-pr-creation.py <codename> <verdict> [pr_url]` |
+| CI observe advance | `python3 scripts/workflow-ci-observe-advance.py <codename> <verdict>` |
 | Delivery | `python3 scripts/workflow-write-delivery-report.py <codename>` |
 
-User gates **only at brief and plan**. Autonomous inner loops for plan and code review — no commit/PR pause before review. Plan loop: author dispositions → reviewer validates. Code loop: fixer dispositions SUGGESTION/NIT → specialists validate → **PASS**; include uncommitted worktree in review scope. Delivery report is inform only. Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
+User gates **only at brief and plan**. Autonomous inner loops for plan, code review, PR creation, and CI observe — no commit/PR pause before review. Plan loop: author dispositions → reviewer validates. Code loop: fixer dispositions SUGGESTION/NIT → specialists validate → **PASS**. After PASS: auto commit + draft PR → CI observe (rebase on conflict, fix on failure, 5-iteration cap) → delivery. Delivery report is inform only. Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
 
 ## End
 
@@ -107,6 +109,8 @@ Session context lists which guideline files exist on bind. Optional `guidelines:
 | Workflow | `.cursor/skills/workflow-orchestrator` |
 | Code review | `.cursor/skills/code-reviewer` |
 | Hub upgrade | `.cursor/skills/hub-upgrade` |
+| Git commit | `.cursor/skills/git-commit` |
+| PR create | `.cursor/skills/pr-create` |
 | End | `.cursor/skills/session-end` |
 | Human tone | `.cursor/skills/write-like-a-human` |
 | Skill streamline | `.cursor/skills/skill-optimizer` |

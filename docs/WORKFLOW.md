@@ -1,6 +1,6 @@
 # Workflow orchestrator walkthrough
 
-Single-session pipeline: **Problem → Plan → Code → Review**. One Cursor chat, **two user gates** (brief and plan).
+Single-session pipeline: **Problem → Plan → Code → Review → PR → CI → Delivery**. One Cursor chat, **two user gates** (brief and plan).
 
 ## Prerequisites
 
@@ -63,9 +63,30 @@ Each iteration: code-reviewer skill (changeset + working tree) → `python3 scri
 
 **INCOMPLETE** → parent fixer ([code-fixer.md](../.cursor/skills/workflow-orchestrator/rules/code-fixer.md)): fix REQUIRED; accept/refuse SUGGESTION/NIT in `artifacts/code-review-disposition.md`; re-run until **PASS**.
 
-## 7. Delivery report (inform only)
+## 7. PR creation (automatic)
 
-After **PASS**, the agent auto-runs:
+After code review **PASS**, the conductor commits (`.cursor/skills/git-commit/SKILL.md`) and opens a draft PR (`.cursor/skills/pr-create/SKILL.md`) against `pr_target_branch` from `repos.yaml`. Records PR URL on the active task.
+
+```bash
+python3 scripts/workflow-advance-pr-creation.py <codename> SUCCESS <pr_url>
+```
+
+## 8. CI observe loop (automatic)
+
+After PR creation SUCCESS, the conductor polls CI and auto-fixes:
+
+- **GREEN** → delivery
+- **CONFLICT** → rebase onto target branch, force-push, re-poll
+- **TEST_FAILURE** → parent runs `ci-fixer.md`, commits fix, force-pushes, re-polls
+- 5-iteration cap; escalates with CI log summary after max
+
+```bash
+python3 scripts/workflow-ci-observe-advance.py <codename> <verdict>
+```
+
+## 9. Delivery report (inform only)
+
+After CI observe **GREEN**, the agent auto-runs:
 
 ```bash
 python3 scripts/workflow-write-delivery-report.py <codename>
@@ -99,7 +120,9 @@ Before tagging **1.0.0-rc.1**, run [RC-SMOKE-CHECKLIST.md](RC-SMOKE-CHECKLIST.md
 | `workflow-mark-implementation-ready.py` | Per-task slice complete |
 | `workflow-code-review-enrich-scope.py` | After code-reviewer scope collector |
 | `workflow-code-review-advance.py` | After code-reviewer synthesizer |
-| `workflow-write-delivery-report.py` | Code review PASS |
+| `workflow-advance-pr-creation.py` | After commit + draft PR |
+| `workflow-ci-observe-advance.py` | After CI poll / fix attempt |
+| `workflow-write-delivery-report.py` | CI observe GREEN |
 | `workflow-reopen-brief.py` / `workflow-reopen-plan.py` | Unfreeze gates |
 | `workflow-begin-code-review.py` | Legacy — all tasks done (prefer mark-implementation-ready) |
 

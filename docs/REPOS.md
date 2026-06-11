@@ -38,6 +38,7 @@ repos:
 | `path` | Reference clone directory (`repos/<name>`) or `.` for hub-only |
 | `clone` | Remote URL (`clone-repos.sh`) |
 | `default_branch` | Branch to track and branch worktrees from |
+| `pr_target_branch` | Optional PR base branch (falls back to `default_branch`) |
 
 Add a second key when you add a second repo (e.g. `web-ui`). Code in the same git remote stays one `project` entry.
 

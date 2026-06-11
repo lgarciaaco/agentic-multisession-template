@@ -72,6 +72,17 @@ def project_guideline_rel(guidelines: dict) -> str:
     return "docs/PROJECT.md"
 
 
+def pr_target_branch(repo_cfg: dict) -> str:
+    """PR base branch for a repo entry — pr_target_branch with default_branch fallback."""
+    explicit = repo_cfg.get("pr_target_branch")
+    if isinstance(explicit, str) and explicit.strip():
+        return explicit.strip()
+    branch = repo_cfg.get("default_branch")
+    if isinstance(branch, str) and branch.strip():
+        return branch.strip()
+    return "main"
+
+
 def normalize_git_url(url: str) -> str:
     """Canonical host/path for comparing clone URLs (ssh, https, scp, .git suffix)."""
     raw = url.strip().rstrip("/")

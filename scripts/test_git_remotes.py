@@ -178,5 +178,30 @@ class GenerateWorkspaceSmokeTests(unittest.TestCase):
         self.assertIn("repos/app", paths)
 
 
+class PrTargetBranchTests(unittest.TestCase):
+    def test_explicit_pr_target_branch(self) -> None:
+        from repos import pr_target_branch
+
+        cfg = {"default_branch": "main", "pr_target_branch": "develop"}
+        self.assertEqual(pr_target_branch(cfg), "develop")
+
+    def test_fallback_to_default_branch(self) -> None:
+        from repos import pr_target_branch
+
+        cfg = {"default_branch": "release-4.17"}
+        self.assertEqual(pr_target_branch(cfg), "release-4.17")
+
+    def test_fallback_to_main_when_empty(self) -> None:
+        from repos import pr_target_branch
+
+        self.assertEqual(pr_target_branch({}), "main")
+
+    def test_whitespace_stripped(self) -> None:
+        from repos import pr_target_branch
+
+        cfg = {"pr_target_branch": "  staging  "}
+        self.assertEqual(pr_target_branch(cfg), "staging")
+
+
 if __name__ == "__main__":
     unittest.main()

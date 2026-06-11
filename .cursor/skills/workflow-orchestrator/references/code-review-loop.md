@@ -38,7 +38,7 @@ python3 scripts/workflow-code-review-advance.py <codename> [r-NNN]
 
 | Verdict | Phase after advance | Conductor action |
 |---------|---------------------|------------------|
-| `PASS` | `delivery` | Auto `workflow-write-delivery-report.py` |
+| `PASS` | `pr_creation` | Auto commit + draft PR → CI observe |
 | `INCOMPLETE` | `code_review_loop` | Fixer: REQUIRED + dispositions → re-review |
 | `FAIL` | `code_review_loop` | Escalate BLOCKER to user |
 

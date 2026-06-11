@@ -6,7 +6,7 @@
 
 ## Purpose
 
-Single-chat orchestrator for Problem → Plan → Code → Review → Delivery. Autonomous inner loops; **user gates only at brief and plan**.
+Single-chat orchestrator for Problem → Plan → Code → Review → PR → CI → Delivery. Autonomous inner loops; **user gates only at brief and plan**.
 
 ## Phase state machine
 
@@ -18,6 +18,8 @@ Single-chat orchestrator for Problem → Plan → Code → Review → Delivery. 
 | `plan_user_review` | conductor presents plan + **refused dispositions only** | user `accept plan` |
 | `implementation` | session-orchestrator + developer section | slice ready → **auto** code review |
 | `code_review_loop` | code-reviewer + code-fixer (parent) | synthesizer PASS |
+| `pr_creation` | git-commit + pr-create skills (parent) | SUCCESS → ci_observe |
+| `ci_observe` | CI poll + [ci-fixer.md](ci-fixer.md) (parent) | GREEN → delivery |
 | `delivery` | delivery template | auto → `completed` |
 | `completed` | — | optional end session |
 
@@ -97,14 +99,14 @@ loop while iteration < loops.code_review.max:
   Task specialists (parallel) → findings/*.json
   synthesizer → report.md + reviews/r-NNN.json
   workflow-code-review-advance.py
-  if PASS: phase → delivery; break
+  if PASS: phase → pr_creation; break
   if FAIL (BLOCKER): escalate user immediately
   if INCOMPLETE:
     parent: code-fixer.md — fix REQUIRED; disposition SUGGESTION/NIT
     iteration++; new review-* workspace; goto loop top
 
 if iteration >= max: escalate with reviews/r-NNN paths
-else: auto delivery report → completed
+else: auto pr_creation → ci_observe → delivery report → completed
 ```
 
 **Disposition:** Same model as plan loop — fixer accepts/refuses SUGGESTION/NIT; specialists validate; synthesizer **INCOMPLETE** while open SUGGESTION/NIT remain in findings. **PASS** only when findings clear (validated refusals in `artifacts/code-review-disposition.md` only).
@@ -129,13 +131,43 @@ Parent agent — not Task subagent.
 
 **Discovery during implementation:** new scope → stop; ask user to `reopen plan` or `reopen brief`.
 
+## PR creation (autonomous — no user)
+
+After code review PASS:
+
+1. Load `.cursor/skills/git-commit/SKILL.md` — commit worktree changes.
+2. Load `.cursor/skills/pr-create/SKILL.md` — push + draft PR against `pr_target_branch`.
+3. `python3 scripts/workflow-advance-pr-creation.py <codename> SUCCESS <pr_url>`
+4. On push/gh failure: `RETRY` or `FAIL`; escalate at max iterations.
+
+## CI observe (autonomous — no user)
+
+After PR creation SUCCESS:
+
+```text
+loop while iteration < loops.ci_observe.max:
+  poll CI: gh pr checks
+  if GREEN: phase → delivery; break
+  if CONFLICT: rebase, force-push, re-poll
+  if TEST_FAILURE: load ci-fixer.md, fix, commit, force-push, re-poll
+  workflow-ci-observe-advance.py <codename> <verdict>
+  iteration++
+
+if iteration >= max: escalate
+else: auto delivery report → completed
+```
+
+Never ask user between code review PASS and delivery.
+
 ## Status updates (between gates)
 
 One-line progress only:
 
 - "Implementing t1…"
 - "Code review iteration 2 — INCOMPLETE (4 REQUIRED), fixing…"
-- "Code review PASS — writing delivery report"
+- "Code review PASS — committing and opening PR…"
+- "CI observe iteration 1 — TEST_FAILURE, fixing…"
+- "CI observe GREEN — writing delivery report"
 
 Never ask user to relay messages or choose the next pipeline step.
 
@@ -149,6 +181,8 @@ Present stuck summary with phase, iteration, verdict, artifact paths. Suggested:
 |-------|--------|
 | plan_loop | Task agents per `agents/plan-*.md` |
 | code_review_loop | code-reviewer SKILL + [code-fixer.md](code-fixer.md) |
+| pr_creation | `.cursor/skills/git-commit/SKILL.md` + `.cursor/skills/pr-create/SKILL.md` |
+| ci_observe | CI poll + [ci-fixer.md](ci-fixer.md) |
 | implementation | [session-orchestrator/SKILL.md](../../session-orchestrator/SKILL.md) |
 
 ## Writable (conductor)
@@ -159,7 +193,7 @@ Present stuck summary with phase, iteration, verdict, artifact paths. Suggested:
 
 ## Delivery
 
-After code review **PASS**, auto-run:
+After CI observe **GREEN**, auto-run:
 
 ```bash
 python3 scripts/workflow-write-delivery-report.py <codename>

@@ -6,7 +6,7 @@ Canonical path: `sessions/<codename>/workflow.json`. Created when user runs `/wo
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `version` | integer | yes | Schema version; currently `1` |
+| `version` | integer | yes | Schema version; currently `2` |
 | `phase` | string | yes | Current pipeline phase (see phases below) |
 | `gates` | object | yes | Human gate booleans |
 | `loops` | object | yes | Autonomous loop counters |
@@ -22,6 +22,8 @@ Canonical path: `sessions/<codename>/workflow.json`. Created when user runs `/wo
 | `plan_user_review` | Plan APPROVED internally; user gate — conductor presents **refused dispositions only** |
 | `implementation` | Parent agent implements action plan |
 | `code_review_loop` | Autonomous code review |
+| `pr_creation` | Commit and open draft PR (auto after code review PASS) |
+| `ci_observe` | Poll CI, rebase on conflict, fix on failure (auto loop) |
 | `delivery` | Writing delivery report |
 | `completed` | Pipeline finished |
 
@@ -55,6 +57,22 @@ Canonical path: `sessions/<codename>/workflow.json`. Created when user runs `/wo
 | `max` | integer | Default 5 |
 | `last_verdict` | string \| null | `PASS`, `INCOMPLETE`, `FAIL`, or null |
 | `task_id` | string \| null | Task under review for this slice |
+
+## loops.pr_creation
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `iteration` | integer | Current PR creation attempt count |
+| `max` | integer | Default 5 |
+| `last_verdict` | string \| null | `SUCCESS`, `RETRY`, `FAIL`, or null |
+
+## loops.ci_observe
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `iteration` | integer | Current CI observe loop count |
+| `max` | integer | Default 5 |
+| `last_verdict` | string \| null | `GREEN`, `CONFLICT`, `TEST_FAILURE`, `TIMEOUT`, or null |
 
 ## artifacts
 

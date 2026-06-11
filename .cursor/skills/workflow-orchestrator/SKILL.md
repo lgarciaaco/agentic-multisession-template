@@ -231,6 +231,23 @@ Templates: `sessions/_template/artifacts/`. Schema: [references/workflow-schema.
 
 `sessions/<codename>/workflow.json`, `artifacts/**`, `reviews/workspace/wf-*/`, `artifacts/plan-review/`, session metadata. Implementation: `sessions/<codename>/worktrees/**` only (self-hosted hub: worktree, not hub root).
 
+## Model assignments
+
+Hardcoded per role. When Cursor releases new model slugs, update the file listed in the **To update** column **and the Model slug cell in this table**.
+
+| Role | Runner | Model slug | To update |
+|------|--------|------------|-----------|
+| Plan author | Task | `gpt-5.3-codex` | `agents/plan-author.md` |
+| Plan reviewer | Task | `claude-4.6-sonnet-medium-thinking` | `agents/plan-reviewer.md` |
+| Code review specialists | Task (parallel) | `claude-4.6-sonnet-medium-thinking` | `.cursor/skills/code-reviewer/SKILL.md` |
+| Problem analyst | Parent (inline) | inherits parent | — |
+| Plan synthesizer | Parent (inline) | inherits parent | — |
+| Implementation developer | Parent (inline) | inherits parent | — |
+| Code-fixer | Parent (inline) | inherits parent | — |
+| Scope collector | Parent (inline) | inherits parent | — |
+
+**Rationale:** Codex for plan-author because plan writing is a structured-output task (IDs, aliases, acceptance criteria) where format precision matters more than deep reasoning. Thinking model for plan-reviewer and code-review specialists because their job is adversarial — tracing implication chains, finding DoR gaps, spotting subtle security or intent violations that surface-reading misses. Parent-inherit for all inline roles to preserve context continuity.
+
 ## References
 
 - [workflow-schema.md](references/workflow-schema.md)

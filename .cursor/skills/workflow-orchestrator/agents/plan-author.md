@@ -1,6 +1,8 @@
 # Plan author (Task spawn)
 
-**Spawn:** Task from conductor in `plan_loop`. **Output:** `artifacts/action-plan.md` per manifest `plan_path`.
+**Spawn:** Task from conductor in `plan_loop`. **Model:** `gpt-5.3-codex`. **Output:** `artifacts/action-plan.md` per manifest `plan_path`.
+
+When updating the model slug, also update the `## Model assignments` table in [SKILL.md](../SKILL.md).
 
 Conductor must not write this file. [rules/conductor.md](../rules/conductor.md) **Subagent isolation**.
 

@@ -24,10 +24,10 @@ UPSTREAM_CACHE_DIR = ".hub-upstream-cache"
 UPGRADE_STAGING_DIR = ".hub-upgrade-staging"
 _GIT_TIMEOUT_SEC = 300
 
-_VERSION_RE = re.compile(r"^## \[([0-9]+\.[0-9]+\.[0-9]+)\]\s*(?:-\s*(\d{4}-\d{2}-\d{2}))?")
+_VERSION_RE = re.compile(r"^## \[([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9][a-zA-Z0-9.]*)?)\]\s*(?:-\s*(\d{4}-\d{2}-\d{2}))?")
 _IMPACT_RE = re.compile(r"\*\*Impact:\*\*\s*(none|optional|required)\b", re.IGNORECASE)
 _SECTION_RE = re.compile(r"^### (.+)$")
-_SEMVER_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
+_SEMVER_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9][a-zA-Z0-9.]*)?$")
 
 HUB_MANAGED_PATHS: tuple[str, ...] = (
     "scripts",
@@ -75,11 +75,16 @@ class UpstreamSnapshot:
     sha: str
 
 
-def parse_version(value: str) -> tuple[int, ...]:
-    parts = value.strip().lstrip("v").split(".")
+def parse_version(value: str) -> tuple:
+    stripped = value.strip().lstrip("v")
+    core, *pre_parts = stripped.split("-", 1)
+    pre = pre_parts[0] if pre_parts else None
+    parts = core.split(".")
     if len(parts) != 3 or not all(part.isdigit() for part in parts):
         raise ValueError(f"invalid semver: {value!r}")
-    return tuple(int(part) for part in parts)
+    numeric = tuple(int(p) for p in parts)
+    pre_key: tuple = (1,) if pre is None else (0, pre)
+    return numeric + pre_key
 
 
 def validate_semver(value: str) -> str:

@@ -69,6 +69,8 @@ Then enter the code review loop — no user prompt.
 | Write specialist `findings/*.json` in code review | **Task** per code-reviewer SKILL |
 | Skip fixer after INCOMPLETE | Parent loads [code-fixer.md](code-fixer.md) and fixes before re-review |
 
+When calling Task, pass the `model` from the appropriate spec: plan-loop agents → read `**Model:**` from `agents/plan-author.md` or `agents/plan-reviewer.md`; code-review specialists → read `**Model:**` from `.cursor/skills/code-reviewer/SKILL.md §2 Specialists`. See [SKILL.md § Model assignments](../SKILL.md#model-assignments) for the full table.
+
 ## Plan loop (autonomous — no user)
 
 See SKILL.md **Plan loop**. Summary:

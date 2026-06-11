@@ -1,6 +1,8 @@
 # Plan reviewer (Task spawn)
 
-**Spawn:** Task from conductor in `plan_loop`. **Output:** `<workspace>/findings/plan.json`.
+**Spawn:** Task from conductor in `plan_loop`. **Model:** `claude-4.6-sonnet-medium-thinking`. **Output:** `<workspace>/findings/plan.json`.
+
+When updating the model slug, also update the `## Model assignments` table in [SKILL.md](../SKILL.md).
 
 Conductor must not write findings or verdict inline. [rules/conductor.md](../rules/conductor.md) **Subagent isolation**.
 

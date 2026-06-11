@@ -197,5 +197,22 @@ class WorkflowResumeTests(unittest.TestCase):
         self.assertTrue((self.session_dir / "artifacts" / "delivery-report.md").exists())
 
 
+class PrCiResumeTests(unittest.TestCase):
+    def test_pr_creation_resume_hint(self) -> None:
+        workflow = {"phase": "pr_creation", "gates": {}, "loops": {}}
+        action = workflow_next_action(workflow)
+        self.assertIn("pr_creation", action.lower())
+
+    def test_ci_observe_resume_hint(self) -> None:
+        workflow = {
+            "phase": "ci_observe",
+            "gates": {},
+            "loops": {"ci_observe": {"iteration": 2, "max": 5, "last_verdict": "CONFLICT"}},
+        }
+        action = workflow_next_action(workflow)
+        self.assertIn("ci observe", action.lower())
+        self.assertIn("2/5", action)
+
+
 if __name__ == "__main__":
     unittest.main()

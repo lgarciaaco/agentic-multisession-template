@@ -133,7 +133,7 @@ class WorkflowCodeReviewTests(unittest.TestCase):
             workspace_id="review-fixture",
         )
         self.assertEqual(result["verdicts"][:2], ["INCOMPLETE", "PASS"])
-        self.assertEqual(result["workflow"]["phase"], "delivery")
+        self.assertEqual(result["workflow"]["phase"], "pr_creation")
         code_loop = result["workflow"]["loops"]["code_review"]
         self.assertEqual(code_loop["iteration"], 2)
         self.assertEqual(code_loop["last_verdict"], "PASS")
@@ -226,9 +226,9 @@ class WorkflowCodeReviewTests(unittest.TestCase):
         lines = result.stdout.strip().splitlines()
         self.assertEqual(lines[0], "r-001")
         self.assertEqual(lines[1], "PASS_WITH_NITS")
-        self.assertEqual(lines[2], "delivery")
+        self.assertEqual(lines[2], "pr_creation")
         workflow = json.loads(workflow_path.read_text())
-        self.assertEqual(workflow["phase"], "delivery")
+        self.assertEqual(workflow["phase"], "pr_creation")
 
     def test_workflow_code_review_enrich_scope_cli(self) -> None:
         workspace = self.session_dir / "reviews" / "workspace" / "review-enrich"
@@ -302,7 +302,7 @@ class WorkflowCodeReviewTests(unittest.TestCase):
         workflow_path.write_text(json.dumps(workflow, indent=2) + "\n")
 
         workflow = advance_code_review_loop(self.session_dir, "PASS")
-        self.assertEqual(workflow["phase"], "delivery")
+        self.assertEqual(workflow["phase"], "pr_creation")
         progress = json.loads((self.session_dir / "progress.json").read_text())
         self.assertEqual(progress["last_review"]["id"], "r-002")
 

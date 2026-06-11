@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "phase": "intake",
   "gates": {
     "brief_accepted": false,
@@ -20,6 +20,16 @@
     "implementation": {
       "active_task": null,
       "ready_for_review": false
+    },
+    "pr_creation": {
+      "iteration": 0,
+      "max": 5,
+      "last_verdict": null
+    },
+    "ci_observe": {
+      "iteration": 0,
+      "max": 5,
+      "last_verdict": null
     }
   },
   "artifacts": {

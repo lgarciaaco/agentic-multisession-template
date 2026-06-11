@@ -19,6 +19,7 @@ repos: {}
 #     path: repos/project
 #     clone: git@github.com:YOU/PROJECT.git
 #     default_branch: main
+#     pr_target_branch: develop    # optional — PR base branch (falls back to default_branch)
 #
 # Example (GitHub org upstream + personal fork):
 #   upstream-app:

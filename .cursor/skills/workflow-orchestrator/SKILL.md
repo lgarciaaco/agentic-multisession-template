@@ -1,10 +1,10 @@
 ---
 name: workflow-orchestrator
 description: >-
-  Single-session pipeline: Problem → Plan → Code → Review with autonomous inner
-  loops. User gates at brief and plan only. Use for /workflow, full feature pipeline,
-  problem brief, action plan, or workflow status. Loads when user wants end-to-end
-  delivery without cross-session handoff.
+  Single-session pipeline: Problem → Plan → Code → Review → PR → CI → Delivery
+  with autonomous inner loops. User gates at brief and plan only. Use for /workflow,
+  full feature pipeline, problem brief, action plan, or workflow status. Loads when
+  user wants end-to-end delivery without cross-session handoff.
 ---
 
 # Workflow orchestrator
@@ -50,6 +50,8 @@ One chat, one conductor. Linear pipeline with autonomous plan and code loops bet
 | `plan_user_review` | conductor presents plan + refused dispositions | accept plan |
 | `implementation` | session-orchestrator + conductor developer section | — |
 | `code_review_loop` | code-reviewer + code-fixer (parent) | — |
+| `pr_creation` | git-commit + pr-create skills (parent) | — |
+| `ci_observe` | CI poll + ci-fixer (parent) | — |
 | `delivery` | delivery template | — |
 | `completed` | — | — |
 
@@ -65,6 +67,8 @@ Read `workflow.json` and artifact paths; print:
 - **Gate plan_user_accepted:** <bool>
 - **Plan loop:** <iteration>/<max> last <verdict>
 - **Code review loop:** <iteration>/<max> last <verdict>
+- **PR creation:** <iteration>/<max> last <verdict>
+- **CI observe:** <iteration>/<max> last <verdict>
 - **Brief:** sessions/<codename>/<brief path> (present|missing)
 - **Plan:** sessions/<codename>/<plan path> (present|missing)
 - **Next command:** <suggested user or agent action>
@@ -77,7 +81,8 @@ Do not ask the user to relay messages between agents or sessions.
 ```text
 intake → brief_review → [accept brief]
   → plan_loop → plan_user_review → [accept plan]
-  → implementation → [auto] code_review_loop → delivery → completed
+  → implementation → [auto] code_review_loop
+  → [auto] pr_creation → [auto] ci_observe → delivery → completed
 ```
 
 Autonomous loops — conductor runs without user between gates.
@@ -168,20 +173,66 @@ python3 scripts/workflow-code-review-advance.py <codename> [r-NNN]
 ```
 
 5. **Branch:**
-   - **PASS** → `phase: delivery`; auto-write delivery report
+   - **PASS** → `phase: pr_creation`; auto commit + draft PR
    - **INCOMPLETE** → parent loads [rules/code-fixer.md](rules/code-fixer.md): fix REQUIRED; disposition SUGGESTION/NIT; **re-run loop** (new `review-*` workspace) — no user
    - **FAIL** (BLOCKER) → escalate immediately
    - iteration ≥ max → escalate
 
 6. `./scripts/sync-session.sh <codename>` after each iteration
 
-**Status line:** `Code review iteration N — INCOMPLETE (R REQUIRED), fixing…` or `Code review PASS — writing delivery report`
+**Status line:** `Code review iteration N — INCOMPLETE (R REQUIRED), fixing…` or `Code review PASS — entering PR creation`
 
 Intent reviewer uses **active task** acceptance only (via enriched manifest). See [references/code-review-loop.md](references/code-review-loop.md).
 
+### PR creation
+
+**Precondition:** `phase: pr_creation` (auto after code review PASS). No user gate.
+
+1. Load `.cursor/skills/git-commit/SKILL.md` — commit all worktree changes (conventional-commit).
+2. Load `.cursor/skills/pr-create/SKILL.md` — push and open draft PR against `pr_target_branch`.
+3. Record PR URL on active task in `session.json`.
+4. Advance:
+
+```bash
+python3 scripts/workflow-advance-pr-creation.py <codename> SUCCESS <pr_url>
+```
+
+On failure (push rejected, gh error): retry or escalate.
+
+```bash
+python3 scripts/workflow-advance-pr-creation.py <codename> RETRY
+python3 scripts/workflow-advance-pr-creation.py <codename> FAIL
+```
+
+SUCCESS → `phase: ci_observe`. 5-iteration cap before escalation.
+
+### CI observe loop
+
+**Precondition:** `phase: ci_observe` (auto after PR creation SUCCESS). No user gate.
+
+Each iteration:
+
+1. Poll CI: `gh pr checks <pr_number> --watch` or `gh run list`.
+2. Classify result:
+   - **GREEN** → advance to `delivery`
+   - **CONFLICT** → rebase onto `pr_target_branch`, force-push, re-poll
+   - **TEST_FAILURE** → parent loads [rules/ci-fixer.md](rules/ci-fixer.md): fix, commit, force-push, re-poll
+   - **TIMEOUT** / **FAIL** → escalate
+
+3. Advance:
+
+```bash
+python3 scripts/workflow-ci-observe-advance.py <codename> <verdict>
+```
+
+4. Loop capped at 5 iterations; escalate with CI log summary after max.
+5. `./scripts/sync-session.sh <codename>` after each iteration.
+
+**Status line:** `CI observe iteration N — CONFLICT, rebasing…` or `CI observe GREEN — writing delivery report`
+
 ### Delivery
 
-**Precondition:** `phase: delivery` (auto after code review PASS).
+**Precondition:** `phase: delivery` (auto after CI observe GREEN).
 
 ```bash
 python3 scripts/workflow-write-delivery-report.py <codename>
@@ -256,4 +307,6 @@ Hardcoded per role. When Cursor releases new model slugs, update the file listed
 - [findings-schema.md](references/findings-schema.md)
 - [research-rationale.md](references/research-rationale.md)
 - [code-review-loop.md](references/code-review-loop.md)
+- [pr-creation.md](references/pr-creation.md)
+- [ci-observe-loop.md](references/ci-observe-loop.md)
 - [delivery.md](references/delivery.md)

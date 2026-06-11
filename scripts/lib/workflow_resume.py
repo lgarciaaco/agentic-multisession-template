@@ -48,6 +48,20 @@ def workflow_next_action(workflow: dict[str, Any]) -> str:
             f"Resume autonomous code review loop (iteration {iteration}/{maximum}, "
             f"last {verdict}): specialists → fixer on INCOMPLETE → advance"
         )
+    if phase == "pr_creation":
+        return (
+            "Commit and open draft PR: run conductor pr_creation phase — "
+            "git-commit skill, pr-create skill, then advance to ci_observe"
+        )
+    if phase == "ci_observe":
+        ci_loop = loops.get("ci_observe") or {}
+        iteration = ci_loop.get("iteration", 0)
+        maximum = ci_loop.get("max", 5)
+        verdict = ci_loop.get("last_verdict") or "—"
+        return (
+            f"Resume CI observe loop (iteration {iteration}/{maximum}, "
+            f"last {verdict}): poll checks, rebase on conflict, fix on failure, advance to delivery on green"
+        )
     if phase == "delivery":
         return "Write delivery report: python3 scripts/workflow-write-delivery-report.py <codename>"
     if phase == "completed":

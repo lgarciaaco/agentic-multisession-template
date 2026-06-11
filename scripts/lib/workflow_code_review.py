@@ -356,7 +356,7 @@ def advance_code_review_loop(
     workflow = update_code_review_loop_state(workflow, iteration=iteration, verdict=normalized)
 
     if code_review_loop_complete(normalized):
-        workflow["phase"] = "delivery"
+        workflow["phase"] = "pr_creation"
         task_id = active_code_review_task_id(session_dir)
         if task_id:
             session_path = session_dir / "session.json"

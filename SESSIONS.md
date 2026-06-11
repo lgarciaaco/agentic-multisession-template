@@ -156,6 +156,8 @@ Canonical status lives in `session.json`. Run `sync-session.sh` if local `index.
 | `python3 scripts/workflow-begin-code-review.py <name>` | Legacy: begin when all tasks done |
 | `python3 scripts/workflow-code-review-enrich-scope.py <name> <workspace>` | Add action-plan acceptance to review manifest |
 | `python3 scripts/workflow-code-review-advance.py <name> [r-NNN]` | Advance code review loop after synthesizer |
+| `python3 scripts/workflow-advance-pr-creation.py <name> <verdict> [pr_url]` | Advance PR creation phase (SUCCESS, RETRY, FAIL) |
+| `python3 scripts/workflow-ci-observe-advance.py <name> <verdict>` | Advance CI observe loop (GREEN, CONFLICT, TEST_FAILURE, TIMEOUT) |
 | `python3 scripts/workflow-write-delivery-report.py <name>` | Generate delivery report; phase → completed |
 | `python3 scripts/workflow-reopen-brief.py <name>` | Reopen brief gate; phase → intake |
 | `python3 scripts/workflow-reopen-plan.py <name>` | Reopen plan gate; phase → plan_loop |
@@ -198,7 +200,7 @@ Do **not** run bare `agent` in tmux — use the project launcher so hooks and se
 
 ## Single-session workflow (`/workflow`)
 
-Optional pipeline in **one chat** — Problem → Plan → Code → Review. Replaces multi-chat inbox relay for linear feature delivery.
+Optional pipeline in **one chat** — Problem → Plan → Code → Review → PR → CI → Delivery. Replaces multi-chat inbox relay for linear feature delivery.
 
 | Step | Phase | User gate |
 |------|-------|-----------|
@@ -207,11 +209,13 @@ Optional pipeline in **one chat** — Problem → Plan → Code → Review. Repl
 | Plan disposition | SUGGESTION/NIT → author table → reviewer validates → APPROVE | — (autonomous) |
 | Implementation | `implementation` | — |
 | Code review loop | `code_review_loop` (fixer dispositions SUGGESTION/NIT) | — |
+| PR creation | `pr_creation` (commit + draft PR) | — |
+| CI observe | `ci_observe` (rebase/fix loop, 5-iter cap) | — |
 | Delivery | `delivery` → `completed` | inform (report) |
 
 **Start or resume:** `/workflow` loads `.cursor/skills/workflow-orchestrator/SKILL.md`, reads `sessions/<codename>/workflow.json` `phase` and context **Resume** — continues without replaying chat history.
 
-**Scripts:** see workflow rows in [Commands](#commands) (`workflow-plan-synthesize.py`, `workflow-accept-plan.sh`, code-review and delivery scripts). Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
+**Scripts:** see workflow rows in [Commands](#commands) (plan, code-review, PR creation, CI observe, and delivery scripts). Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
 
 **State:** `workflow.json`, `artifacts/`, `reviews/`, `artifacts/plan-review/` under `sessions/<codename>/`.
 

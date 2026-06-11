@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **PR creation phase** (`pr_creation`) — auto commit + draft PR after code review PASS; records PR URL on task; uses `git-commit` and `pr-create` skills
+- **CI observe loop** (`ci_observe`) — polls CI, rebases on merge conflicts, fixes test failures (code-fixer pattern), force-pushes; 5-iteration cap before escalation
+- **`git-commit` skill** (`.cursor/skills/git-commit/`) — generic conventional-commit workflow; branch safety and staging checks
+- **`pr-create` skill** (`.cursor/skills/pr-create/`) — generic draft PR creation with fork workflow support and `repos.yaml` branch targeting
+- **`pr_target_branch`** field in `repos.yaml` — optional per-repo PR base branch (falls back to `default_branch`)
+- `scripts/lib/workflow_pr_creation.py`, `scripts/lib/workflow_ci_observe.py` — phase logic
+- `scripts/workflow-advance-pr-creation.py`, `scripts/workflow-ci-observe-advance.py` — CLIs
+- `rules/ci-fixer.md` — conductor rules for CI failure resolution
+- `references/pr-creation.md`, `references/ci-observe-loop.md` — phase documentation
+
+### Changed
+
+- `advance_code_review_loop` on PASS now sets phase `pr_creation` (was `delivery`)
+- `sessions/_template/workflow.json` version 2: adds `loops.pr_creation` and `loops.ci_observe`
+- `workflow_resume.py` returns next-action hints for `pr_creation` and `ci_observe` phases
+- Workflow pipeline overview: `code_review PASS → pr_creation → ci_observe → delivery`
+- `AGENTS.md`, `docs/WORKFLOW.md`, workflow-schema reference updated for new phases
+
 ## [1.0.0-rc.1] - 2026-06-10
 
 First stable candidate — workflow pipeline, path guards, skills/docs hygiene since `0.6.0`.

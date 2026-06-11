@@ -1803,5 +1803,139 @@ class ChatBindingPersistTests(unittest.TestCase):
             os.environ.pop("WORKSPACE_ROOT", None)
 
 
+class TmuxPaneTargetTests(unittest.TestCase):
+    """_run_tmux calls for pane reads/writes must use -t $TMUX_PANE.
+
+    Cursor agent shells have no controlling TTY; without an explicit -t tmux
+    resolves 'current pane' from the last-active client, which drifts as the
+    user switches windows.  Every display-message / set-option / delete-option
+    call must carry -t <TMUX_PANE> so it always targets the agent's own pane.
+    """
+
+    def _make_completed(self, stdout: str = "") -> subprocess.CompletedProcess:
+        return subprocess.CompletedProcess([], 0, stdout, "")
+
+    def test_get_tmux_window_name_passes_pane_target(self) -> None:
+        from session_binding import get_tmux_window_name
+
+        with patch.dict(os.environ, {"TMUX": "/tmp/tmux", "TMUX_PANE": "%42"}):
+            with patch("session_binding._run_tmux", return_value=self._make_completed("immo-alpha\n")) as mock:
+                result = get_tmux_window_name()
+        mock.assert_called_once_with("display-message", "-p", "-t", "%42", "#W")
+        self.assertEqual(result, "immo-alpha")
+
+    def test_get_tmux_window_name_no_pane_env(self) -> None:
+        from session_binding import get_tmux_window_name
+
+        env = {k: v for k, v in os.environ.items() if k not in ("TMUX_PANE",)}
+        env["TMUX"] = "/tmp/tmux"
+        with patch.dict(os.environ, env, clear=True):
+            with patch("session_binding._run_tmux", return_value=self._make_completed("immo-alpha\n")) as mock:
+                get_tmux_window_name()
+        args = mock.call_args[0]
+        self.assertNotIn("-t", args)
+
+    def test_get_tmux_pane_codename_passes_pane_target(self) -> None:
+        from session_binding import get_tmux_pane_codename
+
+        with patch.dict(os.environ, {"TMUX": "/tmp/tmux", "TMUX_PANE": "%42"}):
+            with patch("session_binding._run_tmux", return_value=self._make_completed("alpha\n")) as mock:
+                result = get_tmux_pane_codename()
+        args = mock.call_args[0]
+        self.assertIn("-t", args)
+        self.assertIn("%42", args)
+        self.assertEqual(result, "alpha")
+
+    def test_set_tmux_pane_codename_passes_pane_target(self) -> None:
+        from session_binding import set_tmux_pane_codename
+
+        with patch.dict(os.environ, {"TMUX": "/tmp/tmux", "TMUX_PANE": "%42"}):
+            with patch("session_binding._run_tmux", return_value=self._make_completed()) as mock:
+                set_tmux_pane_codename("alpha")
+        args = mock.call_args[0]
+        self.assertIn("-t", args)
+        self.assertIn("%42", args)
+
+    def test_clear_tmux_pane_codename_passes_pane_target(self) -> None:
+        from session_binding import clear_tmux_pane_codename
+
+        with patch.dict(os.environ, {"TMUX": "/tmp/tmux", "TMUX_PANE": "%42"}):
+            with patch("session_binding._run_tmux", return_value=self._make_completed()) as mock:
+                clear_tmux_pane_codename()
+        args = mock.call_args[0]
+        self.assertIn("-t", args)
+        self.assertIn("%42", args)
+
+    def test_rename_tmux_for_codename_passes_pane_target(self) -> None:
+        from session_binding import rename_tmux_for_codename
+
+        with patch.dict(os.environ, {"TMUX": "/tmp/tmux", "TMUX_PANE": "%42"}):
+            with patch("session_binding._run_tmux", return_value=self._make_completed()) as mock:
+                rename_tmux_for_codename("alpha")
+        args = mock.call_args[0]
+        self.assertIn("-t", args)
+        self.assertIn("%42", args)
+
+
+class SessionEndHookPaneCleanupTests(unittest.TestCase):
+    """session-end hook must always clear the pane option.
+
+    If the hook fires without a conversation_id (e.g. payload empty) or without
+    a matching binding file (chat closed abnormally), the pane option must still
+    be cleared so the next chat in the same pane starts with a clean slate.
+    """
+
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmpdir.name)
+        codename = "bravo"
+        session_dir = self.root / "sessions" / codename
+        session_dir.mkdir(parents=True)
+        (session_dir / "session.json").write_text(
+            json.dumps({"codename": codename, "title": codename, "status": "active", "tasks": []}) + "\n"
+        )
+        (self.root / "sessions" / "bindings").mkdir(parents=True)
+        (self.root / "sessions" / "context").mkdir(parents=True)
+        (self.root / "sessions" / "index.json").write_text(
+            json.dumps({"sessions": {codename: {"status": "active"}}}) + "\n"
+        )
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def test_clears_pane_when_no_conversation_id(self) -> None:
+        import argparse
+        import session_cli
+        with patch("session_cli._load_hook_payload", return_value={}):
+            with patch("session_cli.hub_root", return_value=self.root):
+                with patch("session_cli.clear_tmux_pane_codename") as mock_clear:
+                    session_cli.cmd_hook_session_end(argparse.Namespace())
+        mock_clear.assert_called_once()
+
+    def test_clears_pane_when_no_binding_file(self) -> None:
+        import argparse
+        import session_cli
+        with patch("session_cli._load_hook_payload", return_value={"conversation_id": "nonexistent-cid"}):
+            with patch("session_cli.hub_root", return_value=self.root):
+                with patch("session_cli.clear_tmux_pane_codename") as mock_clear:
+                    session_cli.cmd_hook_session_end(argparse.Namespace())
+        mock_clear.assert_called_once()
+
+    def test_calls_unbind_when_binding_exists(self) -> None:
+        import argparse
+        import session_cli
+        from session_binding import bind_session_context
+        cid = "existing-cid"
+        with patch("session_binding.set_tmux_pane_codename", return_value=True):
+            with patch("session_binding.rename_tmux_for_codename", return_value=True):
+                bind_session_context(self.root, "bravo", cid)
+        with patch("session_cli._load_hook_payload", return_value={"conversation_id": cid}):
+            with patch("session_cli.hub_root", return_value=self.root):
+                with patch("session_cli.read_binding", return_value={"codename": "bravo"}):
+                    with patch("session_cli.unbind_session_context") as mock_unbind:
+                        session_cli.cmd_hook_session_end(argparse.Namespace())
+        mock_unbind.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()

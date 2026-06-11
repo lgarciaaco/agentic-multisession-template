@@ -590,8 +590,20 @@ def _run_tmux(*args: str) -> subprocess.CompletedProcess[str] | None:
         return None
 
 
+def _tmux_pane_target() -> list[str]:
+    """Return ['-t', '<pane>'] when TMUX_PANE is set, else [].
+
+    Cursor agent shells have no controlling TTY, so tmux resolves 'current pane'
+    from the last-active client — whichever window the user is looking at, not
+    the window where the agent was started.  Passing -t $TMUX_PANE anchors every
+    read and write to the pane this process was spawned in.
+    """
+    pane = os.environ.get("TMUX_PANE", "").strip()
+    return ["-t", pane] if pane else []
+
+
 def get_tmux_window_name() -> str | None:
-    result = _run_tmux("display-message", "-p", "#W")
+    result = _run_tmux("display-message", "-p", *_tmux_pane_target(), "#W")
     if not result:
         return None
     name = result.stdout.strip()
@@ -599,7 +611,7 @@ def get_tmux_window_name() -> str | None:
 
 
 def get_tmux_pane_codename() -> str | None:
-    result = _run_tmux("display-message", "-p", f"#{{@{tmux_pane_option()}}}")
+    result = _run_tmux("display-message", "-p", *_tmux_pane_target(), f"#{{@{tmux_pane_option()}}}")
     if not result:
         return None
     name = result.stdout.strip()
@@ -611,11 +623,11 @@ def set_tmux_pane_codename(codename: str) -> bool:
         name = validate_codename(codename)
     except ValueError:
         return False
-    return _run_tmux("set-option", "-p", f"@{tmux_pane_option()}", name) is not None
+    return _run_tmux("set-option", "-p", *_tmux_pane_target(), f"@{tmux_pane_option()}", name) is not None
 
 
 def clear_tmux_pane_codename() -> bool:
-    return _run_tmux("delete-option", "-p", f"@{tmux_pane_option()}") is not None
+    return _run_tmux("delete-option", "-p", *_tmux_pane_target(), f"@{tmux_pane_option()}") is not None
 
 
 def tmux_window_label(codename: str) -> str:
@@ -634,7 +646,7 @@ def rename_tmux_for_codename(codename: str) -> bool:
     if not name:
         return False
 
-    renamed = _run_tmux("rename-window", name) is not None
+    renamed = _run_tmux("rename-window", *_tmux_pane_target(), name) is not None
     try:
         sys.stderr.write(f"\033]0;{name}\007\033]2;{name}\007")
         sys.stderr.flush()

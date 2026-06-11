@@ -13,6 +13,7 @@ from session_binding import (
     AUTO_PERSIST_BINDING_SOURCES,
     agent_launcher_name,
     bind_session_context,
+    clear_tmux_pane_codename,
     close_session_work,
     collect_session_audit,
     conversation_id,
@@ -307,11 +308,14 @@ def cmd_hook_before_prompt(_args: argparse.Namespace) -> int:
 def cmd_hook_session_end(_args: argparse.Namespace) -> int:
     payload = _load_hook_payload()
     cid = payload.get("conversation_id", "").strip()
-    if not cid:
-        return 0
     root = hub_root()
-    if read_binding(root, cid, active_only=False):
+    if cid and read_binding(root, cid, active_only=False):
         unbind_session_context(root, cid)
+    else:
+        # No binding file: either no conversation_id in payload, or the chat
+        # ended without a clean bind (crash, Ctrl+W, hook error).  Still clear
+        # the pane option so the next chat in this pane starts fresh.
+        clear_tmux_pane_codename()
     return 0
 
 

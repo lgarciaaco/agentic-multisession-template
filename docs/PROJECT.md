@@ -5,7 +5,17 @@ Generic **hub template** project guidelines. Read together with:
 - **Level 1 (template):** [`.cursor/rules/agent-guidelines.mdc`](../.cursor/rules/agent-guidelines.mdc)
 - **Agent entry:** [AGENTS.md](../AGENTS.md) · bound session `BOUNDARIES.md`
 
-Copy [docs/PROJECT.md.example](PROJECT.md.example) over this file and fill in your stack when you customize the hub for a product.
+---
+
+## Stack
+
+| Layer | Choice |
+|-------|--------|
+| Language / runtime | TypeScript 5, Node 20 |
+| Package manager | pnpm workspaces |
+| Linter / formatter | ESLint + tsc |
+| Branch naming | `feat/`, `fix/`, `docs/` |
+| Test command | `pnpm --filter @immo/api test` · `pnpm --filter @immo/web build` |
 
 ---
 
@@ -15,29 +25,33 @@ When code changes, update these docs in the **same PR**:
 
 | Change type | Update |
 |-------------|--------|
-| New API endpoint | API doc under `docs/`, worktree README |
-| Schema / migration | migration comment, architecture doc under `docs/` |
-| Domain rule or formula | domain doc + golden fixture README |
-| Config or env var | README, `.env.example` in worktree |
-| Hub script or session field | [AGENTS.md](../AGENTS.md), [SESSIONS.md](../SESSIONS.md), relevant skill — see [agent-guidelines.mdc](../.cursor/rules/agent-guidelines.mdc) |
-
-Add project-specific rows when you customize.
+| New API route | `CHANGELOG.md` (Added), `CURRENT.md` web routes table, `ARCHITECTURE.md` if new resource |
+| New web page / route | `CHANGELOG.md` (Added), `CURRENT.md` web routes table |
+| New DB query or helper (`packages/db`) | `CHANGELOG.md` (Added), plan doc task status row |
+| DTO change | `CHANGELOG.md` (Changed/Added), `docs/ARCHITECTURE.md` if data model changes |
+| Milestone sub-task done | `CURRENT.md` milestone table + decision log entry, `docs/M*-PLAN.md` task row |
+| Schema / migration | migration comment, `docs/ARCHITECTURE.md`, `docs/DATA-MODEL-RFC.md` |
+| Domain rule or formula | `packages/domain` doc + golden fixture README |
+| Config or env var | worktree `README.md`, `.env.example` |
+| Hub script or session field | [AGENTS.md](../AGENTS.md), [SESSIONS.md](../SESSIONS.md), relevant skill |
 
 ---
 
-## Layout
-
-Document where code belongs. Structure reviewer checks new/changed files against this map.
+## Layout (immo monorepo)
 
 | Path | Purpose |
 |------|---------|
-| `src/` or `packages/` | Application source (adjust to your stack) |
-| `tests/` or `**/*.test.*` | Tests colocated or mirrored |
-| `scripts/` | CLI and automation (if applicable) |
-| `.cursor/skills/` | Hub agent skills (self-hosted template only) |
-| `docs/` | Committed hub or product documentation |
-
-Product code for a registered repo lives in `sessions/<codename>/worktrees/<repo>/` — not `repos/` (reference clones, read-only).
+| `apps/api/src/routes/` | Express route handlers |
+| `apps/api/src/dto/` | DTO types + `toSafeDto` helpers |
+| `apps/web/src/pages/` | React page components |
+| `apps/web/src/components/` | Shared presentational components |
+| `apps/web/src/api/` | API client + TypeScript types |
+| `packages/db/src/queries/` | Prisma query functions |
+| `packages/domain/` | Screening math (Out, Gap, Mietspiegel) |
+| `workers/` | ingest · analytics · screening batch |
+| `docs/` | ROADMAP, ARCHITECTURE, M*-PLAN, DATA-MODEL-RFC, CURRENT |
+| `CHANGELOG.md` | All notable changes (unreleased at top) |
+| `CURRENT.md` | Milestone status + web routes + decision log |
 
 ---
 
@@ -46,17 +60,17 @@ Product code for a registered repo lives in `sessions/<codename>/worktrees/<repo
 Before opening a product PR from a worktree:
 
 ```bash
-cd sessions/<codename>/worktrees/<repo>
-# Replace with your stack, e.g.:
-# pnpm test && pnpm build
-# pytest, cargo test, etc.
+cd sessions/<codename>/worktrees/immo
+pnpm --filter @immo/api test
+pnpm --filter @immo/web build
 ```
 
 | Change type | Minimum test |
 |-------------|--------------|
-| Domain logic | unit test or golden fixture |
-| API route | validation test + error path |
-| Docker / env | smoke command documented in README |
+| Domain logic | unit test or golden fixture in `packages/domain` |
+| DB query | `packages/db` test with seeded fixture |
+| API route | route test + error/null path |
+| Web component | `pnpm --filter @immo/web build` exits 0, no TS errors |
 
 **Hub template PRs** (when `session.json` has `"mode": "hub"`): see [CONTRIBUTING.md](../CONTRIBUTING.md) and `.cursor/rules/hub-contributing.mdc`.
 

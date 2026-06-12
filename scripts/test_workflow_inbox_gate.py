@@ -105,7 +105,7 @@ class WorkflowInboxGateTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
-    def _route_parent_accept_brief(self) -> None:
+    def _route_parent(self, gate: str, message: str) -> None:
         from session_binding import write_inbox_program_route
 
         write_inbox_program_route(
@@ -113,10 +113,57 @@ class WorkflowInboxGateTests(unittest.TestCase):
             self.parent,
             self.child,
             (
-                "accept brief\n\n"
-                "[program-orchestrator gate=brief_review]\n"
+                f"{message}\n\n"
+                f"[program-orchestrator gate={gate}]\n"
                 f"Parent `{self.parent}` routed feedback."
             ),
+        )
+
+    def _route_parent_accept_brief(self) -> None:
+        self._route_parent("brief_review", "accept brief")
+
+    def _write_workflow(self, **overrides: object) -> None:
+        workflow_path = self.session_dir / "workflow.json"
+        workflow = json.loads(workflow_path.read_text())
+        workflow.update(overrides)
+        workflow_path.write_text(json.dumps(workflow, indent=2) + "\n")
+
+    def _write_minimal_action_plan(self) -> None:
+        (self.root / "repos.yaml").write_text(
+            "repos:\n  template:\n    path: repos/template\n"
+            "    clone: git@github.com:example/template.git\n"
+            "    default_branch: main\n"
+        )
+        (self.session_dir / "artifacts" / "action-plan.md").write_text(
+            """# Action plan — test
+
+**Status:** draft
+**Based on:** problem-brief.md @ accepted
+**Version:** 1
+
+## Approach
+Test plan for inbox gate integration.
+
+## Traceability
+| Brief | Plan tasks |
+| SC-1 | t1 |
+
+## Tasks
+
+| ID | Repo | Summary | Acceptance | Depends |
+|----|------|---------|------------|---------|
+| t1 | template | Do thing | Observable done condition | — |
+
+## Test plan
+none
+
+## Risks
+| Risk | Mitigation |
+| — | — |
+"""
+        )
+        (self.session_dir / "TASKS.md").write_text(
+            "# Goal\n\nChild goal\n\n## Tasks\n\n| ID | Status | Notes |\n| --- | --- | --- |\n"
         )
 
     def test_classify_gate_message_brief_accept(self) -> None:
@@ -280,6 +327,61 @@ class WorkflowInboxGateTests(unittest.TestCase):
 
         second = pull_inbox_gate(self.root, self.codename, apply=True)
         self.assertEqual(second["pending"], [])
+
+    def test_pull_inbox_gate_apply_accept_plan_from_parent(self) -> None:
+        self._write_workflow(
+            phase="plan_user_review",
+            gates={
+                "brief_accepted": True,
+                "plan_user_accepted": False,
+                "inbox": {"processed_markers": [], "last_pull_at": None},
+            },
+        )
+        self._write_minimal_action_plan()
+        self._route_parent("plan_user_review", "accept plan")
+        result = pull_inbox_gate(self.root, self.codename, apply=True)
+        self.assertEqual(result["applied"][0]["action"], "accept_plan")
+        workflow = json.loads((self.session_dir / "workflow.json").read_text())
+        self.assertTrue(workflow["gates"]["plan_user_accepted"])
+        self.assertEqual(workflow["phase"], "implementation")
+        plan = (self.session_dir / "artifacts" / "action-plan.md").read_text()
+        self.assertIn("**Status:** user_approved", plan)
+        session = json.loads((self.session_dir / "session.json").read_text())
+        self.assertEqual(len(session["tasks"]), 1)
+        self.assertEqual(session["tasks"][0]["id"], "t1")
+
+    def test_pull_inbox_gate_apply_reopen_brief_from_parent(self) -> None:
+        self._write_workflow(
+            phase="brief_review",
+            gates={
+                "brief_accepted": True,
+                "plan_user_accepted": False,
+                "inbox": {"processed_markers": [], "last_pull_at": None},
+            },
+        )
+        self._route_parent("brief_review", "reopen brief")
+        result = pull_inbox_gate(self.root, self.codename, apply=True)
+        self.assertEqual(result["applied"][0]["action"], "reopen_brief")
+        workflow = json.loads((self.session_dir / "workflow.json").read_text())
+        self.assertFalse(workflow["gates"]["brief_accepted"])
+        self.assertEqual(workflow["phase"], "intake")
+
+    def test_pull_inbox_gate_apply_reopen_plan_from_parent(self) -> None:
+        self._write_workflow(
+            phase="plan_user_review",
+            gates={
+                "brief_accepted": True,
+                "plan_user_accepted": False,
+                "inbox": {"processed_markers": [], "last_pull_at": None},
+            },
+        )
+        self._write_minimal_action_plan()
+        self._route_parent("plan_user_review", "reopen plan")
+        result = pull_inbox_gate(self.root, self.codename, apply=True)
+        self.assertEqual(result["applied"][0]["action"], "reopen_plan")
+        workflow = json.loads((self.session_dir / "workflow.json").read_text())
+        self.assertFalse(workflow["gates"]["plan_user_accepted"])
+        self.assertEqual(workflow["phase"], "plan_loop")
 
     def test_pull_inbox_gate_rejects_self_write(self) -> None:
         write_inbox(

@@ -1689,7 +1689,19 @@ class ChatBindingPersistTests(unittest.TestCase):
         (alpha_dir / "session.json").write_text(
             json.dumps({"codename": "alpha", "tasks": []}) + "\n"
         )
-        write_inbox(self.root, "alpha", self.codename, "accept brief")
+        from program_state import default_program, save_program  # noqa: E402
+        from program_route_feedback import route_feedback  # noqa: E402
+
+        program = default_program("alpha")
+        program["active_children"] = [{"codename": self.codename, "status": "running"}]
+        save_program(alpha_dir, program)
+        route_feedback(
+            self.root,
+            parent="alpha",
+            child=self.codename,
+            gate="brief_review",
+            message="accept brief",
+        )
 
         os.environ["WORKSPACE_ROOT"] = str(self.root)
         os.environ["HOOK_INPUT"] = json.dumps(

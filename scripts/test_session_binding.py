@@ -1813,13 +1813,18 @@ class ChatBindingPersistTests(unittest.TestCase):
         program = default_program("alpha")
         program["active_children"] = [{"codename": self.codename, "status": "running"}]
         save_program(alpha_dir, program)
-        route_feedback(
-            self.root,
-            parent="alpha",
-            child=self.codename,
-            gate="brief_review",
-            message="accept brief",
-        )
+        with patch(
+            "program_route_feedback.resolve_codename",
+            return_value=("alpha", "binding"),
+        ):
+            with patch("session_binding.resolve_inbox_caller", return_value="alpha"):
+                route_feedback(
+                self.root,
+                parent="alpha",
+                child=self.codename,
+                gate="brief_review",
+                message="accept brief",
+            )
 
         os.environ["WORKSPACE_ROOT"] = str(self.root)
         os.environ["HOOK_INPUT"] = json.dumps(
@@ -2090,6 +2095,95 @@ class TmuxPaneTargetTests(unittest.TestCase):
         args = mock.call_args[0]
         self.assertIn("-t", args)
         self.assertIn("%42", args)
+
+
+class ProgramRouteInboxAuthTests(unittest.TestCase):
+    def setUp(self) -> None:
+        from program_state import default_program, save_program
+
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.parent = "mike"
+        self.child = "november"
+        self.sibling = "bravo"
+        self.other_parent = "oscar"
+
+        for name in (self.parent, self.child, self.sibling, self.other_parent):
+            session_dir = self.root / "sessions" / name
+            session_dir.mkdir(parents=True)
+            (session_dir / "session.json").write_text(
+                json.dumps({"codename": name, "tasks": []}) + "\n"
+            )
+
+        program = default_program(self.parent)
+        program["active_children"] = [{"codename": self.child, "status": "running"}]
+        save_program(self.root / "sessions" / self.parent, program)
+
+        other_program = default_program(self.other_parent)
+        other_program["active_children"] = [{"codename": self.child, "status": "running"}]
+        save_program(self.root / "sessions" / self.other_parent, other_program)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _gate_payload(self, gate: str = "brief_review", message: str = "accept brief") -> str:
+        return (
+            f"{message}\n\n"
+            f"[program-orchestrator gate={gate}]\n"
+            f"Parent routed feedback."
+        )
+
+    def test_write_inbox_program_route_rejects_non_registered_parent(self) -> None:
+        from session_binding import write_inbox_program_route
+
+        with patch(
+            "session_binding.resolve_inbox_caller",
+            return_value=self.other_parent,
+        ):
+            with self.assertRaisesRegex(
+                ValueError,
+                "requires registered program parent as from_codename",
+            ):
+                write_inbox_program_route(
+                    self.root,
+                    self.other_parent,
+                    self.child,
+                    self._gate_payload(),
+                )
+
+    def test_write_inbox_program_route_rejects_missing_gate_marker(self) -> None:
+        from session_binding import write_inbox_program_route
+
+        with patch(
+            "session_binding.resolve_inbox_caller",
+            return_value=self.parent,
+        ):
+            with self.assertRaisesRegex(
+                ValueError,
+                "requires program gate marker in message",
+            ):
+                write_inbox_program_route(
+                    self.root,
+                    self.parent,
+                    self.child,
+                    "accept brief",
+                )
+
+    def test_write_inbox_program_route_allows_registered_parent(self) -> None:
+        from session_binding import write_inbox_program_route
+
+        with patch(
+            "session_binding.resolve_inbox_caller",
+            return_value=self.parent,
+        ):
+            path = write_inbox_program_route(
+                self.root,
+                self.parent,
+                self.child,
+                self._gate_payload(),
+            )
+        self.assertTrue(path.exists())
+        self.assertIn("accept brief", path.read_text())
 
 
 class SessionEndHookPaneCleanupTests(unittest.TestCase):

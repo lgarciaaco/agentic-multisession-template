@@ -33,7 +33,7 @@ python3 scripts/program-route-feedback.py <parent> <child> \
   --gate brief_review --message "accept brief"
 ```
 
-Use `--gate plan_user_review --message "accept plan"` (or `reopen brief` / `reopen plan`) at the plan gate. Raw `session-inbox.sh write` gate commands are rejected unless they include the program-route marker. While in `brief_review`, poll every 2 minutes:
+Use `--gate plan_user_review --message "accept plan"` (or `reopen brief` / `reopen plan`) at the plan gate. Raw `session-inbox.sh write` gate commands are rejected unless they include the program-route marker. **Brief corrections** auto-apply only from the registered program parent; sibling, self, or standalone-session corrections are rejected with `unauthorized_feedback_sender`, marked processed, and do not mutate the brief. While in `brief_review`, poll every 2 minutes:
 
 ```bash
 python3 scripts/workflow-pull-inbox-gate.py <codename> --apply
@@ -60,7 +60,7 @@ Syncs tasks → `session.json`, creates worktrees, `phase: implementation`.
 
 Reopen: `python3 scripts/workflow-reopen-plan.py <codename>`
 
-**Inbox at gate:** e.g. `accept plan`, `reopen plan`, or plan revision notes — same 2-minute pull as brief gate.
+**Inbox at gate:** Gate commands (`accept plan`, `reopen plan`) require parent routing via `program-route-feedback.py` (marker + provenance). Plan revision free-text auto-applies only from the registered program parent — same 2-minute pull as brief gate. Unauthorized gate commands are rejected with `unauthorized_gate_sender`; unauthorized plan feedback (sibling, self, or standalone session) with `unauthorized_feedback_sender`.
 
 ## 5. Implementation → code review (automatic)
 

@@ -22,6 +22,7 @@ from workflow_inbox_gate import (  # noqa: E402
     apply_brief_correction,
     apply_plan_feedback,
     classify_gate_message,
+    feedback_sender_authorized,
     gate_command_sender_authorized,
     parse_inbox_blocks,
     pull_inbox_gate,
@@ -108,16 +109,18 @@ class WorkflowInboxGateTests(unittest.TestCase):
     def _route_parent(self, gate: str, message: str) -> None:
         from session_binding import write_inbox_program_route
 
-        write_inbox_program_route(
-            self.root,
-            self.parent,
-            self.child,
-            (
-                f"{message}\n\n"
-                f"[program-orchestrator gate={gate}]\n"
-                f"Parent `{self.parent}` routed feedback."
-            ),
+        payload = (
+            f"{message}\n\n"
+            f"[program-orchestrator gate={gate}]\n"
+            f"Parent `{self.parent}` routed feedback."
         )
+        with mock.patch("session_binding.resolve_inbox_caller", return_value=self.parent):
+            write_inbox_program_route(
+                self.root,
+                self.parent,
+                self.child,
+                payload,
+            )
 
     def _route_parent_accept_brief(self) -> None:
         self._route_parent("brief_review", "accept brief")
@@ -191,6 +194,28 @@ none
         self.assertEqual(
             classify_gate_message("plan_user_review", "Split t2 into two tasks."),
             "plan_feedback",
+        )
+
+    def test_feedback_sender_authorized(self) -> None:
+        self.assertFalse(
+            feedback_sender_authorized(self.root, self.child, self.child),
+        )
+        self.assertFalse(
+            feedback_sender_authorized(self.root, self.child, self.sibling),
+        )
+        self.assertTrue(
+            feedback_sender_authorized(self.root, self.child, self.parent),
+        )
+
+    def test_feedback_sender_authorized_standalone_session(self) -> None:
+        standalone = "delta"
+        standalone_dir = self.root / "sessions" / standalone
+        standalone_dir.mkdir()
+        (standalone_dir / "session.json").write_text(
+            json.dumps({"codename": standalone, "tasks": []}) + "\n"
+        )
+        self.assertFalse(
+            feedback_sender_authorized(self.root, standalone, self.parent),
         )
 
     def test_gate_command_sender_authorized(self) -> None:
@@ -278,13 +303,67 @@ none
             "program_route_feedback.resolve_codename",
             return_value=(self.sibling, "binding"),
         ):
-            with self.assertRaisesRegex(ValueError, "requires bound session"):
+            with self.assertRaisesRegex(ValueError, f"not {self.sibling!r}"):
                 route_feedback(
                     self.root,
                     parent=self.parent,
                     child=self.child,
                     gate="brief_review",
                     message="accept brief",
+                )
+
+    def test_route_feedback_rejects_unbound_caller(self) -> None:
+        with mock.patch(
+            "program_route_feedback.resolve_codename",
+            return_value=(None, ""),
+        ):
+            with self.assertRaisesRegex(ValueError, "not unbound caller"):
+                route_feedback(
+                    self.root,
+                    parent=self.parent,
+                    child=self.child,
+                    gate="brief_review",
+                    message="accept brief",
+                )
+
+    def test_write_inbox_program_route_rejects_sibling_caller(self) -> None:
+        from session_binding import write_inbox_program_route
+
+        payload = (
+            "accept brief\n\n"
+            "[program-orchestrator gate=brief_review]\n"
+            f"Parent `{self.parent}` routed feedback."
+        )
+        with mock.patch(
+            "session_binding.resolve_inbox_caller",
+            return_value=self.sibling,
+        ):
+            with self.assertRaisesRegex(ValueError, "requires caller"):
+                write_inbox_program_route(
+                    self.root,
+                    self.parent,
+                    self.child,
+                    payload,
+                )
+
+    def test_write_inbox_program_route_rejects_unbound_caller(self) -> None:
+        from session_binding import write_inbox_program_route
+
+        payload = (
+            "accept brief\n\n"
+            "[program-orchestrator gate=brief_review]\n"
+            f"Parent `{self.parent}` routed feedback."
+        )
+        with mock.patch("session_binding.resolve_inbox_caller", return_value=None):
+            with self.assertRaisesRegex(
+                ValueError,
+                "requires bound session caller equal to registered parent",
+            ):
+                write_inbox_program_route(
+                    self.root,
+                    self.parent,
+                    self.child,
+                    payload,
                 )
 
     def test_parse_inbox_blocks(self) -> None:
@@ -435,6 +514,33 @@ none
         workflow = json.loads((self.session_dir / "workflow.json").read_text())
         self.assertFalse(workflow["gates"]["brief_accepted"])
 
+    def test_pull_inbox_gate_rejects_parent_ordinary_write_with_gate_marker(self) -> None:
+        """Parent gate-marker body via ordinary inbox write must not auto-apply."""
+        body = "accept brief\n\n[program-orchestrator gate=brief_review]"
+        write_inbox(
+            self.root,
+            self.parent,
+            self.child,
+            body,
+            caller_codename=self.parent,
+        )
+        result = pull_inbox_gate(self.root, self.codename, apply=True)
+        self.assertEqual(result["applied"], [])
+        self.assertEqual(result["rejected"][0]["reason"], "unauthorized_gate_sender")
+        workflow = json.loads((self.session_dir / "workflow.json").read_text())
+        self.assertFalse(workflow["gates"]["brief_accepted"])
+        self.assertEqual(workflow["phase"], "brief_review")
+        marker = result["rejected"][0]["marker"]
+        self.assertIn(marker, workflow["gates"]["inbox"]["processed_markers"])
+        second = pull_inbox_gate(self.root, self.codename, apply=False)
+        self.assertEqual(second["pending"], [])
+
+        self._route_parent_accept_brief()
+        accepted = pull_inbox_gate(self.root, self.codename, apply=True)
+        self.assertEqual(accepted["applied"][0]["action"], "accept_brief")
+        workflow = json.loads((self.session_dir / "workflow.json").read_text())
+        self.assertTrue(workflow["gates"]["brief_accepted"])
+
     def test_pull_inbox_gate_rejects_invalid_from_codename(self) -> None:
         inbox_path = self.root / "sessions" / "_inbox" / f"{self.child}.md"
         inbox_path.parent.mkdir(parents=True, exist_ok=True)
@@ -508,12 +614,102 @@ none
             caller_codename=self.sibling,
         )
         result = pull_inbox_gate(self.root, self.codename, apply=True)
+        self.assertEqual(result["applied"], [])
+        self.assertEqual(result["rejected"][0]["action"], "brief_correction")
+        self.assertEqual(result["rejected"][0]["reason"], "unauthorized_feedback_sender")
+        workflow = json.loads((self.session_dir / "workflow.json").read_text())
+        self.assertEqual(workflow["phase"], "brief_review")
+        brief = (self.session_dir / "artifacts" / "problem-brief.md").read_text()
+        self.assertNotIn("Tighten SC-1 wording", brief)
+
+    def test_pull_inbox_gate_apply_brief_correction_from_parent(self) -> None:
+        write_inbox(
+            self.root,
+            self.parent,
+            self.child,
+            "Tighten SC-1 wording for clarity.",
+            caller_codename=self.parent,
+        )
+        result = pull_inbox_gate(self.root, self.codename, apply=True)
         self.assertEqual(result["applied"][0]["action"], "brief_correction")
         workflow = json.loads((self.session_dir / "workflow.json").read_text())
         self.assertEqual(workflow["phase"], "brief_review")
         brief = (self.session_dir / "artifacts" / "problem-brief.md").read_text()
-        self.assertIn(f"Inbox correction from `{self.sibling}`", brief)
+        self.assertIn(f"Inbox correction from `{self.parent}`", brief)
         self.assertIn("Tighten SC-1 wording", brief)
+
+    def test_pull_inbox_gate_rejects_sibling_plan_feedback(self) -> None:
+        self._write_workflow(phase="plan_user_review")
+        self._write_minimal_action_plan()
+        write_inbox(
+            self.root,
+            self.sibling,
+            self.child,
+            "Split t2 into two tasks.",
+            caller_codename=self.sibling,
+        )
+        result = pull_inbox_gate(self.root, self.codename, apply=True)
+        self.assertEqual(result["applied"], [])
+        self.assertEqual(result["rejected"][0]["action"], "plan_feedback")
+        self.assertEqual(result["rejected"][0]["reason"], "unauthorized_feedback_sender")
+        workflow = json.loads((self.session_dir / "workflow.json").read_text())
+        self.assertEqual(workflow["phase"], "plan_user_review")
+
+    def test_pull_inbox_gate_apply_plan_feedback_from_parent(self) -> None:
+        self._write_workflow(phase="plan_user_review")
+        self._write_minimal_action_plan()
+        write_inbox(
+            self.root,
+            self.parent,
+            self.child,
+            "Split t2 into two tasks.",
+            caller_codename=self.parent,
+        )
+        result = pull_inbox_gate(self.root, self.codename, apply=True)
+        self.assertEqual(result["applied"][0]["action"], "plan_feedback")
+        workflow = json.loads((self.session_dir / "workflow.json").read_text())
+        self.assertEqual(workflow["phase"], "plan_loop")
+        feedback = (self.session_dir / "artifacts" / "plan-feedback.md").read_text()
+        self.assertIn(f"Inbox feedback from `{self.parent}`", feedback)
+
+    def test_pull_inbox_gate_rejects_feedback_when_no_program_parent(self) -> None:
+        standalone = "delta"
+        standalone_dir = self.root / "sessions" / standalone
+        standalone_dir.mkdir()
+        (standalone_dir / "session.json").write_text(
+            json.dumps({"codename": standalone, "tasks": []}) + "\n"
+        )
+        (standalone_dir / "TASKS.md").write_text("# Goal\n")
+        (standalone_dir / "artifacts").mkdir()
+        (standalone_dir / "artifacts" / "problem-brief.md").write_text(FIXTURE_BRIEF)
+        (standalone_dir / "workflow.json").write_text(
+            json.dumps(
+                {
+                    "version": 2,
+                    "phase": "brief_review",
+                    "gates": {
+                        "brief_accepted": False,
+                        "plan_user_accepted": False,
+                        "inbox": {"processed_markers": [], "last_pull_at": None},
+                    },
+                    "loops": {"plan": {"iteration": 0, "max": 5, "last_verdict": None}},
+                    "artifacts": {"brief": "artifacts/problem-brief.md"},
+                }
+            )
+            + "\n"
+        )
+        write_inbox(
+            self.root,
+            self.parent,
+            standalone,
+            "Fix wording.",
+            caller_codename=self.parent,
+        )
+        result = pull_inbox_gate(self.root, standalone, apply=True)
+        self.assertEqual(result["applied"], [])
+        self.assertEqual(result["rejected"][0]["reason"], "unauthorized_feedback_sender")
+        brief = (standalone_dir / "artifacts" / "problem-brief.md").read_text()
+        self.assertNotIn("Fix wording", brief)
 
     def test_pull_inbox_gate_json_helper(self) -> None:
         payload = pull_inbox_gate_json(self.root, self.codename, apply=False)

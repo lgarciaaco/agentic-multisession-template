@@ -901,6 +901,15 @@ def write_inbox_program_route(
         )
     if _PROGRAM_GATE_MARKER not in message:
         raise ValueError("program_route inbox write requires program gate marker in message")
+    caller = resolve_inbox_caller(root)
+    if caller is None:
+        raise ValueError(
+            "program_route inbox write requires bound session caller equal to registered parent"
+        )
+    if caller != parent:
+        raise ValueError(
+            f"program_route inbox write requires caller {parent!r}, not {caller!r}"
+        )
     return _append_inbox_message(
         root,
         parent,

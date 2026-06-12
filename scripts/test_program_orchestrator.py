@@ -10,6 +10,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from program_monitor import (  # noqa: E402
@@ -73,6 +74,24 @@ class ProgramOrchestratorTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.tempdir.cleanup()
+
+    def _route_feedback(self, **kwargs: object) -> str:
+        parent = kwargs.pop("parent", self.parent)
+        child = kwargs.pop("child", self.child)
+        with mock.patch(
+            "program_route_feedback.resolve_codename",
+            return_value=(parent, "binding"),
+        ):
+            with mock.patch(
+                "session_binding.resolve_inbox_caller",
+                return_value=parent,
+            ):
+                return route_feedback(
+                    self.root,
+                    parent=parent,
+                    child=child,
+                    **kwargs,
+                )
 
     def test_monitor_reports_child_gate(self) -> None:
         report = monitor_program(self.root, self.parent)
@@ -216,10 +235,7 @@ print(status_path)
         self.assertEqual(review["child_scope"]["title"], "Child session title")
 
     def test_route_feedback_writes_inbox(self) -> None:
-        route_feedback(
-            self.root,
-            parent=self.parent,
-            child=self.child,
+        self._route_feedback(
             gate="brief_review",
             message="accept brief",
         )
@@ -233,10 +249,7 @@ print(status_path)
         )
 
     def test_route_feedback_classifies_as_gate_accept(self) -> None:
-        route_feedback(
-            self.root,
-            parent=self.parent,
-            child=self.child,
+        self._route_feedback(
             gate="brief_review",
             message="accept brief",
         )
@@ -320,10 +333,7 @@ none
 
     def test_route_feedback_accept_plan_applies_via_inbox_pull(self) -> None:
         self._write_child_plan_gate_workflow()
-        route_feedback(
-            self.root,
-            parent=self.parent,
-            child=self.child,
+        self._route_feedback(
             gate="plan_user_review",
             message="accept plan",
         )
@@ -335,10 +345,7 @@ none
         self.assertEqual(workflow["phase"], "implementation")
 
     def test_route_feedback_reopen_brief_applies_via_inbox_pull(self) -> None:
-        route_feedback(
-            self.root,
-            parent=self.parent,
-            child=self.child,
+        self._route_feedback(
             gate="brief_review",
             message="reopen brief",
         )
@@ -351,10 +358,7 @@ none
 
     def test_route_feedback_reopen_plan_applies_via_inbox_pull(self) -> None:
         self._write_child_plan_gate_workflow()
-        route_feedback(
-            self.root,
-            parent=self.parent,
-            child=self.child,
+        self._route_feedback(
             gate="plan_user_review",
             message="reopen plan",
         )

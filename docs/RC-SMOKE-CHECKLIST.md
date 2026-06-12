@@ -13,7 +13,7 @@ Run once on the **rc tip** (merged PRs 1–6, `.hub-version` = `1.0.0-rc.1`) bef
 - Python 3.10+
 - `pip install -r scripts/requirements.txt`
 - Optional: `./scripts/install-workspace-agent.sh` (tmux launcher)
-- Bound session codename for guard/workflow steps
+- Bound session codename for guard and workflow steps
 
 ---
 
@@ -26,7 +26,7 @@ Run once on the **rc tip** (merged PRs 1–6, `.hub-version` = `1.0.0-rc.1`) bef
 | S3 | Version | `cat .hub-version` | `1.0.0-rc.1` |
 | S4 | Session bind | `./scripts/resolve-session.sh` | Prints bound codename |
 | S5 | Worktree guard | Bound session: edit allowed under `sessions/<codename>/worktrees/**`; denied under `scripts/`, `repos/` | allow / deny / deny |
-| S6 | Workflow artifacts | `test -f sessions/<codename>/workflow.json` and `artifacts/action-plan.md` | Files exist when `/workflow` active |
+| S6 | Workflow artifacts | `test -f sessions/<codename>/workflow.json` and `artifacts/action-plan.md` | Files exist when `/workflow-orchestrator` is active |
 | S7 | Pre-PR suite | `python3 -m unittest discover -s scripts -p 'test_*.py'` | All tests pass |
 | S8 | Binding smoke | `python3 scripts/test_session_binding.py` | OK |
 | S9 | Workflow gate scripts | `python3 scripts/test_workflow_gates.py` && `python3 scripts/test_workflow_resume.py` | OK |
@@ -83,4 +83,4 @@ Record each run here or in session `artifacts/rc-smoke-results.md`.
 
 - Fix any FAIL before PR-7 tag prep
 - Re-run S7–S9 after hub-layer changes
-- See [WORKFLOW.md](WORKFLOW.md) for `/workflow` gate flow
+- See [WORKFLOW.md](WORKFLOW.md) for `/workflow-orchestrator` gate flow

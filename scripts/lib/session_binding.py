@@ -807,8 +807,16 @@ def worktree_alias(task: dict) -> str:
 
 
 def task_worktree_rel(codename: str, task: dict) -> str:
+    name = validate_codename(codename)
     alias = worktree_alias(task)
-    return task.get("worktree") or f"sessions/{codename}/worktrees/{alias}"
+    expected_prefix = f"sessions/{name}/worktrees/"
+    raw = task.get("worktree")
+    if raw:
+        rel = str(raw).strip().lstrip("/")
+        if ".." in Path(rel).parts or not rel.startswith(expected_prefix):
+            raise ValueError(f"task worktree must stay under {expected_prefix}")
+        return rel
+    return f"{expected_prefix}{alias}"
 
 
 def worktree_dest(root: Path, codename: str, task: dict) -> Path:
@@ -1054,7 +1062,8 @@ def format_inbox_section(root: Path, codename: str) -> str:
     content = read_inbox(root, codename)
     if not content:
         return ""
-    return f"\n## Inbox (from other sessions)\n\n{content}\n"
+    safe = sanitize_goal_text(content, max_len=4000)
+    return f"\n## Inbox (from other sessions)\n\n{safe}\n"
 
 
 def format_workflow_section(root: Path, codename: str) -> str:
@@ -1111,6 +1120,27 @@ def format_workflow_section(root: Path, codename: str) -> str:
             lines.append(f"  - {entry}")
 
     lines.append("- **Commands:** `/workflow`, `/workflow status`")
+    if phase in ("brief_review", "plan_user_review"):
+        try:
+            from workflow_inbox_gate import INBOX_POLL_SECONDS, pull_inbox_gate
+
+            gate_pull = pull_inbox_gate(root, codename, apply=False)
+            pending = gate_pull.get("pending") or []
+            if pending:
+                first = pending[0]
+                action = sanitize_context_text(str(first.get("action") or ""), max_len=40)
+                from_sess = sanitize_context_text(str(first.get("from") or ""), max_len=40)
+                lines.append(
+                    f"- **Inbox gate:** {len(pending)} pending; next `{action}` from `{from_sess}` "
+                    f"(auto-applied on `./scripts/sync-session.sh`)"
+                )
+            else:
+                lines.append(
+                    f"- **Inbox gate:** poll every {INBOX_POLL_SECONDS // 60}m; "
+                    "auto-applied on `./scripts/sync-session.sh`"
+                )
+        except (ImportError, ValueError):
+            pass
     try:
         from workflow_resume import workflow_next_action
 
@@ -1203,6 +1233,26 @@ def refresh_binding_contexts(
         context_path(root, cid).write_text(build_context_markdown(root, codename, cid))
 
 
+def _maybe_apply_inbox_gate_at_sync(root: Path, codename: str) -> None:
+    """Apply correlated inbox gate commands before context refresh at user gates."""
+    workflow_path = root / "sessions" / codename / "workflow.json"
+    if not workflow_path.exists():
+        return
+    try:
+        workflow = json.loads(workflow_path.read_text())
+    except json.JSONDecodeError:
+        return
+    phase = str(workflow.get("phase") or "")
+    try:
+        from workflow_inbox_gate import GATE_PHASES, pull_inbox_gate
+
+        if phase not in GATE_PHASES:
+            return
+        pull_inbox_gate(root, codename, apply=True)
+    except (ImportError, ValueError):
+        return
+
+
 def sync_session_from_canonical(
     root: Path,
     codename: str,
@@ -1217,6 +1267,7 @@ def sync_session_from_canonical(
         resume_session_on_bind(root, name)
     else:
         sync_index_from_session(root, name)
+    _maybe_apply_inbox_gate_at_sync(root, name)
     if refresh_context:
         refresh_binding_contexts(root, name, conversation_id=conversation_id)
 

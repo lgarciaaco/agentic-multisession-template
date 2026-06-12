@@ -9,7 +9,7 @@ description: >-
 
 # Workflow orchestrator
 
-One chat, one conductor. Linear pipeline with autonomous plan and code loops between user gates.
+One chat, one conductor. Linear pipeline with autonomous plan and code loops between user gates. **Inbox feedback** from monitoring sessions counts at gates when correlated; poll every 2 minutes while awaiting a gate.
 
 ## Target
 
@@ -26,6 +26,7 @@ One chat, one conductor. Linear pipeline with autonomous plan and code loops bet
 | `/workflow status` | One-screen status from `workflow.json` |
 | `accept brief` / `accept` | Gate 1 (phase `brief_review`) |
 | `accept plan` | Gate 2 → `./scripts/workflow-accept-plan.sh <codename>` |
+| Inbox at gate | `./scripts/workflow-pull-inbox-gate.py <codename> [--apply]` — correlated messages count as gate feedback |
 | `reopen brief` | `python3 scripts/workflow-reopen-brief.py <codename>` |
 | `reopen plan` | `python3 scripts/workflow-reopen-plan.py <codename>` |
 
@@ -45,9 +46,9 @@ One chat, one conductor. Linear pipeline with autonomous plan and code loops bet
 | Phase | Role rules | User gate |
 |-------|------------|-----------|
 | `intake` | [problem-analyst.md](rules/problem-analyst.md) | — |
-| `brief_review` | problem-analyst.md | accept brief |
+| `brief_review` | problem-analyst.md | accept brief (chat or correlated inbox) |
 | `plan_loop` | plan-author + plan-reviewer (Task) | — |
-| `plan_user_review` | conductor presents plan + refused dispositions | accept plan |
+| `plan_user_review` | conductor presents plan + refused dispositions | accept plan (chat or correlated inbox) |
 | `implementation` | session-orchestrator + conductor developer section | — |
 | `code_review_loop` | code-reviewer + code-fixer (parent) | — |
 | `pr_creation` | git-commit + pr-create skills (parent) | — |
@@ -72,6 +73,7 @@ Read `workflow.json` and artifact paths; print:
 - **Brief:** sessions/<codename>/<brief path> (present|missing)
 - **Plan:** sessions/<codename>/<plan path> (present|missing)
 - **Next command:** <suggested user or agent action>
+- **Inbox gate poll:** every 2m while phase is `brief_review` or `plan_user_review`
 ```
 
 Do not ask the user to relay messages between agents or sessions.
@@ -79,11 +81,13 @@ Do not ask the user to relay messages between agents or sessions.
 ## Pipeline (overview)
 
 ```text
-intake → brief_review → [accept brief]
-  → plan_loop → plan_user_review → [accept plan]
+intake → brief_review → [accept brief | inbox at gate]
+  → plan_loop → plan_user_review → [accept plan | inbox at gate]
   → implementation → [auto] code_review_loop
   → [auto] pr_creation → [auto] ci_observe → delivery → completed
 ```
+
+At `brief_review` and `plan_user_review`, poll inbox every 2m: `python3 scripts/workflow-pull-inbox-gate.py <codename> --apply`. See [rules/conductor.md](rules/conductor.md) **Inbox gate feedback**.
 
 Autonomous loops — conductor runs without user between gates.
 
@@ -125,7 +129,7 @@ python3 scripts/workflow-plan-synthesize.py <codename> sessions/<codename>/revie
 
 After synthesizer **APPROVE**, conductor presents **Approach**, task summary, and **refused dispositions only** (validated deferrals from **Reviewer disposition**). Accepted items are already in the plan. See [rules/conductor.md](rules/conductor.md) **Plan user review**.
 
-After user says **accept plan**:
+After user says **accept plan** (or inbox pull applies `accept plan`):
 
 ```bash
 ./scripts/workflow-accept-plan.sh <codename>
@@ -277,7 +281,7 @@ Templates: `sessions/_template/artifacts/`. Schema: [references/workflow-schema.
 - [ ] `workflow.json` phase matches work done
 - [ ] Gates not skipped
 - [ ] `./scripts/sync-session.sh <codename>` after metadata or workflow edits
-- [ ] No `session-inbox.sh` for workflow handoff
+- [ ] Inbox gate loop stopped after leaving `brief_review` / `plan_user_review`
 
 ## Writable
 

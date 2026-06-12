@@ -1,0 +1,330 @@
+"""Inbox feedback correlated with workflow user gates."""
+
+from __future__ import annotations
+
+import hashlib
+import re
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from hub_paths import resolve_session_artifact
+from session_binding import read_inbox
+from workflow_plan import (
+    INBOX_GATE_POLL_SECONDS,
+    accept_action_plan,
+    load_workflow,
+    save_workflow,
+)
+from workflow_resume import reopen_brief, reopen_plan
+
+GATE_PHASES = frozenset({"brief_review", "plan_user_review"})
+INBOX_POLL_SECONDS = INBOX_GATE_POLL_SECONDS
+
+_INBOX_BLOCK_RE = re.compile(
+    r"^\*\*From `(?P<from>[^`]+)`\*\* \((?P<date>[^)]+)\)\s*\n+(?P<body>.*?)(?=^\*\*From `|\Z)",
+    re.MULTILINE | re.DOTALL,
+)
+
+_COMMAND_PATTERNS: dict[str, re.Pattern[str]] = {
+    "accept_brief": re.compile(
+        r"^(?:workflow:\s*)?(?:accept brief|accept)\s*$",
+        re.IGNORECASE,
+    ),
+    "accept_plan": re.compile(
+        r"^(?:workflow:\s*)?accept plan\s*$",
+        re.IGNORECASE,
+    ),
+    "reopen_brief": re.compile(
+        r"^(?:workflow:\s*)?reopen brief\s*$",
+        re.IGNORECASE,
+    ),
+    "reopen_plan": re.compile(
+        r"^(?:workflow:\s*)?reopen plan\s*$",
+        re.IGNORECASE,
+    ),
+}
+
+_PHASE_COMMANDS: dict[str, tuple[str, ...]] = {
+    "brief_review": ("accept_brief", "reopen_brief"),
+    "plan_user_review": ("accept_plan", "reopen_plan"),
+}
+
+_PHASE_FEEDBACK: dict[str, str] = {
+    "brief_review": "brief_correction",
+    "plan_user_review": "plan_feedback",
+}
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def inbox_gate_state(workflow: dict[str, Any]) -> dict[str, Any]:
+    gates = workflow.setdefault("gates", {})
+    inbox = gates.setdefault("inbox", {})
+    inbox.setdefault("processed_markers", [])
+    inbox.setdefault("last_pull_at", None)
+    return inbox
+
+
+def block_marker(from_session: str, date: str, body: str) -> str:
+    payload = f"{from_session}|{date}|{body.strip()}"
+    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
+    return f"{from_session}:{date}:{digest}"
+
+
+def parse_inbox_blocks(content: str) -> list[dict[str, str]]:
+    blocks: list[dict[str, str]] = []
+    for match in _INBOX_BLOCK_RE.finditer(content):
+        body = match.group("body").strip()
+        if not body:
+            continue
+        from_session = match.group("from").strip()
+        date = match.group("date").strip()
+        blocks.append(
+            {
+                "from": from_session,
+                "date": date,
+                "body": body,
+                "marker": block_marker(from_session, date, body),
+            }
+        )
+    return blocks
+
+
+def classify_gate_message(phase: str, body: str) -> str | None:
+    if phase not in GATE_PHASES:
+        return None
+    text = body.strip()
+    if not text:
+        return None
+
+    first_line = text.splitlines()[0].strip()
+    for action in _PHASE_COMMANDS.get(phase, ()):
+        if _COMMAND_PATTERNS[action].match(first_line):
+            return action
+    return _PHASE_FEEDBACK[phase]
+
+
+def unprocessed_inbox_blocks(
+    root: Path,
+    codename: str,
+    workflow: dict[str, Any],
+) -> list[dict[str, str]]:
+    content = read_inbox(root, codename)
+    if not content:
+        return []
+    inbox = inbox_gate_state(workflow)
+    processed = set(inbox.get("processed_markers") or [])
+    return [block for block in parse_inbox_blocks(content) if block["marker"] not in processed]
+
+
+def set_problem_brief_accepted(session_dir: Path, brief_rel: str) -> None:
+    brief_path = resolve_session_artifact(session_dir, brief_rel)
+    if not brief_path.exists():
+        return
+    accepted = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    text = brief_path.read_text()
+    text = re.sub(
+        r"^\*\*Status:\*\*.*$",
+        "**Status:** accepted",
+        text,
+        count=1,
+        flags=re.MULTILINE,
+    )
+    text = re.sub(
+        r"^\*\*Accepted:\*\*.*$",
+        f"**Accepted:** {accepted}",
+        text,
+        count=1,
+        flags=re.MULTILINE,
+    )
+    text = re.sub(
+        r"(?ms)^## Open questions\s*\n(?:- .*\n)*",
+        "## Open questions\n\n(none)\n",
+        text,
+        count=1,
+    )
+    brief_path.write_text(text)
+
+
+def accept_brief(root: Path, codename: str, *, source: str = "user") -> dict[str, Any]:
+    """User or inbox gate: accept brief → plan loop."""
+    session_dir = root / "sessions" / codename
+    workflow = load_workflow(session_dir)
+    phase = str(workflow.get("phase") or "")
+    if phase != "brief_review":
+        raise ValueError(f"cannot accept brief in phase '{phase}'")
+
+    gates = workflow.setdefault("gates", {})
+    if gates.get("brief_accepted"):
+        raise ValueError("brief already accepted")
+
+    artifacts = workflow.get("artifacts") or {}
+    brief_rel = artifacts.get("brief", "artifacts/problem-brief.md")
+    set_problem_brief_accepted(session_dir, brief_rel)
+
+    gates["brief_accepted"] = True
+    workflow["phase"] = "plan_loop"
+    save_workflow(session_dir, workflow)
+    return {"codename": codename, "phase": "plan_loop", "source": source}
+
+
+def apply_plan_feedback(
+    root: Path,
+    codename: str,
+    message: str,
+    *,
+    from_session: str,
+) -> dict[str, Any]:
+    session_dir = root / "sessions" / codename
+    workflow = load_workflow(session_dir)
+    phase = str(workflow.get("phase") or "")
+    if phase != "plan_user_review":
+        raise ValueError(f"cannot apply plan feedback in phase '{phase}'")
+
+    artifacts = workflow.get("artifacts") or {}
+    feedback_rel = artifacts.get("plan_feedback", "artifacts/plan-feedback.md")
+    feedback_path = resolve_session_artifact(session_dir, feedback_rel)
+    feedback_path.parent.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    block = f"\n\n## Inbox feedback from `{from_session}` ({stamp})\n\n{message.strip()}\n"
+    if feedback_path.exists():
+        feedback_path.write_text(feedback_path.read_text().rstrip() + block + "\n")
+    else:
+        feedback_path.write_text(f"# Plan feedback\n{block}\n")
+
+    workflow["phase"] = "plan_loop"
+    save_workflow(session_dir, workflow)
+    return {"codename": codename, "phase": "plan_loop", "artifact": str(feedback_rel)}
+
+
+def mark_inbox_processed(workflow: dict[str, Any], markers: list[str]) -> None:
+    inbox = inbox_gate_state(workflow)
+    processed = list(inbox.get("processed_markers") or [])
+    for marker in markers:
+        if marker not in processed:
+            processed.append(marker)
+    inbox["processed_markers"] = processed
+    inbox["last_pull_at"] = _utc_now_iso()
+
+
+def pull_inbox_gate(
+    root: Path,
+    codename: str,
+    *,
+    apply: bool = False,
+) -> dict[str, Any]:
+    session_dir = root / "sessions" / codename
+    workflow_path = session_dir / "workflow.json"
+    if not workflow_path.exists():
+        raise ValueError(f"missing {workflow_path} — start /workflow first")
+
+    workflow = load_workflow(session_dir)
+    phase = str(workflow.get("phase") or "")
+    inbox = inbox_gate_state(workflow)
+    blocks = unprocessed_inbox_blocks(root, codename, workflow)
+
+    pending: list[dict[str, Any]] = []
+    for block in blocks:
+        action = classify_gate_message(phase, block["body"])
+        if not action:
+            continue
+        pending.append(
+            {
+                "action": action,
+                "from": block["from"],
+                "date": block["date"],
+                "marker": block["marker"],
+                "body": block["body"],
+            }
+        )
+
+    result: dict[str, Any] = {
+        "codename": codename,
+        "phase": phase,
+        "gate_phase": phase in GATE_PHASES,
+        "poll_seconds": INBOX_POLL_SECONDS,
+        "last_pull_at": inbox.get("last_pull_at"),
+        "pending": pending,
+        "applied": [],
+    }
+
+    if not apply or not pending:
+        if phase in GATE_PHASES:
+            inbox["last_pull_at"] = _utc_now_iso()
+            save_workflow(session_dir, workflow)
+        return result
+
+    applied_markers: list[str] = []
+    for item in pending:
+        action = item["action"]
+        from_session = item["from"]
+        body = item["body"]
+        marker = item["marker"]
+
+        if action == "accept_brief":
+            accept_brief(root, codename, source=f"inbox:{from_session}")
+            workflow = load_workflow(session_dir)
+            phase = str(workflow.get("phase") or "")
+            result["phase"] = phase
+            applied_markers.append(marker)
+            result["applied"].append({"action": action, "from": from_session, "marker": marker})
+            break
+
+        if action == "accept_plan":
+            accept_action_plan(root, codename)
+            workflow = load_workflow(session_dir)
+            phase = str(workflow.get("phase") or "")
+            result["phase"] = phase
+            applied_markers.append(marker)
+            result["applied"].append({"action": action, "from": from_session, "marker": marker})
+            break
+
+        if action == "reopen_brief":
+            workflow = reopen_brief(session_dir)
+            phase = str(workflow.get("phase") or "")
+            result["phase"] = phase
+            applied_markers.append(marker)
+            result["applied"].append({"action": action, "from": from_session, "marker": marker})
+            break
+
+        if action == "reopen_plan":
+            workflow = reopen_plan(session_dir)
+            phase = str(workflow.get("phase") or "")
+            result["phase"] = phase
+            applied_markers.append(marker)
+            result["applied"].append({"action": action, "from": from_session, "marker": marker})
+            break
+
+        if action == "plan_feedback":
+            apply_plan_feedback(root, codename, body, from_session=from_session)
+            workflow = load_workflow(session_dir)
+            phase = str(workflow.get("phase") or "")
+            result["phase"] = phase
+            applied_markers.append(marker)
+            result["applied"].append({"action": action, "from": from_session, "marker": marker})
+            break
+
+        if action == "brief_correction":
+            applied_markers.append(marker)
+            result["applied"].append(
+                {
+                    "action": action,
+                    "from": from_session,
+                    "marker": marker,
+                    "body": body,
+                }
+            )
+            break
+
+    workflow = load_workflow(session_dir)
+    mark_inbox_processed(workflow, applied_markers)
+    save_workflow(session_dir, workflow)
+    result["last_pull_at"] = inbox_gate_state(workflow).get("last_pull_at")
+    return result
+
+
+def pull_inbox_gate_json(root: Path, codename: str, *, apply: bool = False) -> str:
+    return json.dumps(pull_inbox_gate(root, codename, apply=apply), indent=2) + "\n"

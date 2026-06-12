@@ -56,15 +56,56 @@ Re-run on gate events and during periodic standups. Report path: `artifacts/prog
 
 When any child has `pending_gate`, run monitor + status report **before** presenting status to the user.
 
+## Check children (mandatory)
+
+When the user asks to **check children**, **status**, **standup**, or **how are the child sessions** — or when presenting `/sessions-orchestrator status`:
+
+1. Run `program-monitor.py` + `program-status-report.sh`.
+2. Spawn **Task(child-reviewer)** per active child **in parallel** — [agents/child-reviewer.md](agents/child-reviewer.md). Pass that child's monitor JSON slice.
+3. Parent synthesizes subagent returns; **never** inline-read all child artifacts in the parent without subagents.
+
+**Proactive gate review:** At `brief_review` or `plan_user_review`, each subagent **must** read the gate artifact and return **Parent assessment** (alignment, gaps, accept/reopen/inbox recommendation). Include that assessment in **Your action** below — do not defer with "review when ready".
+
+### Response format (mandatory)
+
+```text
+Parent next: <short imperative from parent_next_action>
+
+┌────────┬──────────────┬───────┬──────────────────────────────────────────┐
+│ Child  │ Phase        │ Gate  │ Status                                   │
+├────────┼──────────────┼───────┼──────────────────────────────────────────┤
+│ <name> │ <phase>      │ brief │ <Status section from subagent>           │
+│ …      │ …            │ plan  │ …                                        │
+│ …      │ intake       │ —     │ …                                        │
+└────────┴──────────────┴───────┴──────────────────────────────────────────┘
+```
+
+**Gate column:** `brief` when `pending_gate` is `brief_review`; `plan` when `plan_user_review`; `—` otherwise.
+
+Then **one block per child** (all active children, not only pending gates):
+
+```markdown
+### Your action — `<codename>`
+
+**Child agent:** <Child agent action from subagent>
+
+**Parent:** <Parent assessment when brief/plan artifact exists or gate pending; otherwise monitor-only note>
+```
+
+Do not ask the user to relay messages between parent and child tabs.
+
+## `/sessions-orchestrator status`
+
+Same protocol as **Check children**: monitor + parallel Task(child-reviewer) per child, then the mandatory table + **Your action** blocks.
+
 ## Parent gate review (mandatory)
 
-At every child gate the parent **always reviews** — never defer with "accept when ready" or offer "review X / accept X" as alternatives.
+At every child gate the parent **always reviews** — never defer with "accept when ready" or offer "review X / accept X" as alternatives. Gate review runs through **Check children** Task(child-reviewer) subagents; **Parent assessment** in **Your action** blocks is mandatory when brief/plan artifacts exist.
 
-1. Run `python3 scripts/program-monitor.py <parent>` and `./scripts/program-status-report.sh <parent>`.
-2. Read the child gate artifact from `gate_review.artifact_path` in the monitor JSON (brief at `brief_review`, plan at `plan_user_review`).
-3. Compare against **decomposition scope** (`program-plan.md` / `proposed_children` goal for that child).
-4. **Present your assessment:** alignment, gaps, drift from ingest, recommended action.
-5. User routes the gate (exact commands below) or sends corrections via inbox — parent does not skip the review step.
+1. Run monitor + status report (or full **Check children** flow).
+2. Subagent reads `gate_review.artifact_path` and compares to decomposition scope in `program-plan.md`.
+3. Parent presents subagent **Parent assessment** in **Your action — `<codename>`** before routing.
+4. User routes the gate (exact commands below) or sends corrections via inbox — parent does not skip the review step.
 
 | Child phase | After review, user may say | Block / reopen |
 |-------------|---------------------------|----------------|
@@ -111,6 +152,12 @@ When a child reaches workflow phase `completed`:
 ## Writable
 
 Parent: `sessions/<parent>/program.json`, `artifacts/program-*`, hub scripts/skills/docs in worktree per plan.
+
+## Model assignments
+
+| Role | Runner | Model slug | To update |
+|------|--------|------------|-----------|
+| Child reviewer | Task (one per child, parallel) | `claude-4.6-sonnet-medium-thinking` | [agents/child-reviewer.md](agents/child-reviewer.md) |
 
 ## References
 

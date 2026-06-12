@@ -435,6 +435,33 @@ none
         workflow = json.loads((self.session_dir / "workflow.json").read_text())
         self.assertFalse(workflow["gates"]["brief_accepted"])
 
+    def test_pull_inbox_gate_rejects_parent_ordinary_write_with_gate_marker(self) -> None:
+        """Parent gate-marker body via ordinary inbox write must not auto-apply."""
+        body = "accept brief\n\n[program-orchestrator gate=brief_review]"
+        write_inbox(
+            self.root,
+            self.parent,
+            self.child,
+            body,
+            caller_codename=self.parent,
+        )
+        result = pull_inbox_gate(self.root, self.codename, apply=True)
+        self.assertEqual(result["applied"], [])
+        self.assertEqual(result["rejected"][0]["reason"], "unauthorized_gate_sender")
+        workflow = json.loads((self.session_dir / "workflow.json").read_text())
+        self.assertFalse(workflow["gates"]["brief_accepted"])
+        self.assertEqual(workflow["phase"], "brief_review")
+        marker = result["rejected"][0]["marker"]
+        self.assertIn(marker, workflow["gates"]["inbox"]["processed_markers"])
+        second = pull_inbox_gate(self.root, self.codename, apply=False)
+        self.assertEqual(second["pending"], [])
+
+        self._route_parent_accept_brief()
+        accepted = pull_inbox_gate(self.root, self.codename, apply=True)
+        self.assertEqual(accepted["applied"][0]["action"], "accept_brief")
+        workflow = json.loads((self.session_dir / "workflow.json").read_text())
+        self.assertTrue(workflow["gates"]["brief_accepted"])
+
     def test_pull_inbox_gate_rejects_invalid_from_codename(self) -> None:
         inbox_path = self.root / "sessions" / "_inbox" / f"{self.child}.md"
         inbox_path.parent.mkdir(parents=True, exist_ok=True)

@@ -88,20 +88,44 @@ def bootstrap_children(
         raise ValueError("program.json has no proposed_children — run program-decompose.py first")
 
     bootstrapped: list[dict[str, Any]] = []
-    for row in proposed:
-        bootstrapped.append(_bootstrap_child_metadata(root, row))
-
     program["decomposition_approved"] = True
     started = _utc_now_iso()
-    program["active_children"] = [
-        {
-            "codename": child["codename"],
-            "status": "running",
-            "started": started,
-        }
-        for child in bootstrapped
-    ]
-    save_program(session_dir, program, codename=parent_name)
+    existing_children = list(program.get("active_children") or [])
+    existing_codenames = {
+        str(item.get("codename"))
+        for item in existing_children
+        if item.get("codename")
+    }
+    initial_existing = set(existing_codenames)
+    program["active_children"] = existing_children
+
+    for row in proposed:
+        suggested = row.get("suggested_codename")
+        if suggested:
+            codename_key = validate_codename(str(suggested))
+            if codename_key in existing_codenames:
+                bootstrapped.append(
+                    {
+                        "codename": codename_key,
+                        "title": (row.get("title") or "").strip() or codename_key,
+                        "goal": (row.get("goal") or "").strip(),
+                        "child_id": row.get("id"),
+                    }
+                )
+                continue
+
+        child = _bootstrap_child_metadata(root, row)
+        bootstrapped.append(child)
+        if child["codename"] not in existing_codenames:
+            program["active_children"].append(
+                {
+                    "codename": child["codename"],
+                    "status": "running",
+                    "started": started,
+                }
+            )
+            existing_codenames.add(child["codename"])
+            save_program(session_dir, program, codename=parent_name)
 
     result: dict[str, Any] = {
         "parent": parent_name,
@@ -111,11 +135,16 @@ def bootstrap_children(
     }
 
     if in_tmux():
-        codenames = [child["codename"] for child in bootstrapped]
-        windows = open_child_windows(root, codenames)
-        launch_child_agents(root, windows, prompt=workflow_prompt)
-        result["tmux"] = True
-        result["windows"] = child_window_records(windows)
+        new_codenames = [
+            child["codename"]
+            for child in bootstrapped
+            if child["codename"] not in initial_existing
+        ]
+        if new_codenames:
+            windows = open_child_windows(root, new_codenames)
+            launch_child_agents(root, windows, prompt=workflow_prompt)
+            result["tmux"] = True
+            result["windows"] = child_window_records(windows)
     else:
         print(format_manual_child_steps(bootstrapped), file=sys.stdout)
 

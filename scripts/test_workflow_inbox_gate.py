@@ -4,10 +4,13 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from program_route_feedback import route_feedback  # noqa: E402
@@ -295,6 +298,28 @@ class WorkflowInboxGateTests(unittest.TestCase):
     def test_sync_session_auto_applies_accept_brief_from_parent(self) -> None:
         self._route_parent_accept_brief()
         sync_session_from_canonical(self.root, self.codename, refresh_context=False)
+        workflow = json.loads((self.session_dir / "workflow.json").read_text())
+        self.assertTrue(workflow["gates"]["brief_accepted"])
+        self.assertEqual(workflow["phase"], "plan_loop")
+
+    def test_cli_sync_failure_after_apply_exits_nonzero(self) -> None:
+        write_inbox(self.root, "bravo", "alpha", "accept brief")
+        scripts = self.root / "scripts"
+        scripts.mkdir()
+        sync = scripts / "sync-session.sh"
+        sync.write_text("#!/usr/bin/env bash\nexit 1\n")
+        sync.chmod(0o755)
+
+        script = Path(__file__).resolve().parent / "workflow-pull-inbox-gate.py"
+        env = {**os.environ, "WORKSPACE_ROOT": str(self.root)}
+        result = subprocess.run(
+            [sys.executable, str(script), "alpha", "--apply"],
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
+        )
+        self.assertNotEqual(result.returncode, 0)
         workflow = json.loads((self.session_dir / "workflow.json").read_text())
         self.assertTrue(workflow["gates"]["brief_accepted"])
         self.assertEqual(workflow["phase"], "plan_loop")

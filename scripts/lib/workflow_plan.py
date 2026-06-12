@@ -262,7 +262,7 @@ def set_action_plan_reviewer_approved(session_dir: Path, plan_rel: str) -> None:
     """Update only Status header in action-plan.md."""
     plan_path = resolve_session_artifact(session_dir, plan_rel)
     if not plan_path.exists():
-        return
+        raise FileNotFoundError(f"action plan not found: {plan_rel}")
     text = plan_path.read_text()
     text = re.sub(
         r"^\*\*Status:\*\*.*$",
@@ -327,8 +327,8 @@ def run_plan_loop(
         save_workflow(session_dir, workflow)
 
         if plan_loop_complete(verdict):
-            workflow["phase"] = "plan_user_review"
             set_action_plan_reviewer_approved(session_dir, plan_rel)
+            workflow["phase"] = "plan_user_review"
             save_workflow(session_dir, workflow)
             break
         if plan_loop_escalate(verdict, index, max_iter):

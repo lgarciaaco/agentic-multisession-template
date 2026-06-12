@@ -50,11 +50,13 @@ def main() -> int:
                 cwd=root,
                 check=False,
             )
-        subprocess.run(
+        sync_result = subprocess.run(
             ["./scripts/sync-session.sh", codename],
             cwd=root,
             check=False,
         )
+        if sync_result.returncode != 0:
+            return sync_result.returncode
 
     return 0
 

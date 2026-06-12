@@ -6,6 +6,7 @@
 
 | ID | Status | Notes |
 |----|--------|-------|
-| | pending | |
+
+_Empty when `session.json` tasks is `[]`._
 
 ## Notes

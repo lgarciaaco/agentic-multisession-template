@@ -19,6 +19,9 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - BOUNDARIES template, SESSIONS.md, docs/REPOS.md, and inbox README aligned: bound sessions cannot edit `sessions/_inbox/` paths directly; cross-session messages via `./scripts/session-inbox.sh write` only; REPOS Guards split into writable vs blocked-when-bound subsections
+- **`sync-session.sh`** — for sessions without `workflow.json`, rewrites `TASKS.md` ## Tasks from `session.json` tasks (empty array → table header rows plus empty-state note, no task data rows)
+- **`set-session-scope.sh --goal`** — backfills `progress.json` `description` when blank; preserves existing description
+- **`sessions/_template/TASKS.md`** — removes phantom pending row; documents empty tasks state
 - `advance_code_review_loop` on PASS now sets phase `pr_creation` (was `delivery`)
 - `sessions/_template/workflow.json` version 2: adds `loops.pr_creation` and `loops.ci_observe`
 - `workflow_resume.py` returns next-action hints for `pr_creation` and `ci_observe` phases

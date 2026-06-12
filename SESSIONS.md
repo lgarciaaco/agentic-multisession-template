@@ -83,6 +83,8 @@ Agents record **what the session is for** as soon as work intent is clear — be
   --next "Optional resume hint"
 ```
 
+`--goal` writes `TASKS.md` ## Goal and, when `progress.json` `description` is blank, copies the sanitized goal into `progress.json` `description` (existing non-empty descriptions are preserved).
+
 | When | Action |
 |------|--------|
 | First bound turn with actionable work | Set title + goal (and `next` if useful) via `set-session-scope.sh` |
@@ -93,12 +95,16 @@ The session-start hook nudges when scope is still thin (empty title, no goal, no
 
 ### Edit scope / tasks
 
-Update **`session.json`** and **`TASKS.md`**, then:
+**`session.json` is canonical for tasks.** Edit `TASKS.md` ## Goal (and ## Notes) directly, or run scope commands for title/goal/next.
+
+After **`session.json` task** changes, run:
 
 ```bash
 ./scripts/ensure-worktrees.sh <codename>   # after task changes
-./scripts/sync-session.sh <codename>
+./scripts/sync-session.sh <codename>       # refreshes index, context, and TASKS.md ## Tasks (non-workflow)
 ```
+
+For sessions **with** `workflow.json`, task tables still sync via `workflow-accept-plan.sh` / action-plan — not `sync-session.sh` alone.
 
 Optional **`session.json`** fields (synced into context on bind):
 
@@ -149,7 +155,7 @@ Canonical status lives in `session.json`. Run `sync-session.sh` if local `index.
 | `./scripts/configure-git-remotes.sh [alias]` | Repair upstream/fork remotes (GitHub fork workflow) |
 | `./scripts/generate-workspace.sh [path]` | Write multi-root `.code-workspace` from `repos.yaml` |
 | `./scripts/ensure-worktrees.sh <name>` | Create git worktrees from `session.json` tasks |
-| `./scripts/sync-session.sh [name]` | Sync index/context from `session.json` |
+| `./scripts/sync-session.sh [name]` | Sync index/context from `session.json`; for non-workflow sessions, refresh `TASKS.md` ## Tasks from `session.json` tasks (empty `tasks: []` → header rows + empty-state note, no data rows) |
 | `python3 scripts/workflow-plan-synthesize.py <name> <workspace>` | Synthesize plan review iteration |
 | `./scripts/workflow-accept-brief.sh <name>` | User accept brief; freeze problem brief; phase → plan_loop |
 | `python3 scripts/workflow-pull-inbox-gate.py <name> [--apply]` | Poll inbox at brief/plan gates (every 2m); `--apply` when correlated |
@@ -163,7 +169,7 @@ Canonical status lives in `session.json`. Run `sync-session.sh` if local `index.
 | `python3 scripts/workflow-write-delivery-report.py <name>` | Generate delivery report; phase → completed |
 | `python3 scripts/workflow-reopen-brief.py <name>` | Reopen brief gate; phase → intake |
 | `python3 scripts/workflow-reopen-plan.py <name>` | Reopen plan gate; phase → plan_loop |
-| `./scripts/set-session-scope.sh [name] --title T [--goal G] [--next N]` | Set title, TASKS.md goal, and/or `next` hint |
+| `./scripts/set-session-scope.sh [name] --title T [--goal G] [--next N]` | Set title, TASKS.md goal (and empty `progress.json` description), and/or `next` hint |
 | `./scripts/unbind-session.sh` | Clear binding only |
 | `./scripts/end-session.sh [name]` | Close work + unbind this chat |
 | `./scripts/list-active-sessions.sh` | Table of open sessions |

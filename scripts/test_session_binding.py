@@ -639,7 +639,8 @@ class WorktreeGuardTests(unittest.TestCase):
         self.assertNotIn("## Injected", tasks_text)
         self.assertNotIn("**Next:**", tasks_text)
         progress = json.loads((session_dir / "progress.json").read_text())
-        self.assertEqual(progress["description"], malicious)
+        self.assertIn("Legit note", progress["description"])
+        self.assertNotIn("Injected", progress["description"])
 
     def test_context_includes_worktree_section(self) -> None:
         ctx = build_context_markdown(self.root, self.codename, "chat-1")
@@ -1258,6 +1259,170 @@ class SessionScopeTests(unittest.TestCase):
         ctx = (self.root / "sessions" / "context" / "chat-scope.md").read_text()
         self.assertIn("Metadata lag fix", ctx)
         self.assertIn("Agents record scope before coding", ctx)
+
+    def test_set_session_scope_sets_progress_description_when_empty(self) -> None:
+        session_dir = self.root / "sessions" / self.codename
+        (session_dir / "progress.json").write_text(
+            json.dumps({"description": "", "status": "active", "session": self.codename})
+            + "\n"
+        )
+        set_session_scope(self.root, self.codename, goal="Program orchestration goal")
+        progress = json.loads((session_dir / "progress.json").read_text())
+        self.assertEqual(progress["description"], "Program orchestration goal")
+
+    def test_set_session_scope_preserves_progress_description(self) -> None:
+        session_dir = self.root / "sessions" / self.codename
+        (session_dir / "progress.json").write_text(
+            json.dumps({"description": "Existing note", "status": "active"}) + "\n"
+        )
+        set_session_scope(self.root, self.codename, goal="New goal text")
+        progress = json.loads((session_dir / "progress.json").read_text())
+        self.assertEqual(progress["description"], "Existing note")
+
+    def test_sync_session_syncs_tasks_table_without_workflow(self) -> None:
+        session_dir = self.root / "sessions" / self.codename
+        (session_dir / "TASKS.md").write_text(
+            "# Session alpha\n\n## Goal\n\n## Tasks\n\n"
+            "| ID | Status | Notes |\n|----|--------|-------|\n| | pending | |\n"
+        )
+        session_path = session_dir / "session.json"
+        session = json.loads(session_path.read_text())
+        session["tasks"] = []
+        session_path.write_text(json.dumps(session, indent=2) + "\n")
+        sync_session_from_canonical(self.root, self.codename, refresh_context=False)
+        text = (session_dir / "TASKS.md").read_text()
+        self.assertNotIn("| | pending |", text)
+        self.assertIn("| ID | Status | Notes |", text)
+        self.assertIn("_Empty when", text)
+
+    def test_sync_session_syncs_nonempty_tasks_table(self) -> None:
+        session_dir = self.root / "sessions" / self.codename
+        session_path = session_dir / "session.json"
+        session = json.loads(session_path.read_text())
+        session["tasks"] = [
+            {
+                "id": "t1",
+                "repo": "template",
+                "status": "pending",
+                "title": "Fix template",
+            }
+        ]
+        session_path.write_text(json.dumps(session, indent=2) + "\n")
+        sync_session_from_canonical(self.root, self.codename, refresh_context=False)
+        text = (session_dir / "TASKS.md").read_text()
+        self.assertIn("| t1 | pending |", text)
+        self.assertIn("repo: template", text)
+
+    def test_sync_session_skips_tasks_table_when_tasks_not_list(self) -> None:
+        session_dir = self.root / "sessions" / self.codename
+        before = (session_dir / "TASKS.md").read_text()
+        session_path = session_dir / "session.json"
+        session = json.loads(session_path.read_text())
+        session["tasks"] = "invalid"
+        session_path.write_text(json.dumps(session, indent=2) + "\n")
+        sync_session_from_canonical(self.root, self.codename, refresh_context=False)
+        self.assertEqual((session_dir / "TASKS.md").read_text(), before)
+
+    def test_sync_session_skips_tasks_table_when_workflow_present(self) -> None:
+        session_dir = self.root / "sessions" / self.codename
+        (session_dir / "workflow.json").write_text('{"phase": "implementation"}\n')
+        (session_dir / "TASKS.md").write_text(
+            "# Session alpha\n\n## Goal\n\n## Tasks\n\n"
+            "| ID | Status | Notes |\n|----|--------|-------|\n| | pending | |\n"
+        )
+        sync_session_from_canonical(self.root, self.codename, refresh_context=False)
+        text = (session_dir / "TASKS.md").read_text()
+        self.assertIn("| | pending |", text)
+
+    def test_set_session_scope_creates_progress_description_when_missing(self) -> None:
+        session_dir = self.root / "sessions" / self.codename
+        (session_dir / "progress.json").unlink(missing_ok=True)
+        set_session_scope(self.root, self.codename, goal="Created from goal")
+        progress = json.loads((session_dir / "progress.json").read_text())
+        self.assertEqual(progress["description"], "Created from goal")
+        self.assertEqual(progress["status"], "active")
+        self.assertEqual(progress["session"], self.codename)
+
+    def test_set_session_scope_overwrites_whitespace_progress_description(self) -> None:
+        session_dir = self.root / "sessions" / self.codename
+        (session_dir / "progress.json").write_text(
+            json.dumps({"description": "   ", "status": "active"}) + "\n"
+        )
+        set_session_scope(self.root, self.codename, goal="Real goal text")
+        progress = json.loads((session_dir / "progress.json").read_text())
+        self.assertEqual(progress["description"], "Real goal text")
+
+    def test_set_session_scope_sanitizes_progress_description(self) -> None:
+        session_dir = self.root / "sessions" / self.codename
+        (session_dir / "progress.json").write_text(
+            json.dumps({"description": "", "status": "active"}) + "\n"
+        )
+        set_session_scope(
+            self.root,
+            self.codename,
+            goal="Ship scope\n## Goal\n- **Next:** hijack",
+        )
+        progress = json.loads((session_dir / "progress.json").read_text())
+        self.assertIn("Ship scope", progress["description"])
+        self.assertNotIn("hijack", progress["description"])
+
+    def test_set_session_scope_shell_wrapper_respects_workspace_root(self) -> None:
+        session_dir = self.root / "sessions" / self.codename
+        (session_dir / "progress.json").write_text(
+            json.dumps({"description": "", "status": "active"}) + "\n"
+        )
+        lib_src = Path(__file__).resolve().parent / "lib"
+        wt_scripts = self.root / "worktree" / "scripts"
+        wt_scripts.mkdir(parents=True)
+        shutil.copytree(lib_src, wt_scripts / "lib")
+        shutil.copy(
+            Path(__file__).resolve().parent / "set-session-scope.sh",
+            wt_scripts / "set-session-scope.sh",
+        )
+        env = os.environ.copy()
+        env["WORKSPACE_ROOT"] = str(self.root)
+        result = subprocess.run(
+            [
+                str(wt_scripts / "set-session-scope.sh"),
+                self.codename,
+                "--goal",
+                "Shell wrapper goal",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=wt_scripts.parent,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        progress = json.loads((session_dir / "progress.json").read_text())
+        self.assertEqual(progress["description"], "Shell wrapper goal")
+
+    def test_sync_session_shell_wrapper_respects_workspace_root(self) -> None:
+        session_dir = self.root / "sessions" / self.codename
+        (session_dir / "TASKS.md").write_text(
+            "# Session alpha\n\n## Goal\n\n## Tasks\n\n"
+            "| ID | Status | Notes |\n|----|--------|-------|\n| | pending | |\n"
+        )
+        lib_src = Path(__file__).resolve().parent / "lib"
+        wt_scripts = self.root / "worktree" / "scripts"
+        wt_scripts.mkdir(parents=True)
+        shutil.copytree(lib_src, wt_scripts / "lib")
+        shutil.copy(
+            Path(__file__).resolve().parent / "sync-session.sh",
+            wt_scripts / "sync-session.sh",
+        )
+        env = os.environ.copy()
+        env["WORKSPACE_ROOT"] = str(self.root)
+        result = subprocess.run(
+            [str(wt_scripts / "sync-session.sh"), self.codename],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=wt_scripts.parent,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        text = (session_dir / "TASKS.md").read_text()
+        self.assertNotIn("| | pending |", text)
 
     def test_resume_session_on_bind_backfills_empty_title(self) -> None:
         resume_session_on_bind(self.root, self.codename)

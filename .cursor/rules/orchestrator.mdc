@@ -9,15 +9,15 @@ alwaysApply: true
 
 **Start work** / `/start-work` → load `.cursor/skills/session-orchestrator/SKILL.md`. You run `./scripts/*`.
 
-**Workflow** / `/workflow` → load `.cursor/skills/workflow-orchestrator/SKILL.md`. Resume from `workflow.json` phase; do not restart from chat history.
+**Sessions program** / `/sessions-orchestrator` → load `.cursor/skills/sessions-orchestrator/SKILL.md`. Multi-session parent coordinator.
 
-**`/workflow status`** → same skill; one-screen status from `workflow.json`.
+**Workflow** / `/workflow-orchestrator` → load `.cursor/skills/workflow-orchestrator/SKILL.md`. Resume from `workflow.json` phase; do not restart from chat history.
+
+**`/workflow-orchestrator status`** → same skill; one-screen status from `workflow.json`.
 
 **`accept brief`** / **`accept`** → workflow gate 1 (phase `brief_review`).
 
 **`accept plan`** → workflow gate 2 → `./scripts/workflow-accept-plan.sh <codename>`.
-
-**Inbox at gate** → correlated `sessions/_inbox/` messages count as gate feedback; poll every 2m with `python3 scripts/workflow-pull-inbox-gate.py <codename> [--apply]`.
 
 **`reopen brief`** / **`reopen plan`** → `python3 scripts/workflow-reopen-brief.py <codename>` / `python3 scripts/workflow-reopen-plan.py <codename>`.
 

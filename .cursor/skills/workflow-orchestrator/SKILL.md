@@ -2,7 +2,7 @@
 name: workflow-orchestrator
 description: >-
   Single-session pipeline: Problem → Plan → Code → Review → PR → CI → Delivery
-  with autonomous inner loops. User gates at brief and plan only. Use for /workflow,
+  with autonomous inner loops. User gates at brief and plan only. Use for /workflow-orchestrator,
   full feature pipeline, problem brief, action plan, or workflow status. Loads when
   user wants end-to-end delivery without cross-session handoff.
 ---
@@ -22,8 +22,8 @@ One chat, one conductor. Linear pipeline with autonomous plan and code loops bet
 
 | Trigger | Action |
 |---------|--------|
-| `/workflow` | Start or resume pipeline |
-| `/workflow status` | One-screen status from `workflow.json` |
+| `/workflow-orchestrator` | Start or resume pipeline |
+| `/workflow-orchestrator status` | One-screen status from `workflow.json` |
 | `accept brief` / `accept` | Gate 1 (phase `brief_review`) |
 | `accept plan` | Gate 2 → `./scripts/workflow-accept-plan.sh <codename>` |
 | Inbox at gate | `./scripts/workflow-pull-inbox-gate.py <codename> [--apply]` — correlated messages count as gate feedback |
@@ -56,7 +56,7 @@ One chat, one conductor. Linear pipeline with autonomous plan and code loops bet
 | `delivery` | delivery template | — |
 | `completed` | — | — |
 
-## `/workflow status` (one screen)
+## `/workflow-orchestrator status` (one screen)
 
 Read `workflow.json` and artifact paths; print:
 

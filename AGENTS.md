@@ -41,14 +41,16 @@ Regenerate a multi-root editor workspace: `./scripts/generate-workspace.sh` → 
 
 ## Workflow pipeline
 
-**`/workflow`** / **`/workflow status`** → `.cursor/skills/workflow-orchestrator/SKILL.md`
+**`/workflow-orchestrator`** / **`/workflow-orchestrator status`** → `.cursor/skills/workflow-orchestrator/SKILL.md`
+
+**`/sessions-orchestrator`** → `.cursor/skills/sessions-orchestrator/SKILL.md` · [docs/PROGRAM_ORCHESTRATOR.md](docs/PROGRAM_ORCHESTRATOR.md)
 
 Single-session **Problem → Plan → Code → Review → PR → CI → Delivery** in one chat. State: `sessions/<codename>/workflow.json`; artifacts under `sessions/<codename>/artifacts/`. Chat context includes phase, gates, loops, artifact paths, and **Resume** when `workflow.json` exists.
 
 | Trigger | Action |
 |---------|--------|
-| `/workflow` | Start or resume from `workflow.json` phase |
-| `/workflow status` | One-screen status |
+| `/workflow-orchestrator` | Start or resume from `workflow.json` phase |
+| `/workflow-orchestrator status` | One-screen status |
 | `accept brief` / `accept` | Gate 1 |
 | `accept plan` | Gate 2 → `./scripts/workflow-accept-plan.sh <codename>` |
 | Inbox at gate | `./scripts/workflow-pull-inbox-gate.py <codename> [--apply]` every 2m while at brief/plan gate |
@@ -109,6 +111,7 @@ Session context lists which guideline files exist on bind. Optional `guidelines:
 |-|------|
 | Bootstrap | `.cursor/skills/bootstrap-hub` |
 | Start | `.cursor/skills/session-orchestrator` |
+| Program | `.cursor/skills/sessions-orchestrator` |
 | Workflow | `.cursor/skills/workflow-orchestrator` |
 | Code review | `.cursor/skills/code-reviewer` |
 | Hub upgrade | `.cursor/skills/hub-upgrade` |

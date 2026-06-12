@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "parent_codename": "CODENAME",
+  "ingest_path": "artifacts/program-ingest.md",
+  "plan_path": "artifacts/program-plan.md",
+  "status_path": "artifacts/program-status.md",
+  "decomposition_approved": false,
+  "proposed_children": [],
+  "active_children": [],
+  "gate_queue": [],
+  "merge_hints": {
+    "ordered_children": [],
+    "notes": []
+  }
+}

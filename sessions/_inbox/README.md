@@ -47,7 +47,7 @@ Processed inbox blocks are tracked in `workflow.json` → `gates.inbox.processed
 
 | Sender | Tool | Message type |
 |--------|------|--------------|
-| Parent → child gate accept/reopen | `python3 scripts/program-route-feedback.py` | Exact gate command on first line (`accept brief`, `accept plan`, `reopen brief`, `reopen plan`) |
+| Parent → child gate accept/reopen | `python3 scripts/program-route-feedback.py` | Required `--gate` (`brief_review` or `plan_user_review`) and `--message` (e.g. `"accept brief"`, `"accept plan"`, `"reopen brief"`, `"reopen plan"`). Routed inbox body uses the gate string on the first line for child `workflow-pull-inbox-gate.py` correlation. |
 | Parent → child review note | `./scripts/session-inbox.sh write <parent> <child> "…"` | Free-text → `brief_correction` or `plan_feedback` |
 | Child → parent blocker | `./scripts/session-inbox.sh write <child> <parent> "…"` | Escalation at user gates; also persisted in child gate artifact **Open questions** |
 

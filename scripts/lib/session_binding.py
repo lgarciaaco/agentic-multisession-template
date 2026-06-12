@@ -1114,7 +1114,7 @@ def format_workflow_section(root: Path, codename: str) -> str:
         for entry in artifact_lines:
             lines.append(f"  - {entry}")
 
-    lines.append("- **Commands:** `/workflow`, `/workflow status`")
+    lines.append("- **Commands:** `/workflow-orchestrator`, `/workflow-orchestrator status`")
     if phase in ("brief_review", "plan_user_review"):
         try:
             from workflow_inbox_gate import INBOX_POLL_SECONDS, pull_inbox_gate

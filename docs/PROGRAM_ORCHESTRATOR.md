@@ -88,12 +88,23 @@ Parent sessions coordinate; they do not edit child sessions.
 
 | Feedback type | Tool | Example |
 |---------------|------|---------|
-| Accept / reopen gate | `program-route-feedback.py` | `--message "accept brief"` |
+| Accept / reopen gate | `python3 scripts/program-route-feedback.py` | `python3 scripts/program-route-feedback.py <parent> <child> --gate brief_review --message "accept brief"` (also `--gate plan_user_review --message "accept plan"`; reopen with `--message "reopen brief"` / `"reopen plan"`) |
 | Brief or plan correction | `session-inbox.sh write <parent> <child> "…"` | Prose review notes |
 
 **Read-only review (mandatory at gates):** inspect child `artifacts/problem-brief.md` or `artifacts/action-plan.md`; compare to decomposition scope; present assessment before routing. Never patch child artifacts or worktrees from the parent chat. Monitor JSON includes `gate_review` paths and `parent_next_action`.
 
-**Gate commands must be exact.** Prose such as "brief looks good — proceed" classifies as `brief_correction`, not `accept brief`. Use `program-route-feedback.py` with the exact command when approving a gate.
+**Gate commands must be exact.** Prose such as "brief looks good — proceed" classifies as `brief_correction`, not `accept brief`. Use full CLI invocations when approving a gate:
+
+```bash
+python3 scripts/program-route-feedback.py <parent> <child> \
+  --gate brief_review --message "accept brief"
+python3 scripts/program-route-feedback.py <parent> <child> \
+  --gate plan_user_review --message "accept plan"
+python3 scripts/program-route-feedback.py <parent> <child> \
+  --gate brief_review --message "reopen brief"
+python3 scripts/program-route-feedback.py <parent> <child> \
+  --gate plan_user_review --message "reopen plan"
+```
 
 **Child → parent escalation:** program children dual-write open questions and blockers to the parent inbox and persist them in the gate artifact before presenting a user gate (see workflow conductor rules).
 

@@ -151,6 +151,8 @@ Canonical status lives in `session.json`. Run `sync-session.sh` if local `index.
 | `./scripts/ensure-worktrees.sh <name>` | Create git worktrees from `session.json` tasks |
 | `./scripts/sync-session.sh [name]` | Sync index/context from `session.json` |
 | `python3 scripts/workflow-plan-synthesize.py <name> <workspace>` | Synthesize plan review iteration |
+| `./scripts/workflow-accept-brief.sh <name>` | User accept brief; freeze problem brief; phase → plan_loop |
+| `python3 scripts/workflow-pull-inbox-gate.py <name> [--apply]` | Poll inbox at brief/plan gates (every 2m); `--apply` when correlated |
 | `./scripts/workflow-accept-plan.sh <name>` | Accept action plan; sync tasks + worktrees |
 | `python3 scripts/workflow-mark-implementation-ready.py <name> <task-id>` | Mark slice ready and enter code review (no commit gate) |
 | `python3 scripts/workflow-begin-code-review.py <name>` | Legacy: begin when all tasks done |

@@ -120,7 +120,7 @@ Example mid-plan: phase `plan_loop`, iteration 2, last `REVISE` → resume plan-
 
 ## Status
 
-**`/workflow status`** — one-screen summary from `workflow.json` and artifact paths.
+**`/workflow-orchestrator status`** — one-screen summary from `workflow.json` and artifact paths.
 
 ## RC release smoke
 

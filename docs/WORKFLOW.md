@@ -26,7 +26,14 @@ Conductor bootstraps `workflow.json` + `artifacts/` from `sessions/_template/` i
 
 Reopen: `python3 scripts/workflow-reopen-brief.py <codename>`
 
-**Inbox at gate:** Program parents route gate commands with `python3 scripts/program-route-feedback.py <parent> <child> <gate> "<command>"`. Raw `session-inbox.sh write` gate commands are rejected unless they include the program-route marker. While in `brief_review`, poll every 2 minutes:
+**Inbox at gate:** Program parents route gate commands with:
+
+```bash
+python3 scripts/program-route-feedback.py <parent> <child> \
+  --gate brief_review --message "accept brief"
+```
+
+Use `--gate plan_user_review --message "accept plan"` (or `reopen brief` / `reopen plan`) at the plan gate. Raw `session-inbox.sh write` gate commands are rejected unless they include the program-route marker. While in `brief_review`, poll every 2 minutes:
 
 ```bash
 python3 scripts/workflow-pull-inbox-gate.py <codename> --apply

@@ -66,7 +66,23 @@ The parent window stays selected. Outside tmux, the script prints manual bind/la
 
 See [SESSIONS.md](../SESSIONS.md) § Program orchestrator child tabs.
 
-## Parent routing at child gates
+## `/sessions-orchestrator status` (one screen)
+
+Read `program.json` and monitor report; print:
+
+```markdown
+## Program status — <parent>
+
+- **Decomposition approved:** <bool>
+- **Parent next:** <mandatory action from monitor>
+- **Children:** table (phase, pending_gate, gate_review artifact paths)
+- **Gate review:** per pending child — artifact path, decomposition scope, assessment prompt
+- **Next command:** run monitor + status report when any pending_gate; otherwise monitor on interval
+```
+
+Do not ask the user to relay messages between agents or sessions. Do not say "accept X when you've reviewed" — **review first, always**.
+
+## Parent gate review (mandatory)
 
 Parent sessions coordinate; they do not edit child sessions.
 
@@ -75,7 +91,7 @@ Parent sessions coordinate; they do not edit child sessions.
 | Accept / reopen gate | `program-route-feedback.py` | `--message "accept brief"` |
 | Brief or plan correction | `session-inbox.sh write <parent> <child> "…"` | Prose review notes |
 
-**Read-only review:** inspect child `artifacts/problem-brief.md` or `artifacts/action-plan.md` from the child session folder or monitor report. Never patch child artifacts or worktrees from the parent chat.
+**Read-only review (mandatory at gates):** inspect child `artifacts/problem-brief.md` or `artifacts/action-plan.md`; compare to decomposition scope; present assessment before routing. Never patch child artifacts or worktrees from the parent chat. Monitor JSON includes `gate_review` paths and `parent_next_action`.
 
 **Gate commands must be exact.** Prose such as "brief looks good — proceed" classifies as `brief_correction`, not `accept brief`. Use `program-route-feedback.py` with the exact command when approving a gate.
 

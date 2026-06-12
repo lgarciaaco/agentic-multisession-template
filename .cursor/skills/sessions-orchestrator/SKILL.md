@@ -54,12 +54,20 @@ python3 scripts/program-monitor.py <parent>
 
 Re-run on gate events and during periodic standups. Report path: `artifacts/program-status.md`.
 
-## Parent gate UX (dynamic)
+When any child has `pending_gate`, run monitor + status report **before** presenting status to the user.
 
-When monitor shows `pending_gate` of `brief_review` or `plan_user_review` on a child:
+## Parent gate review (mandatory)
 
-| Child phase | Accept | Block / reopen |
-|-------------|--------|----------------|
+At every child gate the parent **always reviews** — never defer with "accept when ready" or offer "review X / accept X" as alternatives.
+
+1. Run `python3 scripts/program-monitor.py <parent>` and `./scripts/program-status-report.sh <parent>`.
+2. Read the child gate artifact from `gate_review.artifact_path` in the monitor JSON (brief at `brief_review`, plan at `plan_user_review`).
+3. Compare against **decomposition scope** (`program-plan.md` / `proposed_children` goal for that child).
+4. **Present your assessment:** alignment, gaps, drift from ingest, recommended action.
+5. User routes the gate (exact commands below) or sends corrections via inbox — parent does not skip the review step.
+
+| Child phase | After review, user may say | Block / reopen |
+|-------------|---------------------------|----------------|
 | `brief_review` | `accept brief` | `reopen brief` |
 | `plan_user_review` | `accept plan` | `reopen plan` |
 

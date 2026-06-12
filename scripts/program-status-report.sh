@@ -48,6 +48,30 @@ for child in report.get("children") or []:
         hint = f"error: {child['error']}"
     lines.append(f"| `{child['codename']}` | {phase} | {gate} | {updated} | {hint} |")
 
+lines.extend(["", "## Gate review (parent)", ""])
+lines.append(f"**Next:** {report.get('parent_next_action') or '—'}")
+lines.append("")
+pending = [c for c in report.get("children") or [] if c.get("pending_gate")]
+if not pending:
+    lines.append("_No child gates pending parent review._")
+else:
+    for child in pending:
+        review = child.get("gate_review") or {}
+        artifact = review.get("artifact_path") or "—"
+        present = "present" if review.get("artifact_present") else "missing"
+        lines.append(f"### `{child['codename']}` — `{child.get('pending_gate')}`")
+        lines.append(f"- **Artifact:** `{artifact}` ({present})")
+        decomp = review.get("decomposition_scope") or {}
+        if decomp.get("title") or decomp.get("goal"):
+            title = decomp.get("title") or "—"
+            goal = (decomp.get("goal") or "—").replace("\n", " ")
+            lines.append(f"- **Decomposition scope:** {title} — {goal}")
+        scope = review.get("child_scope") or {}
+        if scope.get("title") or scope.get("goal"):
+            title = scope.get("title") or "—"
+            goal = (scope.get("goal") or "—").replace("\n", " ")
+            lines.append(f"- **Child session scope:** {title} — {goal}")
+
 lines.extend(["", "## Gate queue", ""])
 queue = report.get("gate_queue") or []
 if not queue:

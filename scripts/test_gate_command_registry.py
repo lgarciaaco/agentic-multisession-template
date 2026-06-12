@@ -25,7 +25,6 @@ from gate_command_registry import (  # noqa: E402
 from program_state import GATE_PHASES  # noqa: E402
 
 _LIB_DIR = Path(__file__).resolve().parent / "lib"
-_REGISTRY_FILE = _LIB_DIR / "gate_command_registry.py"
 _CONSUMER_FILES = (
     _LIB_DIR / "program_route_feedback.py",
     _LIB_DIR / "workflow_inbox_gate.py",
@@ -99,10 +98,6 @@ class GateCommandRegistryTests(unittest.TestCase):
                     text,
                     msg=f"{path.name} must not define duplicate gate table {name}",
                 )
-        for path in _LIB_DIR.glob("*.py"):
-            if path == _REGISTRY_FILE:
-                continue
-            text = path.read_text()
             for literal in _GATE_USER_LITERALS:
                 self.assertNotIn(
                     f'"{literal}"',

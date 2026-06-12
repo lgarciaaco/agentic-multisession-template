@@ -263,6 +263,108 @@ print(status_path)
                 message="brief looks good — proceed to accept brief.",
             )
 
+    def _write_child_plan_gate_workflow(self) -> None:
+        child_dir = self.root / "sessions" / self.child
+        (self.root / "repos.yaml").write_text(
+            "repos:\n  template:\n    path: repos/template\n"
+            "    clone: git@github.com:example/template.git\n"
+            "    default_branch: main\n"
+        )
+        workflow = {
+            "version": 2,
+            "phase": "plan_user_review",
+            "gates": {
+                "brief_accepted": True,
+                "plan_user_accepted": False,
+                "inbox": {"processed_markers": [], "last_pull_at": None},
+            },
+            "loops": {},
+            "artifacts": {
+                "brief": "artifacts/problem-brief.md",
+                "plan": "artifacts/action-plan.md",
+                "plan_feedback": "artifacts/plan-feedback.md",
+            },
+        }
+        (child_dir / "workflow.json").write_text(json.dumps(workflow, indent=2) + "\n")
+        (child_dir / "artifacts" / "action-plan.md").write_text(
+            """# Action plan — child
+
+**Status:** draft
+**Based on:** problem-brief.md @ accepted
+**Version:** 1
+
+## Approach
+Child plan.
+
+## Traceability
+| Brief | Plan tasks |
+| SC-1 | t1 |
+
+## Tasks
+
+| ID | Repo | Summary | Acceptance | Depends |
+|----|------|---------|------------|---------|
+| t1 | template | Deliver | Done when shipped | — |
+
+## Test plan
+none
+
+## Risks
+| Risk | Mitigation |
+| — | — |
+"""
+        )
+        (child_dir / "TASKS.md").write_text(
+            "# Tasks\n\n## Goal\n\nChild session goal line\n\n## Tasks\n\n| ID | Status | Notes |\n| --- | --- | --- |\n"
+        )
+
+    def test_route_feedback_accept_plan_applies_via_inbox_pull(self) -> None:
+        self._write_child_plan_gate_workflow()
+        route_feedback(
+            self.root,
+            parent=self.parent,
+            child=self.child,
+            gate="plan_user_review",
+            message="accept plan",
+        )
+        result = pull_inbox_gate(self.root, self.child, apply=True)
+        self.assertEqual(result["applied"][0]["action"], "accept_plan")
+        workflow = json.loads(
+            (self.root / "sessions" / self.child / "workflow.json").read_text()
+        )
+        self.assertEqual(workflow["phase"], "implementation")
+
+    def test_route_feedback_reopen_brief_applies_via_inbox_pull(self) -> None:
+        route_feedback(
+            self.root,
+            parent=self.parent,
+            child=self.child,
+            gate="brief_review",
+            message="reopen brief",
+        )
+        result = pull_inbox_gate(self.root, self.child, apply=True)
+        self.assertEqual(result["applied"][0]["action"], "reopen_brief")
+        workflow = json.loads(
+            (self.root / "sessions" / self.child / "workflow.json").read_text()
+        )
+        self.assertEqual(workflow["phase"], "intake")
+
+    def test_route_feedback_reopen_plan_applies_via_inbox_pull(self) -> None:
+        self._write_child_plan_gate_workflow()
+        route_feedback(
+            self.root,
+            parent=self.parent,
+            child=self.child,
+            gate="plan_user_review",
+            message="reopen plan",
+        )
+        result = pull_inbox_gate(self.root, self.child, apply=True)
+        self.assertEqual(result["applied"][0]["action"], "reopen_plan")
+        workflow = json.loads(
+            (self.root / "sessions" / self.child / "workflow.json").read_text()
+        )
+        self.assertEqual(workflow["phase"], "plan_loop")
+
 
 if __name__ == "__main__":
     unittest.main()

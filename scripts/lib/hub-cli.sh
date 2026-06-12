@@ -5,7 +5,7 @@ set -euo pipefail
 _hub_cli_setup() {
   ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
   cd "$ROOT"
-  export WORKSPACE_ROOT="$ROOT"
+  export WORKSPACE_ROOT="${WORKSPACE_ROOT:-$ROOT}"
   CLI="$ROOT/scripts/lib/session_cli.py"
 }
 

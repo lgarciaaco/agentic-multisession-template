@@ -174,7 +174,7 @@ User may add repos later (“add web-ui repo”) → agent edits `repos.yaml`, `
 ./scripts/configure-git-remotes.sh     # repair fork/upstream remotes
 ./scripts/generate-workspace.sh        # multi-root .code-workspace for Cursor/VS Code
 ./scripts/new-session.sh [codename]
-./scripts/set-session-scope.sh [name] --title T [--goal G] [--next N]
+./scripts/set-session-scope.sh [name] --title T [--goal G] [--next N]  # --goal also backfills empty progress.description
 ./scripts/ensure-worktrees.sh <name>   # after tasks[].repo set
 ```
 

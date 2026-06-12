@@ -389,23 +389,39 @@ def parse_action_plan_tasks(plan_text: str) -> list[dict[str, Any]]:
     return tasks
 
 
+def _safe_table_cell(text: str, *, max_len: int = 500) -> str:
+    """Single-line table cell safe for markdown pipes."""
+    cleaned = " ".join(str(text or "").replace("\r", " ").replace("\n", " ").split())
+    cleaned = cleaned.replace("|", "/")
+    if len(cleaned) > max_len:
+        return cleaned[: max_len - 1] + "…"
+    return cleaned
+
+
 def _tasks_table_markdown(tasks: list[dict[str, Any]]) -> list[str]:
     rows = [
         "| ID | Status | Notes |",
         "|----|--------|-------|",
     ]
+    if not tasks:
+        rows.extend(["", "_Empty when `session.json` tasks is `[]`._"])
+        return rows
     for task in tasks:
+        if not isinstance(task, dict):
+            continue
         note_parts: list[str] = []
         if task.get("repo"):
-            note_parts.append(f"repo: {task['repo']}")
+            note_parts.append(f"repo: {_safe_table_cell(task['repo'], max_len=80)}")
         if task.get("acceptance"):
-            note_parts.append(str(task["acceptance"]))
+            note_parts.append(_safe_table_cell(task["acceptance"], max_len=400))
         if task.get("depends"):
-            note_parts.append(f"depends: {task['depends']}")
+            note_parts.append(f"depends: {_safe_table_cell(task['depends'], max_len=80)}")
         if task.get("title") and not note_parts:
-            note_parts.append(str(task["title"]))
+            note_parts.append(_safe_table_cell(task["title"], max_len=200))
         note = " — ".join(note_parts)
-        rows.append(f"| {task['id']} | {task.get('status', 'pending')} | {note} |")
+        task_id = _safe_table_cell(task.get("id") or "", max_len=40)
+        status = _safe_table_cell(task.get("status") or "pending", max_len=40)
+        rows.append(f"| {task_id} | {status} | {note} |")
     return rows
 
 

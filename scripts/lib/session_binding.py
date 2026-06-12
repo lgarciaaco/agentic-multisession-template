@@ -422,6 +422,43 @@ def format_session_worktree_nudge(root: Path, codename: str) -> str:
     )
 
 
+def _set_progress_description_from_goal(session_dir: Path, goal: str) -> None:
+    """Set progress.json description from goal when description is empty."""
+    progress_path = session_dir / "progress.json"
+    progress = _load_json_file(progress_path) if progress_path.exists() else {}
+    if (progress.get("description") or "").strip():
+        return
+    cleaned = sanitize_goal_text(goal)
+    if not cleaned:
+        return
+    progress["description"] = cleaned
+    progress.setdefault("status", "active")
+    progress.setdefault("session", session_dir.name)
+    progress_path.write_text(json.dumps(progress, indent=2) + "\n")
+
+
+def _sync_tasks_table_from_session(root: Path, codename: str) -> None:
+    """Sync TASKS.md ## Tasks from session.json for non-workflow sessions."""
+    session_dir = root / "sessions" / codename
+    if (session_dir / "workflow.json").exists():
+        return
+    tasks_path = session_dir / "TASKS.md"
+    if not tasks_path.exists():
+        return
+    session = _load_session_json(root, codename) or {}
+    tasks = session.get("tasks")
+    if tasks is None:
+        tasks = []
+    if not isinstance(tasks, list):
+        return
+    from workflow_plan import set_tasks_table_section
+
+    try:
+        set_tasks_table_section(session_dir, tasks)
+    except ValueError:
+        return
+
+
 def set_session_scope(
     root: Path,
     codename: str,
@@ -451,6 +488,7 @@ def set_session_scope(
 
     if goal is not None:
         set_tasks_goal(session_dir, goal)
+        _set_progress_description_from_goal(session_dir, goal)
 
     session = _load_session_json(root, name) or {}
     sync_index_from_session(root, name, session)
@@ -1424,6 +1462,7 @@ def sync_session_from_canonical(
         resume_session_on_bind(root, name)
     else:
         sync_index_from_session(root, name)
+    _sync_tasks_table_from_session(root, name)
     _maybe_apply_inbox_gate_at_sync(root, name)
     if refresh_context:
         refresh_binding_contexts(root, name, conversation_id=conversation_id)
@@ -2193,8 +2232,8 @@ def close_session_work(root: Path, codename: str, note: str = "") -> None:
     progress_path = session_dir / "progress.json"
     progress = _load_json_file(progress_path) if progress_path.exists() else {}
     progress.update({"status": "completed", "ended": today, "ended_at": ended_at})
-    if note and not progress.get("description"):
-        progress["description"] = note
+    if note and not (progress.get("description") or "").strip():
+        progress["description"] = sanitize_goal_text(note.strip())
     progress_path.write_text(json.dumps(progress, indent=2) + "\n")
 
     tasks_md = session_dir / "TASKS.md"

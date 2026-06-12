@@ -300,7 +300,7 @@ def ensure_upstream_tree(
                     raise RuntimeError(f"refusing to remove symlink cache: {cache}")
                 shutil.rmtree(cache)
             result = _run_git(
-                ["git", "clone", "--depth", "1", "--branch", ref, url, str(cache)],
+                ["git", "clone", "--depth", "1", "--branch", ref, "--", url, str(cache)],
                 check=False,
             )
             if result.returncode != 0:
@@ -308,7 +308,7 @@ def ensure_upstream_tree(
                 raise RuntimeError(f"could not clone upstream template ({url}@{ref}): {msg}")
         else:
             fetch_result = _run_git(
-                ["git", "-C", str(cache), "fetch", "origin", ref, "--depth", "1", "--prune"],
+                ["git", "-C", str(cache), "fetch", "origin", "--depth", "1", "--prune", ref],
                 check=False,
             )
             if fetch_result.returncode != 0:

@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 FORK_REMOTE_NAME = "fork"
 UPSTREAM_REMOTE_NAME = "origin"
@@ -15,6 +16,67 @@ _GIT_TIMEOUT_SEC = 300
 _CLONE_URL_RE = re.compile(
     r"^(?:git@[^:]+:[^\s]+|(?:https?|ssh|file)://[^\s]+)$"
 )
+_DEFAULT_CLONE_HOSTS = frozenset({"github.com", "gitlab.com"})
+_HOSTNAME_RE = re.compile(
+    r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$",
+    re.IGNORECASE,
+)
+
+
+def _env_truthy(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in {"1", "true", "yes"}
+
+
+def _validate_allowlist_host(host: str) -> str:
+    cleaned = host.strip().lower()
+    if not cleaned or not _HOSTNAME_RE.fullmatch(cleaned):
+        raise ValueError(f"invalid allowlist host: {host!r}")
+    return cleaned
+
+
+def _clone_url_host(url: str) -> str:
+    """Return lowercase hostname from a git clone URL."""
+    candidate = url.strip()
+    if candidate.startswith("git@"):
+        rest = candidate[4:]
+        colon = rest.find(":")
+        if colon <= 0:
+            raise ValueError(f"invalid clone URL: {url!r}")
+        return rest[:colon].lower()
+    if "://" in candidate:
+        host = urlparse(candidate).hostname
+        if not host:
+            raise ValueError(f"invalid clone URL: {url!r}")
+        return host.lower()
+    raise ValueError(f"invalid clone URL: {url!r}")
+
+
+def _allowed_clone_hosts() -> set[str]:
+    allowed = set(_DEFAULT_CLONE_HOSTS)
+    extra = os.environ.get("WORKSPACE_CLONE_HOST_ALLOWLIST", "").strip()
+    if extra:
+        for part in extra.split(","):
+            token = part.strip()
+            if token:
+                allowed.add(_validate_allowlist_host(token))
+    return allowed
+
+
+def _enforce_clone_host_allowlist() -> bool:
+    return _env_truthy("WORKSPACE_ENFORCE_CLONE_HOST_ALLOWLIST")
+
+
+def _check_clone_host(url: str) -> None:
+    if not _enforce_clone_host_allowlist():
+        return
+    host = _clone_url_host(url)
+    allowed = _allowed_clone_hosts()
+    if host not in allowed:
+        raise ValueError(
+            f"clone URL host {host!r} is not allowed; "
+            f"allowed hosts: {', '.join(sorted(allowed))}; "
+            f"extend via WORKSPACE_CLONE_HOST_ALLOWLIST"
+        )
 
 
 def validate_clone_url(url: str) -> str:
@@ -30,6 +92,7 @@ def validate_clone_url(url: str) -> str:
         raise ValueError(
             f"file:// clone URLs are disabled; set WORKSPACE_ALLOW_FILE_CLONES=1 to override: {url!r}"
         )
+    _check_clone_host(candidate)
     return candidate
 
 

@@ -71,6 +71,21 @@ repos:
 
 `file://` clone URLs are rejected by default (`validate_clone_url`); set `WORKSPACE_ALLOW_FILE_CLONES=1` only for local debugging.
 
+### Trusted clone hosts (opt-in)
+
+By default, `validate_clone_url` checks URL shape and injection patterns only — it does **not** block hosts. To enforce a host allowlist for `repos.yaml` clone URLs (used by `clone-repos.sh`, `configure-git-remotes.sh`, and worktree setup):
+
+| Variable | Purpose |
+|----------|---------|
+| `WORKSPACE_ENFORCE_CLONE_HOST_ALLOWLIST=1` | Enable host allowlist enforcement |
+| `WORKSPACE_CLONE_HOST_ALLOWLIST` | Comma-separated extra hosts (e.g. `git.example.com,github.enterprise.com`) |
+
+When enforcement is enabled, allowed hosts are **`github.com`**, **`gitlab.com`**, plus any entry in `WORKSPACE_CLONE_HOST_ALLOWLIST`. Other hosts raise `ValueError` naming the disallowed host. Allowlist entries must be plain hostnames (no ports or paths); values are normalized to lowercase.
+
+**Production recommendation:** set `WORKSPACE_ENFORCE_CLONE_HOST_ALLOWLIST=1` (also accepts `true` or `yes`) in shared hub environments so `repos.yaml` clone URLs cannot target arbitrary hosts.
+
+`hub_upgrade.py` uses a separate upstream trust check for template upgrades (`WORKSPACE_ALLOW_UNTRUSTED_UPSTREAM`); `clone-repos.sh` passes `--` before clone URLs so flag-like values cannot be parsed as git options.
+
 See `.cursor/rules/git-fork-pr.mdc` when using fork workflow.
 
 ---

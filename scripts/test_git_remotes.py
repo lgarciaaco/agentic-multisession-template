@@ -3,11 +3,13 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from git_remotes import (  # noqa: E402
@@ -65,6 +67,76 @@ class ValidateCloneUrlTests(unittest.TestCase):
     def test_rejects_file_url_by_default(self) -> None:
         with self.assertRaises(ValueError):
             validate_clone_url("file:///tmp/repo.git")
+
+
+class CloneHostAllowlistTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._env = patch.dict(
+            os.environ,
+            {"WORKSPACE_ENFORCE_CLONE_HOST_ALLOWLIST": "1"},
+            clear=False,
+        )
+        self._env.start()
+
+    def tearDown(self) -> None:
+        self._env.stop()
+
+    def test_allows_default_github_git_ssh(self) -> None:
+        self.assertEqual(
+            validate_clone_url("git@github.com:ORG/repo.git"),
+            "git@github.com:ORG/repo.git",
+        )
+
+    def test_allows_default_gitlab_https(self) -> None:
+        self.assertEqual(
+            validate_clone_url("https://gitlab.com/GROUP/service.git"),
+            "https://gitlab.com/GROUP/service.git",
+        )
+
+    def test_rejects_disallowed_host(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            validate_clone_url("git@evil.example:ORG/repo.git")
+        self.assertIn("evil.example", str(ctx.exception))
+
+    def test_allows_env_extended_host(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "WORKSPACE_ENFORCE_CLONE_HOST_ALLOWLIST": "1",
+                "WORKSPACE_CLONE_HOST_ALLOWLIST": "git.example.com",
+            },
+            clear=False,
+        ):
+            self.assertEqual(
+                validate_clone_url("git@git.example.com:ORG/repo.git"),
+                "git@git.example.com:ORG/repo.git",
+            )
+
+    def test_enforcement_accepts_true_and_yes(self) -> None:
+        for value in ("true", "yes", "TRUE"):
+            with patch.dict(os.environ, {"WORKSPACE_ENFORCE_CLONE_HOST_ALLOWLIST": value}, clear=False):
+                with self.assertRaises(ValueError):
+                    validate_clone_url("git@evil.example:ORG/repo.git")
+
+    def test_rejects_invalid_allowlist_host_token(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "WORKSPACE_ENFORCE_CLONE_HOST_ALLOWLIST": "1",
+                "WORKSPACE_CLONE_HOST_ALLOWLIST": "not a hostname",
+            },
+            clear=False,
+        ):
+            with self.assertRaises(ValueError) as ctx:
+                validate_clone_url("git@github.com:ORG/repo.git")
+            self.assertIn("invalid allowlist host", str(ctx.exception))
+
+    def test_enforcement_off_allows_any_valid_host(self) -> None:
+        with patch.dict(os.environ, {"WORKSPACE_ENFORCE_CLONE_HOST_ALLOWLIST": ""}, clear=False):
+            self.assertEqual(
+                validate_clone_url("git@evil.example:ORG/repo.git"),
+                "git@evil.example:ORG/repo.git",
+            )
 
 
 class ConfigureRepoRemotesTests(unittest.TestCase):

@@ -8,13 +8,7 @@ User cloned **agentic-multisession-template**, `cd` here, started you. **You** d
 ./scripts/repos-status.sh    # always start here — JSON state
 ```
 
-| `state` | Your move |
-|---------|-----------|
-| `no_repos_yaml` / `empty_registry` | **Ask user** for repos (alias + git URL + branch each). Create/edit `repos.yaml`. |
-| `needs_clone` | `./scripts/clone-repos.sh` |
-| `ready` | Sessions + worktrees (below) |
-
-Full playbook: `.cursor/skills/bootstrap-hub/SKILL.md` · [docs/REPOS.md](docs/REPOS.md) · human overview [README.md](README.md#quick-start-agentic-first)
+Canonical bootstrap playbook: **`.cursor/skills/bootstrap-hub/SKILL.md`** · [docs/REPOS.md](docs/REPOS.md) · [README.md](README.md#quick-start-agentic-first)
 
 Hub install if needed: `pip install -r scripts/requirements.txt` && `./scripts/install-workspace-agent.sh`
 
@@ -51,22 +45,13 @@ Single-session **Problem → Plan → Code → Review → PR → CI → Delivery
 |---------|--------|
 | `/workflow-orchestrator` | Start or resume from `workflow.json` phase |
 | `/workflow-orchestrator status` | One-screen status |
+| `/pr-review` | Code review → `.cursor/skills/code-reviewer/SKILL.md` |
 | `accept brief` / `accept` | Gate 1 |
 | `accept plan` | Gate 2 → `./scripts/workflow-accept-plan.sh <codename>` |
 | Inbox at gate | `python3 scripts/workflow-pull-inbox-gate.py <codename> [--apply]` every 2m while at brief/plan gate |
 | `reopen brief` / `reopen plan` | `python3 scripts/workflow-reopen-brief.py <codename>` / `python3 scripts/workflow-reopen-plan.py <codename>` |
 
-| Phase scripts | Command |
-|---------------|---------|
-| Plan loop | `python3 scripts/workflow-plan-synthesize.py <codename> sessions/.../wf-...` |
-| Code review enter | `python3 scripts/workflow-mark-implementation-ready.py <codename> <task-id>` |
-| Code review | `python3 scripts/workflow-code-review-enrich-scope.py <codename> sessions/<codename>/reviews/workspace/<review-id>` |
-| Code review advance | `python3 scripts/workflow-code-review-advance.py <codename> [r-NNN]` |
-| PR creation advance | `python3 scripts/workflow-advance-pr-creation.py <codename> <verdict> [pr_url]` |
-| CI observe advance | `python3 scripts/workflow-ci-observe-advance.py <codename> <verdict>` |
-| Delivery | `python3 scripts/workflow-write-delivery-report.py <codename>` |
-| Inbox gate pull | `python3 scripts/workflow-pull-inbox-gate.py <codename> [--apply]` |
-| Accept brief | `./scripts/workflow-accept-brief.sh <codename>` |
+Workflow phase scripts and CLI commands: [SESSIONS.md#commands](SESSIONS.md#commands).
 
 User gates **only at brief and plan** (plus correlated inbox at those gates — poll every 2m via `workflow-pull-inbox-gate.py`). Inbox gate auto-apply for gate commands accepts only from the registered program parent with verified write provenance (`sessions/_inbox/.provenance/` via `program-route-feedback.py`); self-writes and sibling gate commands are rejected. Inbox CLI writes require bound caller to match `from`. Autonomous inner loops for plan, code review, PR creation, and CI observe — no commit/PR pause before review. Plan loop: author dispositions → reviewer validates. Code loop: fixer dispositions SUGGESTION/NIT → specialists validate → **PASS**. After PASS: auto commit + draft PR → CI observe (rebase on conflict, fix on failure, 5-iteration cap) → delivery. Delivery report is inform only. Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
 

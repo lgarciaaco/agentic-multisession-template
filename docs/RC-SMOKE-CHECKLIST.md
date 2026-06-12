@@ -1,6 +1,6 @@
-# RC smoke checklist — 1.0.0-rc.1
+# RC smoke checklist
 
-Run once on the **rc tip** (merged PRs 1–6, `.hub-version` = `1.0.0-rc.1`) before tag prep (PR-7).
+Run once on the **installed rc tip** before tag prep. Compare `cat .hub-version` to `./scripts/hub-status.sh` (installed vs upstream) — do not hardcode a fixed rc semver in this checklist.
 
 **Where to run:** hub install root (directory with local `repos.yaml`, `sessions/`, and `.hub-launcher`). Product edits for rc PRs use `sessions/<codename>/worktrees/hub/`; smoke validates both install root scripts and bound-session guards.
 
@@ -23,10 +23,10 @@ Run once on the **rc tip** (merged PRs 1–6, `.hub-version` = `1.0.0-rc.1`) bef
 |----|------|------------------|----------|
 | S1 | Dependencies | `python3 -c "import yaml"` | Exit 0 |
 | S2 | Registry | `./scripts/repos-status.sh` | JSON `state: ready` (or `needs_clone` on fresh hub) |
-| S3 | Version | `cat .hub-version` | `1.0.0-rc.1` |
+| S3 | Version | `cat .hub-version` and `./scripts/hub-status.sh` | Installed `.hub-version` matches `hub-status.sh` installed line (no hardcoded rc semver in Expected) |
 | S4 | Session bind | `./scripts/resolve-session.sh` | Prints bound codename |
 | S5 | Worktree guard | Bound session: edit allowed under `sessions/<codename>/worktrees/**`; denied under `scripts/`, `repos/` | allow / deny / deny |
-| S6 | Workflow artifacts | `test -f sessions/<codename>/workflow.json` and `artifacts/action-plan.md` | Files exist when `/workflow-orchestrator` is active |
+| S6 | Workflow artifacts | `test -f sessions/<codename>/workflow.json && test -f sessions/<codename>/artifacts/action-plan.md` | Files exist when `/workflow-orchestrator` is active |
 | S7 | Pre-PR suite | `python3 -m unittest discover -s scripts -p 'test_*.py'` | All tests pass |
 | S8 | Binding smoke | `python3 scripts/test_session_binding.py` | OK |
 | S9 | Workflow gate scripts | `python3 scripts/test_workflow_gates.py` && `python3 scripts/test_workflow_resume.py` | OK |
@@ -61,7 +61,7 @@ Expected: `worktree allow`, `hub_scripts deny`, `repos deny`.
 
 ## Execution log
 
-Record each run here or in session `artifacts/rc-smoke-results.md`.
+Historical snapshot from an earlier rc smoke run — record new runs here or in session `artifacts/rc-smoke-results.md`.
 
 | ID | Date | Result | Notes |
 |----|------|--------|-------|
@@ -81,6 +81,6 @@ Record each run here or in session `artifacts/rc-smoke-results.md`.
 
 ## After smoke
 
-- Fix any FAIL before PR-7 tag prep
+- Fix any FAIL before the next rc tag prep
 - Re-run S7–S9 after hub-layer changes
-- See [WORKFLOW.md](WORKFLOW.md) for `/workflow-orchestrator` gate flow
+- See [docs/WORKFLOW.md](./WORKFLOW.md) for `/workflow-orchestrator` gate flow

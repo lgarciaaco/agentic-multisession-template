@@ -18,7 +18,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- BOUNDARIES template, SESSIONS.md, docs/REPOS.md, and inbox README aligned: bound sessions cannot edit `sessions/_inbox/` paths directly; cross-session messages via `./scripts/session-inbox.sh write` only
+- BOUNDARIES template, SESSIONS.md, docs/REPOS.md, and inbox README aligned: bound sessions cannot edit `sessions/_inbox/` paths directly; cross-session messages via `./scripts/session-inbox.sh write` only; REPOS Guards split into writable vs blocked-when-bound subsections
 - `advance_code_review_loop` on PASS now sets phase `pr_creation` (was `delivery`)
 - `sessions/_template/workflow.json` version 2: adds `loops.pr_creation` and `loops.ci_observe`
 - `workflow_resume.py` returns next-action hints for `pr_creation` and `ci_observe` phases
@@ -171,7 +171,7 @@ First stable candidate — workflow pipeline, path guards, skills/docs hygiene s
 ### Added
 
 - **Session inbox** — `sessions/_inbox/<target>.md`; `session-inbox.sh write/read`; injected on bind
-- Guard allows `sessions/_inbox/` for all bound sessions
+- Guard allowed `sessions/_inbox/` path edits for bound sessions *(documentation corrected in 1.0.0-rc.3 — hooks block direct edits; CLI only)*
 
 ### Session notes
 

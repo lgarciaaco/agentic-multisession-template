@@ -11,6 +11,7 @@
 | [hub-upgrade](hub-upgrade/SKILL.md) | template version, upgrade hub | `hub-status.sh`, `hub-upgrade.sh` |
 | [write-like-a-human](write-like-a-human/SKILL.md) | human-facing brief/report/PR text | — |
 | [skill-optimizer](skill-optimizer/SKILL.md) | streamline hub skills | — |
+| [loop](loop/SKILL.md) | `/loop [interval] <prompt>`, inbox gate polling | background shell + sentinel |
 
 Tmux: `$(cat .hub-launcher)` — not bare `agent`.
 

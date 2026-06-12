@@ -95,6 +95,14 @@ class WorkflowInboxGateTests(unittest.TestCase):
             classify_gate_message("brief_review", "Please tighten SC-1 wording."),
             "brief_correction",
         )
+        self.assertEqual(
+            classify_gate_message("brief_review", "brief looks good — proceed to accept brief."),
+            "brief_correction",
+        )
+        self.assertNotEqual(
+            classify_gate_message("brief_review", "brief looks good — proceed to accept brief."),
+            "accept_brief",
+        )
 
     def test_classify_gate_message_plan_accept(self) -> None:
         self.assertEqual(classify_gate_message("plan_user_review", "accept plan"), "accept_plan")

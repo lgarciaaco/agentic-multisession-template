@@ -1640,6 +1640,73 @@ class ChatBindingPersistTests(unittest.TestCase):
             os.environ.pop("HOOK_INPUT", None)
             os.environ.pop("WORKSPACE_CONVERSATION_ID", None)
 
+    def test_hook_before_prompt_pulls_inbox_at_brief_review(self) -> None:
+        import argparse
+
+        import session_cli
+
+        session_dir = self.root / "sessions" / self.codename
+        (session_dir / "artifacts").mkdir()
+        (session_dir / "artifacts" / "problem-brief.md").write_text(
+            "# Problem brief — test\n\n**Status:** draft\n**Accepted:** —\n\n"
+            "## Problem\nx\n\n## Context\nx\n\n## Constraints\nx\n\n"
+            "## Success criteria\n- SC-1: x\n\n## Out of scope\nx\n\n## Open questions\n\n"
+        )
+        (session_dir / "workflow.json").write_text(
+            json.dumps(
+                {
+                    "version": 2,
+                    "phase": "brief_review",
+                    "gates": {
+                        "brief_accepted": False,
+                        "plan_user_accepted": False,
+                        "inbox": {"processed_markers": [], "last_pull_at": None},
+                    },
+                    "loops": {"plan": {"iteration": 0, "max": 5, "last_verdict": None}},
+                    "artifacts": {
+                        "brief": "artifacts/problem-brief.md",
+                        "plan": "artifacts/action-plan.md",
+                        "plan_feedback": "artifacts/plan-feedback.md",
+                    },
+                }
+            )
+            + "\n"
+        )
+        cid = "chat-inbox-hook"
+        (self.root / "sessions" / "bindings" / f"{cid}.json").write_text(
+            json.dumps(
+                {
+                    "conversation_id": cid,
+                    "codename": self.codename,
+                    "bound_at": "2026-06-12T00:00:00+00:00",
+                    "last_active_at": "2026-06-12T00:00:00+00:00",
+                }
+            )
+            + "\n"
+        )
+        alpha_dir = self.root / "sessions" / "alpha"
+        alpha_dir.mkdir()
+        (alpha_dir / "session.json").write_text(
+            json.dumps({"codename": "alpha", "tasks": []}) + "\n"
+        )
+        write_inbox(self.root, "alpha", self.codename, "accept brief")
+
+        os.environ["WORKSPACE_ROOT"] = str(self.root)
+        os.environ["HOOK_INPUT"] = json.dumps(
+            {"conversation_id": cid, "prompt": "any user message"}
+        )
+        with patch("session_binding.hub_root", return_value=self.root):
+            rc = session_cli.cmd_hook_before_prompt(argparse.Namespace())
+        try:
+            self.assertEqual(rc, 0)
+            workflow = json.loads((session_dir / "workflow.json").read_text())
+            self.assertTrue(workflow["gates"]["brief_accepted"])
+            self.assertEqual(workflow["phase"], "plan_loop")
+        finally:
+            os.environ.pop("WORKSPACE_ROOT", None)
+            os.environ.pop("HOOK_INPUT", None)
+            os.environ.pop("WORKSPACE_CONVERSATION_ID", None)
+
     def test_auto_persist_sources_exclude_tmux_session(self) -> None:
         self.assertNotIn("tmux-session", AUTO_PERSIST_BINDING_SOURCES)
 

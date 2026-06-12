@@ -51,6 +51,10 @@ Concrete commands; hub + `scripts/`: `python3 scripts/test_*.py`.
 | Risk | Mitigation |
 |------|------------|
 
+## Open questions
+
+Bullets for unresolved blockers before `plan_user_review`; must be empty when the conductor presents the plan gate. Program children: dual-write to parent inbox per conductor.md **Program child dual-write**.
+
 ## Reviewer disposition
 
 Required whenever `findings/plan.json` contains SUGGESTION/NIT. Keep rows through validation passes.

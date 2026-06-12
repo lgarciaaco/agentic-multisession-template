@@ -66,6 +66,21 @@ The parent window stays selected. Outside tmux, the script prints manual bind/la
 
 See [SESSIONS.md](../SESSIONS.md) § Program orchestrator child tabs.
 
+## Parent routing at child gates
+
+Parent sessions coordinate; they do not edit child sessions.
+
+| Feedback type | Tool | Example |
+|---------------|------|---------|
+| Accept / reopen gate | `program-route-feedback.py` | `--message "accept brief"` |
+| Brief or plan correction | `session-inbox.sh write <parent> <child> "…"` | Prose review notes |
+
+**Read-only review:** inspect child `artifacts/problem-brief.md` or `artifacts/action-plan.md` from the child session folder or monitor report. Never patch child artifacts or worktrees from the parent chat.
+
+**Gate commands must be exact.** Prose such as "brief looks good — proceed" classifies as `brief_correction`, not `accept brief`. Use `program-route-feedback.py` with the exact command when approving a gate.
+
+**Child → parent escalation:** program children dual-write open questions and blockers to the parent inbox and persist them in the gate artifact before presenting a user gate (see workflow conductor rules).
+
 ## Related
 
 - Session bind (unchanged): `/start-work` → [session-orchestrator](../.cursor/skills/session-orchestrator/SKILL.md)

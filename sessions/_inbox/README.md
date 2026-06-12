@@ -2,7 +2,7 @@
 
 One file per target session: `<codename>.md` (e.g. `alpha.md`).
 
-**Write (session A → session B):** `./session-inbox.sh write <from> <to>`
+**Write (session A → session B):** `./scripts/session-inbox.sh write <from> <to> "message"`
 
 ```bash
 ./scripts/session-inbox.sh write bravo alpha "Feature shipped — ready for review."
@@ -40,3 +40,13 @@ python3 scripts/workflow-pull-inbox-gate.py <to-codename> --apply
 ```
 
 Processed inbox blocks are tracked in `workflow.json` → `gates.inbox.processed_markers`.
+
+## Program orchestrator routing
+
+| Sender | Tool | Message type |
+|--------|------|--------------|
+| Parent → child gate accept/reopen | `python3 scripts/program-route-feedback.py` | Exact gate command on first line (`accept brief`, `accept plan`, `reopen brief`, `reopen plan`) |
+| Parent → child review note | `./scripts/session-inbox.sh write <parent> <child> "…"` | Free-text → `brief_correction` or `plan_feedback` |
+| Child → parent blocker | `./scripts/session-inbox.sh write <child> <parent> "…"` | Escalation at user gates; also persisted in child gate artifact **Open questions** |
+
+Prose approval (e.g. "brief looks good — proceed") is **not** `accept brief`. Parents must use `program-route-feedback.py` with the exact command to cross a gate.

@@ -120,10 +120,13 @@ Session context lists which guideline files exist on bind. Optional `guidelines:
 | End | `.cursor/skills/session-end` |
 | Human tone | `.cursor/skills/write-like-a-human` |
 | Skill streamline | `.cursor/skills/skill-optimizer` |
+| Loop | `.cursor/skills/loop` — `/loop [interval] <prompt>`, inbox gate polling |
 
 ## Cross-session inbox
 
 `./scripts/session-inbox.sh write <from> <to> "message"` · read on bind or `./scripts/session-inbox.sh read <codename>`
+
+Program parent gate commands: `python3 scripts/program-route-feedback.py` (exact `accept brief` / `accept plan` / reopen only). Free-text parent review: `./scripts/session-inbox.sh write` (classifies as correction, not gate accept). See [sessions/_inbox/README.md](sessions/_inbox/README.md) and [docs/PROGRAM_ORCHESTRATOR.md](docs/PROGRAM_ORCHESTRATOR.md) § Parent routing at child gates.
 
 ## Git / PRs
 

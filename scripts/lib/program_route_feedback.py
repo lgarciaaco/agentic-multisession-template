@@ -40,9 +40,11 @@ def route_feedback(
     if child_name not in active:
         raise ValueError(f"child {child_name!r} is not registered in parent program active_children")
 
+    command = message.strip()
     payload = (
-        f"[program-orchestrator gate={gate}]\n\n"
-        f"Parent `{parent_name}` routed feedback:\n\n{message.strip()}"
+        f"{command}\n\n"
+        f"[program-orchestrator gate={gate}]\n"
+        f"Parent `{parent_name}` routed feedback."
     )
     if dry_run:
         return payload

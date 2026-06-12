@@ -4,13 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from gate_command_registry import allowed_route_messages, is_allowed_route_message
 from program_state import GATE_PHASES, load_program
 from session_binding import resolve_codename, validate_codename, write_inbox_program_route
-
-ALLOWED_MESSAGES = {
-    "brief_review": frozenset({"accept brief", "accept", "reopen brief"}),
-    "plan_user_review": frozenset({"accept plan", "reopen plan"}),
-}
 
 
 def route_feedback(
@@ -28,9 +24,8 @@ def route_feedback(
         allowed = ", ".join(sorted(GATE_PHASES))
         raise ValueError(f"invalid gate {gate!r}; expected one of: {allowed}")
 
-    normalized = message.strip().lower()
-    allowed_msgs = ALLOWED_MESSAGES[gate]
-    if normalized not in allowed_msgs:
+    if not is_allowed_route_message(gate, message):
+        allowed_msgs = allowed_route_messages(gate)
         raise ValueError(
             f"invalid message for {gate}; expected one of: {', '.join(sorted(allowed_msgs))}"
         )

@@ -8,6 +8,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from gate_command_registry import (
+    ACCEPT_BRIEF,
+    ACCEPT_PLAN,
+    REOPEN_BRIEF,
+    REOPEN_PLAN,
+    classify_gate_command,
+    is_gate_command_action,
+)
 from hub_paths import resolve_session_artifact
 from program_state import GATE_PHASES, find_program_parent
 from session_binding import (
@@ -32,36 +40,11 @@ _INBOX_BLOCK_RE = re.compile(
     re.MULTILINE | re.DOTALL,
 )
 
-_COMMAND_PATTERNS: dict[str, re.Pattern[str]] = {
-    "accept_brief": re.compile(
-        r"^(?:workflow:\s*)?(?:accept brief|accept)\s*$",
-        re.IGNORECASE,
-    ),
-    "accept_plan": re.compile(
-        r"^(?:workflow:\s*)?accept plan\s*$",
-        re.IGNORECASE,
-    ),
-    "reopen_brief": re.compile(
-        r"^(?:workflow:\s*)?reopen brief\s*$",
-        re.IGNORECASE,
-    ),
-    "reopen_plan": re.compile(
-        r"^(?:workflow:\s*)?reopen plan\s*$",
-        re.IGNORECASE,
-    ),
-}
-
-_PHASE_COMMANDS: dict[str, tuple[str, ...]] = {
-    "brief_review": ("accept_brief", "reopen_brief"),
-    "plan_user_review": ("accept_plan", "reopen_plan"),
-}
-
 _PHASE_FEEDBACK: dict[str, str] = {
     "brief_review": "brief_correction",
     "plan_user_review": "plan_feedback",
 }
 
-_GATE_COMMAND_ACTIONS = frozenset({"accept_brief", "accept_plan", "reopen_brief", "reopen_plan"})
 _PROGRAM_GATE_MARKER = "[program-orchestrator gate="
 
 
@@ -108,14 +91,10 @@ def classify_gate_message(phase: str, body: str) -> str | None:
         return None
 
     first_line = text.splitlines()[0].strip()
-    for action in _PHASE_COMMANDS.get(phase, ()):
-        if _COMMAND_PATTERNS[action].match(first_line):
-            return action
+    action = classify_gate_command(phase, first_line)
+    if action is not None:
+        return action
     return _PHASE_FEEDBACK[phase]
-
-
-def is_gate_command_action(action: str) -> bool:
-    return action in _GATE_COMMAND_ACTIONS
 
 
 def gate_command_sender_authorized(
@@ -361,7 +340,7 @@ def pull_inbox_gate(
             )
             continue
 
-        if action == "accept_brief":
+        if action == ACCEPT_BRIEF:
             accept_brief(root, codename, source=f"inbox:{from_session}")
             workflow = load_workflow(session_dir)
             phase = str(workflow.get("phase") or "")
@@ -370,7 +349,7 @@ def pull_inbox_gate(
             result["applied"].append({"action": action, "from": from_session, "marker": marker})
             break
 
-        if action == "accept_plan":
+        if action == ACCEPT_PLAN:
             accept_action_plan(root, codename)
             workflow = load_workflow(session_dir)
             phase = str(workflow.get("phase") or "")
@@ -379,7 +358,7 @@ def pull_inbox_gate(
             result["applied"].append({"action": action, "from": from_session, "marker": marker})
             break
 
-        if action == "reopen_brief":
+        if action == REOPEN_BRIEF:
             workflow = reopen_brief(session_dir)
             phase = str(workflow.get("phase") or "")
             result["phase"] = phase
@@ -387,7 +366,7 @@ def pull_inbox_gate(
             result["applied"].append({"action": action, "from": from_session, "marker": marker})
             break
 
-        if action == "reopen_plan":
+        if action == REOPEN_PLAN:
             workflow = reopen_plan(session_dir)
             phase = str(workflow.get("phase") or "")
             result["phase"] = phase

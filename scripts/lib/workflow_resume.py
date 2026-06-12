@@ -22,8 +22,8 @@ def workflow_next_action(workflow: dict[str, Any]) -> str:
         return "Continue analyst interview; draft artifacts/problem-brief.md"
     if phase == "brief_review":
         return (
-            "Present brief; await user accept brief or correlated inbox feedback "
-            f"(poll inbox every {INBOX_GATE_POLL_SECONDS // 60}m at gate)"
+            "Inbox gate auto-applied on sync-session; if still brief_review, present brief "
+            f"or poll every {INBOX_GATE_POLL_SECONDS // 60}m: workflow-pull-inbox-gate.py --apply"
         )
     if phase == "plan_loop":
         iteration = plan_loop.get("iteration", 0)
@@ -35,9 +35,8 @@ def workflow_next_action(workflow: dict[str, Any]) -> str:
         )
     if phase == "plan_user_review":
         return (
-            "Present action plan, including refused dispositions; "
-            "await user accept plan, plan-feedback.md, or correlated inbox feedback "
-            f"(poll inbox every {INBOX_GATE_POLL_SECONDS // 60}m at gate)"
+            "Inbox gate auto-applied on sync-session; if still plan_user_review, present plan "
+            f"or poll every {INBOX_GATE_POLL_SECONDS // 60}m: workflow-pull-inbox-gate.py --apply"
         )
     if phase == "implementation":
         return (

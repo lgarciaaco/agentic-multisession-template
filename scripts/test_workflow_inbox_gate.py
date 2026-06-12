@@ -17,6 +17,7 @@ from workflow_inbox_gate import (  # noqa: E402
     classify_gate_message,
     parse_inbox_blocks,
     pull_inbox_gate,
+    pull_inbox_gate_json,
 )
 
 
@@ -152,6 +153,30 @@ class WorkflowInboxGateTests(unittest.TestCase):
         result = pull_inbox_gate(self.root, self.codename, apply=False)
         self.assertFalse(result["gate_phase"])
         self.assertEqual(result["pending"], [])
+
+    def test_pull_inbox_gate_apply_brief_correction(self) -> None:
+        write_inbox(self.root, "bravo", "alpha", "Tighten SC-1 wording for clarity.")
+        result = pull_inbox_gate(self.root, self.codename, apply=True)
+        self.assertEqual(result["applied"][0]["action"], "brief_correction")
+        workflow = json.loads((self.session_dir / "workflow.json").read_text())
+        self.assertEqual(workflow["phase"], "brief_review")
+        brief = (self.session_dir / "artifacts" / "problem-brief.md").read_text()
+        self.assertIn("Inbox correction from `bravo`", brief)
+        self.assertIn("Tighten SC-1 wording", brief)
+
+    def test_pull_inbox_gate_json_helper(self) -> None:
+        payload = pull_inbox_gate_json(self.root, self.codename, apply=False)
+        parsed = json.loads(payload)
+        self.assertEqual(parsed["codename"], self.codename)
+
+    def test_sync_session_auto_applies_accept_brief(self) -> None:
+        from session_binding import sync_session_from_canonical  # noqa: E402
+
+        write_inbox(self.root, "bravo", "alpha", "accept brief")
+        sync_session_from_canonical(self.root, self.codename, refresh_context=False)
+        workflow = json.loads((self.session_dir / "workflow.json").read_text())
+        self.assertTrue(workflow["gates"]["brief_accepted"])
+        self.assertEqual(workflow["phase"], "plan_loop")
 
 
 if __name__ == "__main__":

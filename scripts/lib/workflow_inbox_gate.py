@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from hub_paths import resolve_session_artifact
-from session_binding import read_inbox
+from session_binding import read_inbox, sanitize_goal_text
 from workflow_plan import (
     INBOX_GATE_POLL_SECONDS,
     accept_action_plan,
@@ -171,6 +172,33 @@ def accept_brief(root: Path, codename: str, *, source: str = "user") -> dict[str
     return {"codename": codename, "phase": "plan_loop", "source": source}
 
 
+def apply_brief_correction(
+    root: Path,
+    codename: str,
+    message: str,
+    *,
+    from_session: str,
+) -> dict[str, Any]:
+    session_dir = root / "sessions" / codename
+    workflow = load_workflow(session_dir)
+    phase = str(workflow.get("phase") or "")
+    if phase != "brief_review":
+        raise ValueError(f"cannot apply brief correction in phase '{phase}'")
+
+    artifacts = workflow.get("artifacts") or {}
+    brief_rel = artifacts.get("brief", "artifacts/problem-brief.md")
+    brief_path = resolve_session_artifact(session_dir, brief_rel)
+    brief_path.parent.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    safe_body = sanitize_goal_text(message.strip())
+    block = f"\n\n## Inbox correction from `{from_session}` ({stamp})\n\n{safe_body}\n"
+    if brief_path.exists():
+        brief_path.write_text(brief_path.read_text().rstrip() + block + "\n")
+    else:
+        brief_path.write_text(f"# Problem brief\n{block}\n")
+    return {"codename": codename, "phase": "brief_review", "artifact": str(brief_rel)}
+
+
 def apply_plan_feedback(
     root: Path,
     codename: str,
@@ -189,7 +217,8 @@ def apply_plan_feedback(
     feedback_path = resolve_session_artifact(session_dir, feedback_rel)
     feedback_path.parent.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    block = f"\n\n## Inbox feedback from `{from_session}` ({stamp})\n\n{message.strip()}\n"
+    safe_body = sanitize_goal_text(message.strip())
+    block = f"\n\n## Inbox feedback from `{from_session}` ({stamp})\n\n{safe_body}\n"
     if feedback_path.exists():
         feedback_path.write_text(feedback_path.read_text().rstrip() + block + "\n")
     else:
@@ -308,15 +337,12 @@ def pull_inbox_gate(
             break
 
         if action == "brief_correction":
+            apply_brief_correction(root, codename, body, from_session=from_session)
+            workflow = load_workflow(session_dir)
+            phase = str(workflow.get("phase") or "")
+            result["phase"] = phase
             applied_markers.append(marker)
-            result["applied"].append(
-                {
-                    "action": action,
-                    "from": from_session,
-                    "marker": marker,
-                    "body": body,
-                }
-            )
+            result["applied"].append({"action": action, "from": from_session, "marker": marker})
             break
 
     workflow = load_workflow(session_dir)

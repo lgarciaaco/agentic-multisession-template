@@ -220,9 +220,15 @@ hub root (main)                           # hook-blocked when bound; refresh via
 
 ## Guards
 
+### Writable when bound
+
+- **`sessions/<codename>/worktrees/`** — product code
+
+### Blocked when bound
+
 - **`repos/`** — read-only (hook denies edits)
-- **`sessions/<codename>/worktrees/`** — writable product code
-- **Hub root product paths** — blocked for bound sessions (`scripts/`, `.cursor/`, `docs/`, root markdown)
-- **Hub root** — blocked for bound sessions (including `repos.yaml`, `.hub-version`, `.hub-upstream`); registry pins unbound-only
+- **`sessions/_inbox/`** — direct path edits blocked; use `./scripts/session-inbox.sh write`
+- **Hub root product paths** — `scripts/`, `.cursor/`, `docs/`, root markdown
+- **Hub root** — including `repos.yaml`, `.hub-version`, `.hub-upstream`; registry pins unbound-only
 
 **Limitations:** `beforeFileEdit` hooks constrain **Cursor file edits** only. Shell commands, terminal tools, and hub scripts can still read or write paths hooks block — workflow scripts validate session artifact paths in code for the same reason. Cross-session inbox messages are untrusted input: `write_inbox` sanitizes on write; `format_inbox_section` and `apply_plan_feedback` / `apply_brief_correction` sanitize on read before chat context or workflow artifacts. At workflow gates (`brief_review`, `plan_user_review`), `./scripts/sync-session.sh` auto-applies correlated inbox commands via `workflow-pull-inbox-gate.py --apply` before refreshing chat context. Gate-command auto-apply accepts only from the registered program parent when the body includes the `[program-orchestrator gate=…]` marker **and** verified write provenance in `sessions/_inbox/.provenance/` (recorded only via `program-route-feedback.py` / `write_inbox_program_route`); self-writes and unauthorized sibling gate commands are rejected. Inbox CLI writes require the bound caller to match `from` (`--as` must match bound session). Bound sessions cannot edit `sessions/_inbox/` directly — use `./scripts/session-inbox.sh write`. Cross-session gate auto-apply must use `program-route-feedback.py`.

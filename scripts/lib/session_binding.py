@@ -1154,6 +1154,58 @@ def format_workflow_section(root: Path, codename: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+def format_program_section(root: Path, codename: str) -> str:
+    """Inject program.json summary when a session is a program orchestrator parent."""
+    program_path = root / "sessions" / codename / "program.json"
+    if not program_path.exists():
+        return ""
+
+    try:
+        from program_monitor import monitor_program
+
+        report = monitor_program(root, codename)
+    except (ImportError, ValueError, FileNotFoundError, OSError) as exc:
+        hint = sanitize_context_text(str(exc), max_len=120)
+        return f"\n## Program\n\n- **program.json:** unavailable ({hint})\n"
+
+    lines = [
+        "\n## Program\n",
+        f"- **Decomposition approved:** {report.get('decomposition_approved')}",
+        "- **Commands:** `/sessions-orchestrator`, `/sessions-orchestrator status`",
+    ]
+    next_action = sanitize_context_text(str(report.get("parent_next_action") or ""), max_len=400)
+    if next_action:
+        lines.append(f"- **Parent next:** {next_action}")
+
+    pending = [c for c in report.get("children") or [] if c.get("pending_gate")]
+    if pending:
+        lines.append("- **Gate review (mandatory):**")
+        for child in pending:
+            review = child.get("gate_review") or {}
+            artifact = sanitize_context_text(str(review.get("artifact_path") or ""), max_len=120)
+            present = "present" if review.get("artifact_present") else "missing"
+            gate = sanitize_context_text(str(child.get("pending_gate") or ""), max_len=40)
+            child_name = sanitize_context_text(str(child.get("codename") or ""), max_len=40)
+            decomp = review.get("decomposition_scope") or {}
+            scope_bits: list[str] = []
+            if decomp.get("title"):
+                scope_bits.append(sanitize_context_text(str(decomp["title"]), max_len=80))
+            if decomp.get("goal"):
+                scope_bits.append(sanitize_context_text(str(decomp["goal"]), max_len=120))
+            scope_suffix = f"; scope: {' — '.join(scope_bits)}" if scope_bits else ""
+            lines.append(
+                f"  - `{child_name}` @ `{gate}` — review `{artifact}` ({present}) "
+                f"against decomposition scope before routing gate commands{scope_suffix}"
+            )
+
+    plan_rel = report.get("plan_path") or "artifacts/program-plan.md"
+    plan_path = root / "sessions" / codename / plan_rel
+    if plan_path.is_file():
+        lines.append(f"- **Program plan:** `sessions/{codename}/{plan_rel}` (present)")
+
+    return "\n".join(lines) + "\n"
+
+
 def build_context_markdown(root: Path, codename: str, chat_id: str) -> str:
     """Agent-facing context snippet from canonical session metadata."""
     session_dir = root / "sessions" / codename
@@ -1177,6 +1229,7 @@ def build_context_markdown(root: Path, codename: str, chat_id: str) -> str:
 
     inbox_section = format_inbox_section(root, codename)
     workflow_section = format_workflow_section(root, codename)
+    program_section = format_program_section(root, codename)
     worktree_section = format_worktree_section(root, codename, session)
     tasks_line = ", ".join(running) if running else "—"
     from repos import self_hosted_aliases
@@ -1207,7 +1260,7 @@ def build_context_markdown(root: Path, codename: str, chat_id: str) -> str:
 {next_line}- **Tasks in flight:** {tasks_line}
 - **Writable:** {writable}{worktree_note}{self_hosted_note}
 {progress_note}
-{workflow_section}{worktree_section}{inbox_section}
+{workflow_section}{program_section}{worktree_section}{inbox_section}
 {goal}
 {format_guidelines_section(root, codename, session)}
 

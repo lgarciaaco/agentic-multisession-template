@@ -18,6 +18,8 @@ def format_text(report: dict) -> str:
         f"Program monitor — parent `{report['parent']}`",
         f"Generated: {report['generated_at']}",
         "",
+        f"Parent next: {report.get('parent_next_action') or '—'}",
+        "",
     ]
     for child in report.get("children") or []:
         gate = child.get("pending_gate") or "—"
@@ -26,6 +28,10 @@ def format_text(report: dict) -> str:
         )
         if child.get("error"):
             lines.append(f"  error: {child['error']}")
+        review = child.get("gate_review")
+        if review:
+            present = "present" if review.get("artifact_present") else "missing"
+            lines.append(f"  review: {review.get('artifact_path')} ({present})")
     return "\n".join(lines) + "\n"
 
 

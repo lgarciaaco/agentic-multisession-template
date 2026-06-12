@@ -126,7 +126,7 @@ Session context lists which guideline files exist on bind. Optional `guidelines:
 
 `./scripts/session-inbox.sh write <from> <to> "message"` · read on bind or `./scripts/session-inbox.sh read <codename>`
 
-Program parent gate commands: `python3 scripts/program-route-feedback.py` (exact `accept brief` / `accept plan` / reopen only). Free-text parent review: `./scripts/session-inbox.sh write` (classifies as correction, not gate accept). See [sessions/_inbox/README.md](sessions/_inbox/README.md) and [docs/PROGRAM_ORCHESTRATOR.md](docs/PROGRAM_ORCHESTRATOR.md) § Parent routing at child gates.
+Program parent gate: parent **always reviews** child brief/plan against decomposition at gates (monitor `parent_next_action`, `gate_review` paths). Route via `python3 scripts/program-route-feedback.py` (exact `accept brief` / `accept plan` / reopen only). Free-text corrections: `./scripts/session-inbox.sh write` (not gate accept). See [docs/PROGRAM_ORCHESTRATOR.md](docs/PROGRAM_ORCHESTRATOR.md) § Parent gate review.
 
 ## Git / PRs
 

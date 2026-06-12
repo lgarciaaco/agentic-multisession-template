@@ -28,6 +28,7 @@ from session_binding import (  # noqa: E402
     collect_session_audit,
     ensure_chat_binding,
     format_inbox_section,
+    format_program_section,
     format_workflow_section,
     close_session_work,
     CodenameAllocationError,
@@ -655,6 +656,56 @@ class WorktreeGuardTests(unittest.TestCase):
         (session_dir / "workflow.json").write_text(json.dumps(workflow) + "\n")
         section = format_workflow_section(self.root, self.codename)
         self.assertIn("problem-brief.md` (present)", section)
+
+    def test_format_program_section_shows_mandatory_gate_review(self) -> None:
+        parent = self.codename
+        child = "november"
+        parent_dir = self.root / "sessions" / parent
+        child_dir = self.root / "sessions" / child
+        child_dir.mkdir(parents=True)
+        (child_dir / "artifacts").mkdir()
+        (child_dir / "artifacts" / "problem-brief.md").write_text("# Brief\n")
+        (child_dir / "workflow.json").write_text(
+            json.dumps(
+                {
+                    "version": 2,
+                    "phase": "brief_review",
+                    "gates": {"brief_accepted": False, "plan_user_accepted": False},
+                    "loops": {},
+                    "artifacts": {},
+                }
+            )
+            + "\n"
+        )
+        (child_dir / "session.json").write_text(
+            json.dumps({"codename": child, "title": "Child", "tasks": []}) + "\n"
+        )
+        from program_state import default_program, save_program
+
+        program = default_program(parent)
+        program["decomposition_approved"] = True
+        program["proposed_children"] = [
+            {
+                "id": "c1",
+                "suggested_codename": child,
+                "title": "Child scope",
+                "goal": "Child goal",
+                "repo": "template",
+                "depends_on": [],
+            }
+        ]
+        program["active_children"] = [{"codename": child, "status": "running"}]
+        save_program(parent_dir, program)
+        section = format_program_section(self.root, parent)
+        self.assertIn("## Program", section)
+        self.assertIn("Gate review (mandatory)", section)
+        self.assertIn("problem-brief.md", section)
+        self.assertIn("Parent next:", section)
+        self.assertIn("Review child", section)
+
+    def test_format_program_section_empty_without_program_json(self) -> None:
+        section = format_program_section(self.root, self.codename)
+        self.assertEqual(section, "")
 
     def test_context_includes_next_step(self) -> None:
         session_path = self.root / "sessions" / self.codename / "session.json"

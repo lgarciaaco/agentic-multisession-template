@@ -9,14 +9,23 @@ shift || true
 
 case "$cmd" in
   write)
+    as_flag=()
+    if [[ "${1:-}" == "--as" ]]; then
+      if [[ $# -lt 2 ]]; then
+        echo "Usage: $0 write [--as CODENAME] <from> <to> <message>" >&2
+        exit 1
+      fi
+      as_flag=(--as "$2")
+      shift 2
+    fi
     if [[ $# -lt 3 ]]; then
-      echo "Usage: $0 write <from> <to> <message>" >&2
+      echo "Usage: $0 write [--as CODENAME] <from> <to> <message>" >&2
       exit 1
     fi
     from="$1"
     to="$2"
     shift 2
-    hub_cli inbox write "$from" "$to" "$*"
+    hub_cli inbox write "${as_flag[@]}" "$from" "$to" "$*"
     ;;
   read)
     if [[ $# -lt 1 ]]; then
@@ -27,7 +36,7 @@ case "$cmd" in
     ;;
   *)
     echo "Usage:" >&2
-    echo "  $0 write <from> <to> <message>   # e.g. bravo → alpha" >&2
+    echo "  $0 write [--as CODENAME] <from> <to> <message>   # e.g. bravo → alpha" >&2
     echo "  $0 read <codename>" >&2
     exit 1
     ;;

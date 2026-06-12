@@ -85,7 +85,6 @@ for alias, cfg in repos.items():
                 ["git", "-C", str(dest), "remote", "set-url", "origin", clone],
                 check=True,
             )
-        subprocess.run(["git", "-C", str(dest), "checkout", "--", branch], check=False)
         configure_repo_remotes(dest, cfg, default_fork_user=fork_user)
         continue
 

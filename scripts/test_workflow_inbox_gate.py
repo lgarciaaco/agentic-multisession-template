@@ -109,16 +109,18 @@ class WorkflowInboxGateTests(unittest.TestCase):
     def _route_parent(self, gate: str, message: str) -> None:
         from session_binding import write_inbox_program_route
 
-        write_inbox_program_route(
-            self.root,
-            self.parent,
-            self.child,
-            (
-                f"{message}\n\n"
-                f"[program-orchestrator gate={gate}]\n"
-                f"Parent `{self.parent}` routed feedback."
-            ),
+        payload = (
+            f"{message}\n\n"
+            f"[program-orchestrator gate={gate}]\n"
+            f"Parent `{self.parent}` routed feedback."
         )
+        with mock.patch("session_binding.resolve_inbox_caller", return_value=self.parent):
+            write_inbox_program_route(
+                self.root,
+                self.parent,
+                self.child,
+                payload,
+            )
 
     def _route_parent_accept_brief(self) -> None:
         self._route_parent("brief_review", "accept brief")
@@ -301,13 +303,67 @@ none
             "program_route_feedback.resolve_codename",
             return_value=(self.sibling, "binding"),
         ):
-            with self.assertRaisesRegex(ValueError, "requires bound session"):
+            with self.assertRaisesRegex(ValueError, f"not {self.sibling!r}"):
                 route_feedback(
                     self.root,
                     parent=self.parent,
                     child=self.child,
                     gate="brief_review",
                     message="accept brief",
+                )
+
+    def test_route_feedback_rejects_unbound_caller(self) -> None:
+        with mock.patch(
+            "program_route_feedback.resolve_codename",
+            return_value=(None, ""),
+        ):
+            with self.assertRaisesRegex(ValueError, "not unbound caller"):
+                route_feedback(
+                    self.root,
+                    parent=self.parent,
+                    child=self.child,
+                    gate="brief_review",
+                    message="accept brief",
+                )
+
+    def test_write_inbox_program_route_rejects_sibling_caller(self) -> None:
+        from session_binding import write_inbox_program_route
+
+        payload = (
+            "accept brief\n\n"
+            "[program-orchestrator gate=brief_review]\n"
+            f"Parent `{self.parent}` routed feedback."
+        )
+        with mock.patch(
+            "session_binding.resolve_inbox_caller",
+            return_value=self.sibling,
+        ):
+            with self.assertRaisesRegex(ValueError, "requires caller"):
+                write_inbox_program_route(
+                    self.root,
+                    self.parent,
+                    self.child,
+                    payload,
+                )
+
+    def test_write_inbox_program_route_rejects_unbound_caller(self) -> None:
+        from session_binding import write_inbox_program_route
+
+        payload = (
+            "accept brief\n\n"
+            "[program-orchestrator gate=brief_review]\n"
+            f"Parent `{self.parent}` routed feedback."
+        )
+        with mock.patch("session_binding.resolve_inbox_caller", return_value=None):
+            with self.assertRaisesRegex(
+                ValueError,
+                "requires bound session caller equal to registered parent",
+            ):
+                write_inbox_program_route(
+                    self.root,
+                    self.parent,
+                    self.child,
+                    payload,
                 )
 
     def test_parse_inbox_blocks(self) -> None:

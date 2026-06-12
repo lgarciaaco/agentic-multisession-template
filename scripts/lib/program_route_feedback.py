@@ -44,7 +44,11 @@ def route_feedback(
     if dry_run:
         return payload
     bound, _ = resolve_codename(root)
-    if bound and bound != parent_name:
+    if bound != parent_name:
+        if bound is None:
+            raise ValueError(
+                f"route_feedback requires bound session {parent_name!r}, not unbound caller"
+            )
         raise ValueError(
             f"route_feedback requires bound session {parent_name!r}, not {bound!r}"
         )

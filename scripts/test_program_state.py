@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from program_state import (  # noqa: E402
@@ -61,6 +63,33 @@ class ProgramStateTests(unittest.TestCase):
         template_path = hub_root / "sessions" / "_template" / "program.json"
         raw = json.loads(template_path.read_text())
         self.assertEqual(raw["version"], 1)
+
+    @mock.patch("program_bootstrap._run_script")
+    def test_bootstrap_sets_active_children(self, run_script) -> None:
+        program = default_program("mike")
+        program["proposed_children"] = [
+            {
+                "id": "pc1",
+                "suggested_codename": "november",
+                "title": "Child",
+                "goal": "Goal",
+                "repo": "template",
+                "depends_on": [],
+            }
+        ]
+        save_program(self.session_dir, program)
+        run_script.side_effect = lambda root, script, *args: "november"
+
+        sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+        from program_bootstrap import bootstrap_children  # noqa: E402
+
+        os.environ.pop("TMUX", None)
+        with mock.patch("sys.stdout"):
+            bootstrap_children(self.root, "mike", approve=True)
+
+        loaded = load_program(self.session_dir)
+        self.assertTrue(loaded["decomposition_approved"])
+        self.assertEqual(loaded["active_children"][0]["codename"], "november")
 
 
 if __name__ == "__main__":

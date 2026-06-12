@@ -14,6 +14,8 @@ REUSE=0
 for arg in "$@"; do
   if [[ "$arg" == "--reuse" ]]; then
     REUSE=1
+  elif [[ "$arg" == "--workflow" ]]; then
+    AGENT_ARGS+=("/workflow-orchestrator")
   else
     AGENT_ARGS+=("$arg")
   fi
@@ -87,7 +89,7 @@ if [[ -n "$WT" ]]; then
 else
   echo "Session: $CODENAME (tmux: $WINDOW_LABEL)" >&2
 fi
-if [[ -r /dev/tty && -w /dev/tty ]]; then
+if [[ -z "${WORKSPACE_AGENT_NO_TTY:-}" && -r /dev/tty && -w /dev/tty ]]; then
   exec "$AGENT_BIN" "${AGENT_ARGS[@]}" </dev/tty >/dev/tty 2>&1
 fi
 exec "$AGENT_BIN" "${AGENT_ARGS[@]}"

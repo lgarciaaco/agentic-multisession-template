@@ -60,6 +60,27 @@ python3 scripts/workflow-pull-inbox-gate.py <codename> --apply
 
 On loop tick or after presenting a gate artifact, run pull with `--apply`. For `brief_correction`, apply the message to the brief before marking processed. Arm the loop per `.cursor/skills/loop/SKILL.md` (fixed `120s` schedule); stop when phase leaves a gate.
 
+### Gate-entry checklist (mandatory)
+
+When entering `brief_review` or `plan_user_review`:
+
+1. Run `python3 scripts/workflow-pull-inbox-gate.py <codename> --apply` immediately.
+2. Arm a fixed `120s` background loop per `.cursor/skills/loop/SKILL.md` with an inbox-pull prompt; stop the loop when phase leaves a gate.
+3. `beforeSubmitPrompt` hook auto-pull is a safety net only — do not skip steps 1–2.
+
+### Program child dual-write (before presenting a gate)
+
+When `find_program_parent(hub_root, codename)` returns a parent (child is in `program.json` `active_children`):
+
+1. Persist open questions and gate blockers under **Open questions** in the gate artifact (`problem-brief.md` at `brief_review`, `action-plan.md` at `plan_user_review`).
+2. Write the same items to the parent inbox:
+
+```bash
+./scripts/session-inbox.sh write <codename> <parent> "Gate blockers for <codename> at <phase>: …"
+```
+
+Standalone sessions (no registered parent) skip dual-write. Clear **Open questions** on gate accept per analyst/plan rules.
+
 Monitoring agents write via:
 
 ```bash
@@ -140,9 +161,10 @@ else: auto pr_creation → ci_observe → delivery report → completed
 
 When phase is `plan_user_review` after synthesizer **APPROVE**:
 
-1. Present Approach + task summary + **refused dispositions only**
-2. End with **`accept plan`** or `plan-feedback.md` → re-enter `plan_loop`
-3. Do not ask open-ended questions
+1. Dual-write any **Open questions** in `action-plan.md` to parent inbox when `find_program_parent` returns a parent (see **Program child dual-write**).
+2. Present Approach + task summary + **refused dispositions only**
+3. End with **`accept plan`** or `plan-feedback.md` → re-enter `plan_loop`
+4. Do not ask open-ended questions
 
 ## Developer (implementation phase)
 

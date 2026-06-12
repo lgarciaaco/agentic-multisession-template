@@ -236,3 +236,29 @@ def save_program(session_dir: Path, program: dict[str, Any], *, codename: str | 
     expected = codename or session_dir.name
     normalized = validate_program(program, session_dir=session_dir, expected_codename=expected)
     program_path(session_dir).write_text(json.dumps(normalized, indent=2) + "\n")
+
+
+def find_program_parent(root: Path, child: str) -> str | None:
+    """Return parent codename when child is registered in a program's active_children.
+
+    Raises:
+        ValueError: when child is not a valid codename.
+    """
+    child_name = validate_codename(child)
+    sessions_dir = root / "sessions"
+    if not sessions_dir.is_dir():
+        return None
+    for session_dir in sorted(sessions_dir.iterdir()):
+        if not session_dir.is_dir() or session_dir.name.startswith("_"):
+            continue
+        prog_file = program_path(session_dir)
+        if not prog_file.exists():
+            continue
+        try:
+            program = load_program(session_dir, codename=session_dir.name)
+        except (ValueError, FileNotFoundError, OSError):
+            continue
+        active = {entry["codename"] for entry in program["active_children"]}
+        if child_name in active:
+            return program["parent_codename"]
+    return None

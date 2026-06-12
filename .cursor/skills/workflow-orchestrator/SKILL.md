@@ -87,7 +87,7 @@ intake → brief_review → [accept brief | inbox at gate]
   → [auto] pr_creation → [auto] ci_observe → delivery → completed
 ```
 
-At `brief_review` and `plan_user_review`, poll inbox every 2m: `python3 scripts/workflow-pull-inbox-gate.py <codename> --apply`. See [rules/conductor.md](rules/conductor.md) **Inbox gate feedback**.
+At `brief_review` and `plan_user_review`, follow [rules/conductor.md](rules/conductor.md) **Gate-entry checklist**: immediate `workflow-pull-inbox-gate.py --apply`, then arm `/loop 120s` for recurring pull. `beforeSubmitPrompt` hook auto-pull is a safety net only. Program children dual-write gate blockers to parent inbox before presenting the gate.
 
 Autonomous loops — conductor runs without user between gates.
 

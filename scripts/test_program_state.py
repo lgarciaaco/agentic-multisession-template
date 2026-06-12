@@ -14,6 +14,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from program_state import (  # noqa: E402
     default_program,
+    find_program_parent,
     load_program,
     save_program,
 )
@@ -57,6 +58,24 @@ class ProgramStateTests(unittest.TestCase):
         program["merge_hints"]["ordered_children"] = ["oscar"]
         with self.assertRaisesRegex(ValueError, "unknown active child"):
             save_program(self.session_dir, program)
+
+    def test_find_program_parent_returns_parent(self) -> None:
+        parent_dir = self.root / "sessions" / "alpha"
+        child_dir = self.root / "sessions" / "charlie"
+        parent_dir.mkdir(parents=True)
+        child_dir.mkdir(parents=True)
+        (parent_dir / "artifacts").mkdir()
+        program = default_program("alpha")
+        program["active_children"] = [{"codename": "charlie", "status": "running"}]
+        save_program(parent_dir, program)
+        self.assertEqual(find_program_parent(self.root, "charlie"), "alpha")
+
+    def test_find_program_parent_none_when_unregistered(self) -> None:
+        parent_dir = self.root / "sessions" / "alpha"
+        parent_dir.mkdir(parents=True)
+        (parent_dir / "artifacts").mkdir()
+        save_program(parent_dir, default_program("alpha"))
+        self.assertIsNone(find_program_parent(self.root, "charlie"))
 
     def test_template_file_parses(self) -> None:
         hub_root = Path(__file__).resolve().parent.parent

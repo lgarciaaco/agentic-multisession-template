@@ -12,6 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from program_monitor import monitor_program  # noqa: E402
 from program_route_feedback import route_feedback  # noqa: E402
+from workflow_inbox_gate import classify_gate_message, parse_inbox_blocks, pull_inbox_gate  # noqa: E402
 from program_state import default_program, save_program  # noqa: E402
 from session_binding import write_inbox  # noqa: E402
 
@@ -66,7 +67,23 @@ class ProgramOrchestratorTests(unittest.TestCase):
         )
         inbox = self.root / "sessions" / "_inbox" / f"{self.child}.md"
         self.assertTrue(inbox.exists())
-        self.assertIn("accept brief", inbox.read_text())
+        blocks = parse_inbox_blocks(inbox.read_text())
+        self.assertEqual(blocks[0]["body"].splitlines()[0].strip(), "accept brief")
+        self.assertEqual(
+            classify_gate_message("brief_review", blocks[0]["body"]),
+            "accept_brief",
+        )
+
+    def test_route_feedback_classifies_as_gate_accept(self) -> None:
+        route_feedback(
+            self.root,
+            parent=self.parent,
+            child=self.child,
+            gate="brief_review",
+            message="accept brief",
+        )
+        result = pull_inbox_gate(self.root, self.child, apply=False)
+        self.assertEqual(result["pending"][0]["action"], "accept_brief")
 
     def test_route_feedback_unknown_child_raises(self) -> None:
         with self.assertRaisesRegex(ValueError, "not registered"):
@@ -76,6 +93,16 @@ class ProgramOrchestratorTests(unittest.TestCase):
                 child="oscar",
                 gate="brief_review",
                 message="accept brief",
+            )
+
+    def test_route_feedback_rejects_prose(self) -> None:
+        with self.assertRaisesRegex(ValueError, "invalid message"):
+            route_feedback(
+                self.root,
+                parent=self.parent,
+                child=self.child,
+                gate="brief_review",
+                message="brief looks good — proceed to accept brief.",
             )
 
 

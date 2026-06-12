@@ -17,7 +17,10 @@ from session_binding import (
     close_session_work,
     collect_session_audit,
     conversation_id,
+    _maybe_apply_inbox_gate_at_sync,
     ensure_chat_binding,
+    is_active_session,
+    refresh_binding_contexts,
     ensure_session,
     format_multi_session_tmux_warning,
     format_session_audit_report,
@@ -38,6 +41,7 @@ from session_binding import (
     self_hosted_worktree_missing,
     session_scope_is_thin,
     validate_active_codename,
+    validate_codename,
     set_session_scope,
     sync_session_from_canonical,
     tmux_window_label,
@@ -301,6 +305,19 @@ def cmd_hook_before_prompt(_args: argparse.Namespace) -> int:
                 ensure_chat_binding(root, cid, codename, source)
             elif source == "tmux-session" and prompt_is_start_new(prompt):
                 bind_session_context(root, codename, cid)
+        binding = read_binding(root, cid)
+
+    if binding:
+        codename = str(binding.get("codename") or "").strip()
+        if codename:
+            try:
+                name = validate_codename(codename)
+            except ValueError:
+                pass
+            else:
+                if is_active_session(root, name):
+                    _maybe_apply_inbox_gate_at_sync(root, name)
+                    refresh_binding_contexts(root, name, conversation_id=cid)
 
     return 0
 

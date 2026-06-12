@@ -37,6 +37,7 @@ from session_binding import (
     read_inbox,
     rename_tmux_for_codename,
     resolve_codename,
+    resolve_inbox_caller,
     resolve_source_label,
     self_hosted_worktree_missing,
     session_scope_is_thin,
@@ -46,7 +47,6 @@ from session_binding import (
     sync_session_from_canonical,
     tmux_window_label,
     unbind_session_context,
-    validate_codename,
     write_context_file,
     write_inbox,
 )
@@ -351,7 +351,20 @@ def cmd_inbox(args: argparse.Namespace) -> int:
         try:
             from_session = _require_codename(args.from_session)
             to_session = _require_codename(args.to_session)
-            path = write_inbox(root, from_session, to_session, args.message)
+            caller = resolve_inbox_caller(root, as_codename=args.as_codename)
+            if not caller:
+                print(
+                    "Error: inbox write requires session binding or --as <codename>",
+                    file=sys.stderr,
+                )
+                return 1
+            path = write_inbox(
+                root,
+                from_session,
+                to_session,
+                args.message,
+                caller_codename=caller,
+            )
         except ValueError as exc:
             print(f"Error: {exc}", file=sys.stderr)
             return 1
@@ -435,6 +448,7 @@ def main(argv: list[str] | None = None) -> int:
     inbox_read = inbox_sub.add_parser("read", help="Print inbox for a session")
     inbox_read.add_argument("codename")
     inbox_write = inbox_sub.add_parser("write", help="Append message to another session's inbox")
+    inbox_write.add_argument("--as", dest="as_codename", metavar="CODENAME")
     inbox_write.add_argument("from_session", metavar="from")
     inbox_write.add_argument("to_session", metavar="to")
     inbox_write.add_argument("message")

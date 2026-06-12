@@ -10,8 +10,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from session_binding import hub_root, validate_codename  # noqa: E402
-from workflow_inbox_gate import GATE_PHASES, pull_inbox_gate  # noqa: E402
+from session_binding import validate_codename  # noqa: E402
+from hub_paths import hub_root  # noqa: E402
+from program_state import GATE_PHASES  # noqa: E402
+from workflow_inbox_gate import pull_inbox_gate  # noqa: E402
 
 
 def main() -> int:

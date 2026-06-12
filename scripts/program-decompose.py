@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
@@ -13,44 +14,48 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from hub_paths import hub_root, resolve_session_artifact  # noqa: E402
 from program_state import default_program, load_program, save_program  # noqa: E402
 from repos import load_repos  # noqa: E402
-from session_binding import validate_codename  # noqa: E402
+from session_binding import (  # noqa: E402
+    active_pool_list,
+    codename_available,
+    first_available_in_pool,
+    load_codenames,
+    used_codenames,
+    validate_codename,
+)
 
 SECTION_RE = re.compile(r"^#{2,3}\s+(.+?)\s*$", re.MULTILINE)
 
+_FALLBACK_POOL = ("november", "oscar", "papa", "quebec", "romeo", "sierra")
 
-def _load_index_codenames(root: Path) -> set[str]:
+
+def _index_codenames(root: Path) -> set[str]:
     index_path = root / "sessions" / "index.json"
     if not index_path.exists():
         return set()
-    import json
-
     data = json.loads(index_path.read_text())
     sessions = data.get("sessions") or {}
     return {validate_codename(name) for name in sessions.keys()}
 
 
-def _suggest_codename(root: Path, used: set[str], index: int) -> str:
-    pool_path = root / "sessions" / "_codenames.yaml"
-    candidates: list[str] = []
-    if pool_path.exists():
-        import yaml
+def _reserved_codenames(root: Path, allocated: set[str]) -> set[str]:
+    data = load_codenames(root)
+    return set(allocated) | used_codenames(data) | _index_codenames(root)
 
-        data = yaml.safe_load(pool_path.read_text()) or {}
-        pools = data.get("pools") or {}
-        default_pool = pools.get(data.get("active_pool") or "default") or []
-        candidates.extend(str(name) for name in default_pool)
-    for fallback in ("november", "oscar", "papa", "quebec", "romeo", "sierra"):
-        if fallback not in candidates:
-            candidates.append(fallback)
-    taken = set(used) | _load_index_codenames(root)
-    for name in candidates:
-        try:
-            codename = validate_codename(name)
-        except ValueError:
-            continue
-        if codename not in taken:
-            return codename
-    return validate_codename(f"child-{index + 1}")
+
+def _suggest_child_codename(root: Path, allocated: set[str], index: int) -> str:
+    data = load_codenames(root)
+    pool = list(active_pool_list(data))
+    for fallback in _FALLBACK_POOL:
+        if fallback not in pool:
+            pool.append(fallback)
+    reserved = _reserved_codenames(root, allocated)
+    codename = first_available_in_pool(root, pool, reserved)
+    if codename:
+        return codename
+    fallback = validate_codename(f"child-{index + 1}")
+    if codename_available(root, fallback, reserved):
+        return fallback
+    return fallback
 
 
 def _default_repo_alias(root: Path) -> str:
@@ -77,7 +82,7 @@ def parse_ingest(text: str, *, root: Path, default_repo: str) -> list[dict[str, 
             chunks = [body]
         for idx, chunk in enumerate(chunks[:8]):
             title = chunk.split(".", 1)[0].strip()[:80] or f"Child {idx + 1}"
-            suggested = _suggest_codename(root, used_codenames, idx)
+            suggested = _suggest_child_codename(root, used_codenames, idx)
             used_codenames.add(suggested)
             rows.append(
                 {
@@ -96,7 +101,7 @@ def parse_ingest(text: str, *, root: Path, default_repo: str) -> list[dict[str, 
         start = match.end()
         end = sections[idx + 1].start() if idx + 1 < len(sections) else len(body)
         goal = body[start:end].strip()
-        suggested = _suggest_codename(root, used_codenames, idx)
+        suggested = _suggest_child_codename(root, used_codenames, idx)
         used_codenames.add(suggested)
         rows.append(
             {

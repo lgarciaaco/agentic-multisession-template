@@ -8,7 +8,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from session_binding import hub_root, validate_codename  # noqa: E402
+from session_binding import validate_codename  # noqa: E402
+from hub_paths import hub_root  # noqa: E402
 from workflow_code_review import enrich_scope_manifest, resolve_code_review_workspace  # noqa: E402
 
 

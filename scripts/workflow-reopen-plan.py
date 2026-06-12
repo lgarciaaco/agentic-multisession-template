@@ -8,7 +8,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from session_binding import hub_root, validate_codename  # noqa: E402
+from session_binding import validate_codename  # noqa: E402
+from hub_paths import hub_root  # noqa: E402
 from workflow_resume import reopen_plan, workflow_next_action  # noqa: E402
 
 

@@ -303,7 +303,7 @@ class WorkflowInboxGateTests(unittest.TestCase):
         self.assertEqual(workflow["phase"], "plan_loop")
 
     def test_cli_sync_failure_after_apply_exits_nonzero(self) -> None:
-        write_inbox(self.root, "bravo", "alpha", "accept brief")
+        self._route_parent_accept_brief()
         scripts = self.root / "scripts"
         scripts.mkdir()
         sync = scripts / "sync-session.sh"
@@ -313,7 +313,7 @@ class WorkflowInboxGateTests(unittest.TestCase):
         script = Path(__file__).resolve().parent / "workflow-pull-inbox-gate.py"
         env = {**os.environ, "WORKSPACE_ROOT": str(self.root)}
         result = subprocess.run(
-            [sys.executable, str(script), "alpha", "--apply"],
+            [sys.executable, str(script), self.child, "--apply"],
             capture_output=True,
             text=True,
             env=env,

@@ -11,6 +11,7 @@ from typing import Any
 from gate_command_registry import (
     ACCEPT_BRIEF,
     ACCEPT_PLAN,
+    PROGRAM_GATE_MARKER,
     REOPEN_BRIEF,
     REOPEN_PLAN,
     classify_gate_command,
@@ -18,13 +19,8 @@ from gate_command_registry import (
 )
 from hub_paths import resolve_session_artifact
 from program_state import GATE_PHASES, find_program_parent
-from session_binding import (
-    get_inbox_block_provenance,
-    inbox_block_marker,
-    read_inbox,
-    sanitize_goal_text,
-    validate_codename,
-)
+from inbox_provenance import get_inbox_block_provenance, inbox_block_marker
+from session_binding import read_inbox, sanitize_goal_text, validate_codename
 from workflow_plan import (
     INBOX_GATE_POLL_SECONDS,
     accept_action_plan,
@@ -44,9 +40,6 @@ _PHASE_FEEDBACK: dict[str, str] = {
     "brief_review": "brief_correction",
     "plan_user_review": "plan_feedback",
 }
-
-_PROGRAM_GATE_MARKER = "[program-orchestrator gate="
-
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -121,7 +114,7 @@ def gate_command_sender_authorized(
     parent = find_program_parent(root, target)
     if parent is None or sender != parent:
         return False
-    if _PROGRAM_GATE_MARKER not in body:
+    if PROGRAM_GATE_MARKER not in body:
         return False
     if not marker:
         return False

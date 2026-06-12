@@ -16,6 +16,18 @@ GATE_COMMAND_ACTIONS: frozenset[str] = frozenset(
     {ACCEPT_BRIEF, ACCEPT_PLAN, REOPEN_BRIEF, REOPEN_PLAN}
 )
 
+PROGRAM_GATE_MARKER = "[program-orchestrator gate="
+
+
+def format_program_gate_message(parent: str, gate: str, message: str) -> str:
+    """Build the three-line inbox payload for program parent gate routing."""
+    command = message.strip()
+    return (
+        f"{command}\n\n"
+        f"{PROGRAM_GATE_MARKER}{gate}]\n"
+        f"Parent `{parent}` routed feedback."
+    )
+
 # Lowercase user-facing strings per phase and action (route-feedback validation).
 _ROUTE_MESSAGES: dict[str, dict[str, frozenset[str]]] = {
     "brief_review": {

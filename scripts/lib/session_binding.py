@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
@@ -13,6 +12,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 from hub_paths import hub_root
+from inbox_provenance import inbox_block_marker, record_inbox_block_provenance
 
 CLOSED_STATUSES = frozenset({"completed", "closed", "cancelled"})
 RESERVED_SESSION_DIRS = frozenset({"bindings", "context", "_inbox"})
@@ -758,66 +758,6 @@ def inbox_path(root: Path, target_codename: str) -> Path:
     return root / "sessions" / "_inbox" / f"{target_codename}.md"
 
 
-def inbox_provenance_dir(root: Path) -> Path:
-    return root / "sessions" / "_inbox" / ".provenance"
-
-
-def inbox_provenance_path(root: Path, target_codename: str) -> Path:
-    target = validate_codename(target_codename)
-    return inbox_provenance_dir(root) / f"{target}.json"
-
-
-def inbox_block_marker(from_session: str, date: str, body: str) -> str:
-    payload = f"{from_session}|{date}|{body.strip()}"
-    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
-    return f"{from_session}:{date}:{digest}"
-
-
-def _load_inbox_provenance(root: Path, target_codename: str) -> dict[str, dict]:
-    path = inbox_provenance_path(root, target_codename)
-    if not path.exists():
-        return {}
-    try:
-        data = json.loads(path.read_text())
-    except json.JSONDecodeError:
-        return {}
-    return data if isinstance(data, dict) else {}
-
-
-def _save_inbox_provenance(root: Path, target_codename: str, data: dict[str, dict]) -> None:
-    path = inbox_provenance_path(root, target_codename)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2) + "\n")
-
-
-def record_inbox_block_provenance(
-    root: Path,
-    target_codename: str,
-    marker: str,
-    *,
-    kind: str,
-    verified_from: str,
-    caller: str,
-) -> None:
-    data = _load_inbox_provenance(root, target_codename)
-    data[marker] = {
-        "kind": kind,
-        "verified_from": verified_from,
-        "caller": caller,
-    }
-    _save_inbox_provenance(root, target_codename, data)
-
-
-def get_inbox_block_provenance(
-    root: Path, target_codename: str, marker: str
-) -> dict | None:
-    entry = _load_inbox_provenance(root, target_codename).get(marker)
-    return entry if isinstance(entry, dict) else None
-
-
-_PROGRAM_GATE_MARKER = "[program-orchestrator gate="
-
-
 def resolve_inbox_caller(root: Path, *, as_codename: str | None = None) -> str | None:
     bound, _ = resolve_codename(root)
     if as_codename:
@@ -899,7 +839,9 @@ def write_inbox_program_route(
         raise ValueError(
             "program_route inbox write requires registered program parent as from_codename"
         )
-    if _PROGRAM_GATE_MARKER not in message:
+    from gate_command_registry import PROGRAM_GATE_MARKER
+
+    if PROGRAM_GATE_MARKER not in message:
         raise ValueError("program_route inbox write requires program gate marker in message")
     caller = resolve_inbox_caller(root)
     if caller is None:

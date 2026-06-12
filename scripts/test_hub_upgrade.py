@@ -27,6 +27,7 @@ from hub_upgrade import (  # noqa: E402
     releases_between,
     resolve_upstream_url,
     validate_semver,
+    upstream_ref,
     validate_upstream_url,
     version_ref,
     _plain_summary,
@@ -157,6 +158,12 @@ class ResolveUpstreamTests(unittest.TestCase):
         with patch.dict(os.environ, {"WORKSPACE_TEMPLATE_UPSTREAM": "https://github.com/lgarciaaco/agentic-multisession-template.git"}):
             self.assertTrue(resolve_upstream_url().endswith(".git"))
 
+    def test_upstream_ref_rejects_invalid_template_ref(self) -> None:
+        with patch.dict(os.environ, {"WORKSPACE_TEMPLATE_REF": "../evil"}, clear=False):
+            with self.assertRaises(ValueError) as ctx:
+                upstream_ref()
+            self.assertIn("invalid git branch", str(ctx.exception))
+
     def test_validate_upstream_url(self) -> None:
         self.assertEqual(
             validate_upstream_url(DEFAULT_UPSTREAM),
@@ -213,6 +220,21 @@ class HubUpgradeFlowTests(unittest.TestCase):
             ):
                 status = hub_status(root)
             self.assertEqual(status["state"], "upstream_unreachable")
+
+    def test_hub_status_invalid_template_ref(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with patch.dict(os.environ, {"WORKSPACE_TEMPLATE_REF": "../evil"}, clear=False):
+                status = hub_status(root)
+            self.assertEqual(status["state"], "upstream_unreachable")
+            self.assertIn("invalid git branch", status.get("error", ""))
+
+    def test_ensure_upstream_tree_rejects_invalid_ref(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with self.assertRaises(ValueError) as ctx:
+                ensure_upstream_tree(root, DEFAULT_UPSTREAM, "../evil", fetch=False)
+            self.assertIn("invalid git branch", str(ctx.exception))
 
     def test_hub_status_invalid_changelog(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

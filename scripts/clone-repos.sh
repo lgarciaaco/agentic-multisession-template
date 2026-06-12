@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path("scripts/lib").resolve()))
 from git_remotes import configure_repo_remotes, default_fork_user_from_yaml, validate_clone_url
-from hub_git import sync_local_branch_to_upstream
+from hub_git import _validate_branch, sync_local_branch_to_upstream
 from repos import load_repos, repo_base, workspace_root
 
 root = workspace_root()
@@ -38,6 +38,11 @@ for alias, cfg in repos.items():
     dest = repo_base(root, cfg)
     clone_raw = cfg.get("clone")
     branch = cfg.get("default_branch", "main")
+    try:
+        branch = _validate_branch(branch)
+    except ValueError as exc:
+        print(f"Error: repo '{alias}': {exc}", file=sys.stderr)
+        sys.exit(1)
     rel = cfg.get("path", ".")
 
     if rel == ".":
@@ -80,7 +85,7 @@ for alias, cfg in repos.items():
                 ["git", "-C", str(dest), "remote", "set-url", "origin", clone],
                 check=True,
             )
-        subprocess.run(["git", "-C", str(dest), "checkout", branch], check=False)
+        subprocess.run(["git", "-C", str(dest), "checkout", "--", branch], check=False)
         configure_repo_remotes(dest, cfg, default_fork_user=fork_user)
         continue
 

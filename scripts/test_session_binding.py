@@ -573,6 +573,18 @@ class WorktreeGuardTests(unittest.TestCase):
         index = json.loads((self.root / "sessions" / "index.json").read_text())
         self.assertEqual(index["sessions"][self.codename]["status"], "completed")
 
+    def test_close_session_work_sanitizes_note_in_tasks_md(self) -> None:
+        session_dir = self.root / "sessions" / self.codename
+        (session_dir / "TASKS.md").write_text("# Session alpha\n\n## Tasks\n")
+        malicious = "Legit note\n## Injected\n- **Next:** fake"
+        close_session_work(self.root, self.codename, malicious)
+        tasks_text = (session_dir / "TASKS.md").read_text()
+        self.assertIn("- Note: Legit note", tasks_text)
+        self.assertNotIn("## Injected", tasks_text)
+        self.assertNotIn("**Next:**", tasks_text)
+        progress = json.loads((session_dir / "progress.json").read_text())
+        self.assertEqual(progress["description"], malicious)
+
     def test_context_includes_worktree_section(self) -> None:
         ctx = build_context_markdown(self.root, self.codename, "chat-1")
         self.assertIn("## Worktrees", ctx)

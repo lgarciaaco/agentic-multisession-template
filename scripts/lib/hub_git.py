@@ -13,7 +13,7 @@ _GIT_TIMEOUT_SEC = 300
 
 def _validate_branch(branch: str) -> str:
     name = branch.strip()
-    if not name or ".." in name or not _BRANCH_RE.fullmatch(name):
+    if not name or ".." in name or name.startswith("-") or not _BRANCH_RE.fullmatch(name):
         raise ValueError(f"invalid git branch name: {branch!r}")
     return name
 

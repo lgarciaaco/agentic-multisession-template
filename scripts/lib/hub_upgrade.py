@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlparse
 
+from hub_git import _validate_branch
 from repos import workspace_root
 
 DEFAULT_UPSTREAM = "https://github.com/lgarciaaco/agentic-multisession-template.git"
@@ -249,7 +250,8 @@ def validate_upstream_url(url: str, *, allow_untrusted: bool = False) -> str:
 
 
 def upstream_ref() -> str:
-    return os.environ.get("WORKSPACE_TEMPLATE_REF", DEFAULT_UPSTREAM_REF).strip() or DEFAULT_UPSTREAM_REF
+    raw = os.environ.get("WORKSPACE_TEMPLATE_REF", DEFAULT_UPSTREAM_REF).strip() or DEFAULT_UPSTREAM_REF
+    return _validate_branch(raw)
 
 
 def version_ref(version: str) -> str:
@@ -279,6 +281,7 @@ def ensure_upstream_tree(
     fetch: bool = True,
 ) -> UpstreamSnapshot:
     url = validate_upstream_url(url, allow_untrusted=allow_untrusted)
+    ref = _validate_branch(ref)
     cache = root / UPSTREAM_CACHE_DIR
 
     if fetch or not (cache / ".git").exists():
@@ -385,10 +388,10 @@ def hub_status(root: Path | None = None, *, fetch: bool = True) -> dict:
     root = root or workspace_root()
     current = read_installed_version(root)
     upstream = resolve_upstream_url(root)
-    ref = upstream_ref()
     allow_untrusted = _allow_untrusted_upstream()
 
     try:
+        ref = upstream_ref()
         snapshot = ensure_upstream_tree(
             root,
             upstream,
@@ -397,13 +400,17 @@ def hub_status(root: Path | None = None, *, fetch: bool = True) -> dict:
             fetch=fetch,
         )
     except (RuntimeError, ValueError) as exc:
+        raw_ref = (
+            os.environ.get("WORKSPACE_TEMPLATE_REF", DEFAULT_UPSTREAM_REF).strip()
+            or DEFAULT_UPSTREAM_REF
+        )
         return {
             "state": "upstream_unreachable",
             "current_version": current,
             "latest_version": None,
             "update_available": False,
             "upstream": upstream,
-            "upstream_ref": ref,
+            "upstream_ref": raw_ref,
             "error": str(exc),
             "agent_action": (
                 "Could not reach the template upstream. Check network, WORKSPACE_TEMPLATE_UPSTREAM, "

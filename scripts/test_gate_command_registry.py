@@ -12,11 +12,13 @@ from gate_command_registry import (  # noqa: E402
     ACCEPT_BRIEF,
     ACCEPT_PLAN,
     GATE_COMMAND_ACTIONS,
+    PROGRAM_GATE_MARKER,
     REOPEN_BRIEF,
     REOPEN_PLAN,
     allowed_route_messages,
     classify_gate_command,
     command_pattern,
+    format_program_gate_message,
     is_allowed_route_message,
     is_gate_command_action,
     normalize_route_message,
@@ -112,6 +114,15 @@ class GateCommandRegistryTests(unittest.TestCase):
                 "brief looks good — proceed to accept brief.",
             )
         )
+
+    def test_format_program_gate_message(self) -> None:
+        payload = format_program_gate_message("parent", "brief_review", "accept brief")
+        lines = payload.splitlines()
+        self.assertEqual(lines[0], "accept brief")
+        self.assertEqual(lines[1], "")
+        self.assertEqual(lines[2], f"{PROGRAM_GATE_MARKER}brief_review]")
+        self.assertEqual(lines[3], "Parent `parent` routed feedback.")
+        self.assertEqual(payload.count(PROGRAM_GATE_MARKER), 1)
 
 
 if __name__ == "__main__":

@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from gate_command_registry import allowed_route_messages, is_allowed_route_message
+from gate_command_registry import (
+    allowed_route_messages,
+    format_program_gate_message,
+    is_allowed_route_message,
+)
 from program_state import GATE_PHASES, load_program
 from session_binding import resolve_codename, validate_codename, write_inbox_program_route
 
@@ -35,12 +39,7 @@ def route_feedback(
     if child_name not in active:
         raise ValueError(f"child {child_name!r} is not registered in parent program active_children")
 
-    command = message.strip()
-    payload = (
-        f"{command}\n\n"
-        f"[program-orchestrator gate={gate}]\n"
-        f"Parent `{parent_name}` routed feedback."
-    )
+    payload = format_program_gate_message(parent_name, gate, message)
     if dry_run:
         return payload
     bound, _ = resolve_codename(root)

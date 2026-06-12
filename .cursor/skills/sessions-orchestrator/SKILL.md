@@ -31,17 +31,19 @@ Multi-session program conductor. Parent chat coordinates; each child runs **`/wo
 
 ## Child bootstrap (after approval)
 
-For each approved child row:
+After the user says **`approve decomposition`**, run one parent-side command:
 
 ```bash
-./scripts/new-session.sh [codename] "Title"
-./scripts/bind-session.sh <codename>   # in child chat
-./scripts/set-session-scope.sh <codename> --goal "…"
+python3 scripts/program-bootstrap-children.py <parent> --approve
 ```
 
-Child chat: **`/workflow-orchestrator`**. Parent never edits child worktrees.
+This reads `proposed_children` from `program.json`, creates each child session (`new-session.sh`, `set-session-scope.sh`), registers `active_children`, and sets `decomposition_approved: true`.
 
-Register child in parent `program.json` → `active_children`, set `decomposition_approved: true`.
+**Inside tmux:** opens one detached window per child (parent tab unchanged). Each child tab is labeled with the hub prefix + codename, binds via `@workspace-codename`, and auto-starts **`/workflow-orchestrator`** via `$(cat .hub-launcher) --reuse --workflow`.
+
+**Outside tmux:** exits 0 and prints manual steps (new tab per child, launcher `--reuse --workflow`).
+
+Parent never edits child worktrees. Child chats run **`/workflow-orchestrator`** autonomously in their tabs.
 
 ## Monitor
 
@@ -72,7 +74,7 @@ python3 scripts/program-route-feedback.py <parent> <child> \
   --gate plan_user_review --message "reopen plan"
 ```
 
-Child inbox + kilo gate correlation applies in the child chat.
+Child inbox + inbox gate correlation applies in the child chat.
 
 ## Child completion → PR review
 

@@ -221,6 +221,25 @@ Optional pipeline in **one chat** — Problem → Plan → Code → Review → P
 
 ---
 
+## Program orchestrator child tabs
+
+When a parent session runs [`/sessions-orchestrator`](.cursor/skills/sessions-orchestrator/SKILL.md) and the user approves decomposition:
+
+```bash
+python3 scripts/program-bootstrap-children.py <parent> --approve
+```
+
+| Environment | Behavior |
+|-------------|----------|
+| **tmux** | One detached window per child; parent tab unchanged; each child runs `$(cat .hub-launcher) --reuse --workflow` |
+| **not tmux** | Exit 0; child sessions already created; print manual tab + launcher steps per child |
+
+Child tabs resolve via `@workspace-codename` (same binding model as [Resolution order](#resolution-order)). The `--workflow` flag on the launcher passes `/workflow-orchestrator` as the agent's initial prompt.
+
+Details: [docs/PROGRAM_ORCHESTRATOR.md](docs/PROGRAM_ORCHESTRATOR.md).
+
+---
+
 ## Cross-session inbox (optional)
 
 For notes between **parallel** sessions when not using `/workflow-orchestrator`. Not required for the single-session pipeline.

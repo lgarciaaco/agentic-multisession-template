@@ -1,6 +1,6 @@
 # Program orchestrator
 
-Multi-session coordination layer above single-session [`/workflow-orchestrator`](../../.cursor/skills/workflow-orchestrator/SKILL.md).
+Multi-session coordination layer above single-session [`/workflow-orchestrator`](../.cursor/skills/workflow-orchestrator/SKILL.md).
 
 ## Architecture
 
@@ -31,6 +31,7 @@ Template: `sessions/_template/program.json`
 | Script | Role |
 |--------|------|
 | `scripts/program-decompose.py` | Ingest → proposed children |
+| `scripts/program-bootstrap-children.py` | Bootstrap children + open tmux tabs |
 | `scripts/program-monitor.py` | Read child workflow phases/gates |
 | `scripts/program-status-report.sh` | Write `artifacts/program-status.md` |
 | `scripts/program-route-feedback.py` | Parent → child inbox at gates |
@@ -47,8 +48,26 @@ Template: `sessions/_template/program.json`
 | SC-4 | merge-order + `/pr-review` section |
 | SC-5 | this doc + tests + AGENTS.md |
 
+## Program child tmux tabs
+
+After **approve decomposition**, the parent runs:
+
+```bash
+python3 scripts/program-bootstrap-children.py <parent> --approve
+```
+
+When `TMUX` is set, the script opens one detached window per child in the same tmux session. Each window:
+
+- Renames to `{hub-prefix}{codename}` (same as single-session bind)
+- Sets pane option `@workspace-codename` before the agent starts
+- Runs `$(cat .hub-launcher) --reuse --workflow` so the child auto-starts `/workflow-orchestrator` without the session picker
+
+The parent window stays selected. Outside tmux, the script prints manual bind/launcher steps and exits 0.
+
+See [SESSIONS.md](../SESSIONS.md) § Program orchestrator child tabs.
+
 ## Related
 
-- Session bind (unchanged): `/start-work` → [session-orchestrator](../../.cursor/skills/session-orchestrator/SKILL.md)
+- Session bind (unchanged): `/start-work` → [session-orchestrator](../.cursor/skills/session-orchestrator/SKILL.md)
 - Cross-session inbox: [SESSIONS.md](../SESSIONS.md)
 - Retirement checklist: `sessions/_template/artifacts/session-orchestrator-retirement-checklist.md`

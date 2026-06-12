@@ -314,9 +314,10 @@ def cmd_hook_before_prompt(_args: argparse.Namespace) -> int:
                 name = validate_codename(codename)
             except ValueError:
                 pass
-            elif is_active_session(root, name):
-                _maybe_apply_inbox_gate_at_sync(root, name)
-                refresh_binding_contexts(root, name, conversation_id=cid)
+            else:
+                if is_active_session(root, name):
+                    _maybe_apply_inbox_gate_at_sync(root, name)
+                    refresh_binding_contexts(root, name, conversation_id=cid)
 
     return 0
 

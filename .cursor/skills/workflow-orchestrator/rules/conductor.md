@@ -6,7 +6,7 @@
 
 ## Purpose
 
-Single-chat orchestrator for Problem → Plan → Code → Review → PR → CI → Delivery. Autonomous inner loops; **user gates only at brief and plan**.
+Single-chat orchestrator for Problem → Plan → Code → Review → PR → CI → Delivery. Autonomous inner loops; **user gates only at brief and plan**. Inbox feedback from monitoring sessions counts at gates when correlated (see **Inbox gate feedback**).
 
 ## Phase state machine
 
@@ -40,6 +40,31 @@ On guard violation: state current phase, missing gate, and required user command
 |------|---------|--------|
 | 1 | `accept brief` / `accept` | `gates.brief_accepted: true`; freeze brief |
 | 2 | `accept plan` | `gates.plan_user_accepted: true`; sync tasks → session.json |
+
+**Inbox gate feedback:** Other sessions monitoring progress may write to this session's inbox. When the message correlates with the active gate, treat it as user feedback — same effect as the chat commands above.
+
+| Phase | Inbox first line (or body) | Effect |
+|-------|----------------------------|--------|
+| `brief_review` | `accept brief` or `accept` | `./scripts/workflow-accept-brief.sh <codename>` |
+| `brief_review` | `reopen brief` | `python3 scripts/workflow-reopen-brief.py <codename>` |
+| `brief_review` | other non-empty text | Brief correction — update `problem-brief.md`, stay in gate |
+| `plan_user_review` | `accept plan` | `./scripts/workflow-accept-plan.sh <codename>` |
+| `plan_user_review` | `reopen plan` | `python3 scripts/workflow-reopen-plan.py <codename>` |
+| `plan_user_review` | other non-empty text | Append `artifacts/plan-feedback.md`; `phase → plan_loop` |
+
+While phase is `brief_review` or `plan_user_review`, poll inbox every **2 minutes**:
+
+```bash
+python3 scripts/workflow-pull-inbox-gate.py <codename> --apply
+```
+
+On loop tick or after presenting a gate artifact, run pull with `--apply`. For `brief_correction`, apply the message to the brief before marking processed. Arm the loop per `.cursor/skills/loop/SKILL.md` (fixed `120s` schedule); stop when phase leaves a gate.
+
+Monitoring agents write via:
+
+```bash
+./scripts/session-inbox.sh write <from-codename> <to-codename> "accept plan"
+```
 
 Delivery report is **inform only** — not a gate. Never ask the user to approve delivery, commit, or open a PR before the autonomous code review loop runs.
 

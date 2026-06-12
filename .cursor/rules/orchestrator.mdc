@@ -17,6 +17,8 @@ alwaysApply: true
 
 **`accept plan`** → workflow gate 2 → `./scripts/workflow-accept-plan.sh <codename>`.
 
+**Inbox at gate** → correlated `sessions/_inbox/` messages count as gate feedback; poll every 2m with `python3 scripts/workflow-pull-inbox-gate.py <codename> [--apply]`.
+
 **`reopen brief`** / **`reopen plan`** → `python3 scripts/workflow-reopen-brief.py <codename>` / `python3 scripts/workflow-reopen-plan.py <codename>`.
 
 **End session** / `/end-session` → load `.cursor/skills/session-end/SKILL.md`.

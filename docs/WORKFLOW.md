@@ -1,6 +1,6 @@
 # Workflow orchestrator walkthrough
 
-Single-session pipeline: **Problem → Plan → Code → Review → PR → CI → Delivery**. One Cursor chat, **two user gates** (brief and plan).
+Single-session pipeline: **Problem → Plan → Code → Review → PR → CI → Delivery**. One Cursor chat, **two user gates** (brief and plan). Correlated **inbox feedback** from monitoring sessions counts at gates; poll every 2 minutes while awaiting a gate.
 
 ## Prerequisites
 
@@ -22,9 +22,15 @@ Conductor bootstraps `workflow.json` + `artifacts/` from `sessions/_template/` i
 | Phase | You do | Agent does |
 |-------|--------|------------|
 | `intake` | Answer analyst questions | Draft `artifacts/problem-brief.md` |
-| `brief_review` | **`accept brief`** | Sets `gates.brief_accepted`; enters plan loop |
+| `brief_review` | **`accept brief`** (or correlated inbox) | Sets `gates.brief_accepted`; enters plan loop |
 
 Reopen: `python3 scripts/workflow-reopen-brief.py <codename>`
+
+**Inbox at gate:** Monitoring sessions may `./scripts/session-inbox.sh write <from> <to> "accept brief"`. While in `brief_review`, poll every 2 minutes:
+
+```bash
+python3 scripts/workflow-pull-inbox-gate.py <codename> --apply
+```
 
 ## 3. Autonomous plan loop (no relay)
 
@@ -41,11 +47,13 @@ Task subagent isolation is mandatory — see [conductor.md Subagent isolation](.
 
 | Phase | You do | Agent does |
 |-------|--------|------------|
-| `plan_user_review` | **`accept plan`** (or add `plan-feedback.md`) | `./scripts/workflow-accept-plan.sh <codename>` |
+| `plan_user_review` | **`accept plan`** (or correlated inbox; or add `plan-feedback.md`) | `./scripts/workflow-accept-plan.sh <codename>` |
 
 Syncs tasks → `session.json`, creates worktrees, `phase: implementation`.
 
 Reopen: `python3 scripts/workflow-reopen-plan.py <codename>`
+
+**Inbox at gate:** e.g. `accept plan`, `reopen plan`, or plan revision notes — same 2-minute pull as brief gate.
 
 ## 5. Implementation → code review (automatic)
 
@@ -117,6 +125,8 @@ Before tagging **1.0.0-rc.1**, run [RC-SMOKE-CHECKLIST.md](RC-SMOKE-CHECKLIST.md
 |--------|------|
 | `workflow-plan-synthesize.py` | After plan reviewer Task |
 | `workflow-accept-plan.sh` | User accept plan |
+| `workflow-accept-brief.sh` | User accept brief |
+| `workflow-pull-inbox-gate.py` | Poll inbox at gates (every 2m); `--apply` when correlated |
 | `workflow-mark-implementation-ready.py` | Per-task slice complete |
 | `workflow-code-review-enrich-scope.py` | After code-reviewer scope collector |
 | `workflow-code-review-advance.py` | After code-reviewer synthesizer |

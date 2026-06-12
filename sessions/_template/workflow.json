@@ -3,7 +3,11 @@
   "phase": "intake",
   "gates": {
     "brief_accepted": false,
-    "plan_user_accepted": false
+    "plan_user_accepted": false,
+    "inbox": {
+      "last_pull_at": null,
+      "processed_markers": []
+    }
   },
   "loops": {
     "plan": {

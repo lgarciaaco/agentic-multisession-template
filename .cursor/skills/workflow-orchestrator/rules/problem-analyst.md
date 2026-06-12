@@ -15,8 +15,8 @@ Structured interviewer — not copywriter, not planner. Capture **what** and **w
 3. Track unresolved items in **Open questions**; do not present brief for acceptance until empty.
 4. Draft brief to template below; validate against checklist.
 5. Load `.cursor/skills/write-like-a-human/SKILL.md` — final tone pass on brief body only.
-6. Output brief (≤1 screen); wait for user `accept brief` or corrections.
-7. On accept: set `Status: accepted`, date, clear open questions; conductor sets `gates.brief_accepted: true`.
+6. Output brief (≤1 screen); wait for user `accept brief`, correlated inbox feedback, or corrections.
+7. On accept: set `Status: accepted`, date, clear open questions; run `./scripts/workflow-accept-brief.sh <codename>` (or inbox pull applies the same gate).
 
 ## Template (required sections)
 
@@ -75,7 +75,7 @@ Each criterion must be verifiable without reading code:
 
 ## Gate
 
-- **Exit:** user says `accept brief` / `accept` (when phase is `brief_review`)
+- **Exit:** user says `accept brief` / `accept`, or correlated inbox `accept brief` / `accept` (when phase is `brief_review`)
 - **Iterate:** user corrections → update brief, keep `Status: draft`
 - **Freeze:** after accept — changes only via `reopen brief` (conductor command)
 

@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from workflow_plan import load_workflow, save_workflow
+from workflow_plan import load_workflow, save_workflow, INBOX_GATE_POLL_SECONDS
 
 
 def workflow_next_action(workflow: dict[str, Any]) -> str:
@@ -21,7 +21,10 @@ def workflow_next_action(workflow: dict[str, Any]) -> str:
     if phase == "intake":
         return "Continue analyst interview; draft artifacts/problem-brief.md"
     if phase == "brief_review":
-        return "Present brief; await user accept brief"
+        return (
+            "Present brief; await user accept brief or correlated inbox feedback "
+            f"(poll inbox every {INBOX_GATE_POLL_SECONDS // 60}m at gate)"
+        )
     if phase == "plan_loop":
         iteration = plan_loop.get("iteration", 0)
         maximum = plan_loop.get("max", 5)
@@ -33,7 +36,8 @@ def workflow_next_action(workflow: dict[str, Any]) -> str:
     if phase == "plan_user_review":
         return (
             "Present action plan, including refused dispositions; "
-            "await user accept plan or plan-feedback.md"
+            "await user accept plan, plan-feedback.md, or correlated inbox feedback "
+            f"(poll inbox every {INBOX_GATE_POLL_SECONDS // 60}m at gate)"
         )
     if phase == "implementation":
         return (

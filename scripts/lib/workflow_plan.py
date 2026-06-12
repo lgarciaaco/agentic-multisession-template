@@ -11,6 +11,7 @@ from typing import Any
 from hub_paths import resolve_review_workspace, resolve_session_artifact
 
 SEVERITY_RANK = {"NIT": 0, "SUGGESTION": 1, "REQUIRED": 2, "BLOCKER": 3}
+INBOX_GATE_POLL_SECONDS = 120
 
 
 def make_workflow_id(when: datetime | None = None) -> str:

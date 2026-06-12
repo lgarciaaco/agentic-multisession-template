@@ -51,6 +51,7 @@ Single-session **Problem → Plan → Code → Review → PR → CI → Delivery
 | `/workflow status` | One-screen status |
 | `accept brief` / `accept` | Gate 1 |
 | `accept plan` | Gate 2 → `./scripts/workflow-accept-plan.sh <codename>` |
+| Inbox at gate | `./scripts/workflow-pull-inbox-gate.py <codename> [--apply]` every 2m while at brief/plan gate |
 | `reopen brief` / `reopen plan` | `python3 scripts/workflow-reopen-brief.py <codename>` / `python3 scripts/workflow-reopen-plan.py <codename>` |
 
 | Phase scripts | Command |
@@ -62,8 +63,10 @@ Single-session **Problem → Plan → Code → Review → PR → CI → Delivery
 | PR creation advance | `python3 scripts/workflow-advance-pr-creation.py <codename> <verdict> [pr_url]` |
 | CI observe advance | `python3 scripts/workflow-ci-observe-advance.py <codename> <verdict>` |
 | Delivery | `python3 scripts/workflow-write-delivery-report.py <codename>` |
+| Inbox gate pull | `python3 scripts/workflow-pull-inbox-gate.py <codename> [--apply]` |
+| Accept brief | `./scripts/workflow-accept-brief.sh <codename>` |
 
-User gates **only at brief and plan**. Autonomous inner loops for plan, code review, PR creation, and CI observe — no commit/PR pause before review. Plan loop: author dispositions → reviewer validates. Code loop: fixer dispositions SUGGESTION/NIT → specialists validate → **PASS**. After PASS: auto commit + draft PR → CI observe (rebase on conflict, fix on failure, 5-iteration cap) → delivery. Delivery report is inform only. Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
+User gates **only at brief and plan** (plus correlated inbox at those gates — poll every 2m via `workflow-pull-inbox-gate.py`). Autonomous inner loops for plan, code review, PR creation, and CI observe — no commit/PR pause before review. Plan loop: author dispositions → reviewer validates. Code loop: fixer dispositions SUGGESTION/NIT → specialists validate → **PASS**. After PASS: auto commit + draft PR → CI observe (rebase on conflict, fix on failure, 5-iteration cap) → delivery. Delivery report is inform only. Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
 
 ## End
 

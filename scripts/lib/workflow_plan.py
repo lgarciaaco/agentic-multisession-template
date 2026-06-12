@@ -487,7 +487,7 @@ def accept_action_plan(root: Path, codename: str) -> dict[str, Any]:
     session_dir = root / "sessions" / codename
     workflow_path = session_dir / "workflow.json"
     if not workflow_path.exists():
-        raise ValueError(f"missing {workflow_path} — start /workflow first")
+        raise ValueError(f"missing {workflow_path} — start /workflow-orchestrator first")
 
     workflow = load_workflow(session_dir)
     gates = workflow.setdefault("gates", {})

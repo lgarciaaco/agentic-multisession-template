@@ -236,6 +236,22 @@ class HubUpgradeFlowTests(unittest.TestCase):
                 ensure_upstream_tree(root, DEFAULT_UPSTREAM, "../evil", fetch=False)
             self.assertIn("invalid git branch", str(ctx.exception))
 
+    def test_ensure_upstream_tree_clone_argv_uses_separator(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            captured: list[list[str]] = []
+
+            def fake_run_git(args: list[str], *, check: bool = True) -> subprocess.CompletedProcess:
+                captured.append(args)
+                return subprocess.CompletedProcess(args, 0, "", "")
+
+            with patch("hub_upgrade._run_git", side_effect=fake_run_git):
+                ensure_upstream_tree(root, DEFAULT_UPSTREAM, "main", fetch=True)
+
+            clone_args = next(args for args in captured if args[:2] == ["git", "clone"])
+            url_idx = clone_args.index(DEFAULT_UPSTREAM)
+            self.assertEqual(clone_args[url_idx - 1], "--")
+
     def test_hub_status_invalid_changelog(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -13,7 +13,7 @@ fi
 cd "$ROOT"
 export WORKSPACE_ROOT="$ROOT"
 
-python3 <<PY
+python3 - "$CODENAME" <<'PY'
 import json
 import os
 import sys
@@ -24,7 +24,7 @@ sys.path.insert(0, str(root / "scripts" / "lib"))
 from session_binding import validate_codename
 from workflow_plan import accept_action_plan
 
-codename = validate_codename("${CODENAME}")
+codename = validate_codename(sys.argv[1])
 result = accept_action_plan(root, codename)
 print(json.dumps(result, indent=2))
 PY

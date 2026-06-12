@@ -137,6 +137,29 @@ def gate_command_sender_authorized(
     return True
 
 
+def feedback_sender_authorized(
+    root: Path,
+    target_codename: str,
+    from_session: str,
+) -> bool:
+    """Return True when from_session may auto-apply brief_correction or plan_feedback.
+
+    Mirrors gate_command_sender_authorized parent/self checks via find_program_parent;
+    does not require program-route marker or provenance sidecar.
+    """
+    try:
+        target = validate_codename(target_codename)
+        sender = validate_codename(from_session)
+    except ValueError:
+        return False
+    if sender == target:
+        return False
+    parent = find_program_parent(root, target)
+    if parent is None or sender != parent:
+        return False
+    return True
+
+
 def unprocessed_inbox_blocks(
     root: Path,
     codename: str,
@@ -336,6 +359,20 @@ def pull_inbox_gate(
                     "from": from_session,
                     "marker": marker,
                     "reason": "unauthorized_gate_sender",
+                }
+            )
+            continue
+
+        if action in ("brief_correction", "plan_feedback") and not feedback_sender_authorized(
+            root, codename, from_session
+        ):
+            applied_markers.append(marker)
+            rejected.append(
+                {
+                    "action": action,
+                    "from": from_session,
+                    "marker": marker,
+                    "reason": "unauthorized_feedback_sender",
                 }
             )
             continue

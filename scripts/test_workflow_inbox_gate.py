@@ -22,6 +22,7 @@ from workflow_inbox_gate import (  # noqa: E402
     apply_brief_correction,
     apply_plan_feedback,
     classify_gate_message,
+    feedback_sender_authorized,
     gate_command_sender_authorized,
     parse_inbox_blocks,
     pull_inbox_gate,
@@ -191,6 +192,28 @@ none
         self.assertEqual(
             classify_gate_message("plan_user_review", "Split t2 into two tasks."),
             "plan_feedback",
+        )
+
+    def test_feedback_sender_authorized(self) -> None:
+        self.assertFalse(
+            feedback_sender_authorized(self.root, self.child, self.child),
+        )
+        self.assertFalse(
+            feedback_sender_authorized(self.root, self.child, self.sibling),
+        )
+        self.assertTrue(
+            feedback_sender_authorized(self.root, self.child, self.parent),
+        )
+
+    def test_feedback_sender_authorized_standalone_session(self) -> None:
+        standalone = "delta"
+        standalone_dir = self.root / "sessions" / standalone
+        standalone_dir.mkdir()
+        (standalone_dir / "session.json").write_text(
+            json.dumps({"codename": standalone, "tasks": []}) + "\n"
+        )
+        self.assertFalse(
+            feedback_sender_authorized(self.root, standalone, self.parent),
         )
 
     def test_gate_command_sender_authorized(self) -> None:
@@ -508,12 +531,102 @@ none
             caller_codename=self.sibling,
         )
         result = pull_inbox_gate(self.root, self.codename, apply=True)
+        self.assertEqual(result["applied"], [])
+        self.assertEqual(result["rejected"][0]["action"], "brief_correction")
+        self.assertEqual(result["rejected"][0]["reason"], "unauthorized_feedback_sender")
+        workflow = json.loads((self.session_dir / "workflow.json").read_text())
+        self.assertEqual(workflow["phase"], "brief_review")
+        brief = (self.session_dir / "artifacts" / "problem-brief.md").read_text()
+        self.assertNotIn("Tighten SC-1 wording", brief)
+
+    def test_pull_inbox_gate_apply_brief_correction_from_parent(self) -> None:
+        write_inbox(
+            self.root,
+            self.parent,
+            self.child,
+            "Tighten SC-1 wording for clarity.",
+            caller_codename=self.parent,
+        )
+        result = pull_inbox_gate(self.root, self.codename, apply=True)
         self.assertEqual(result["applied"][0]["action"], "brief_correction")
         workflow = json.loads((self.session_dir / "workflow.json").read_text())
         self.assertEqual(workflow["phase"], "brief_review")
         brief = (self.session_dir / "artifacts" / "problem-brief.md").read_text()
-        self.assertIn(f"Inbox correction from `{self.sibling}`", brief)
+        self.assertIn(f"Inbox correction from `{self.parent}`", brief)
         self.assertIn("Tighten SC-1 wording", brief)
+
+    def test_pull_inbox_gate_rejects_sibling_plan_feedback(self) -> None:
+        self._write_workflow(phase="plan_user_review")
+        self._write_minimal_action_plan()
+        write_inbox(
+            self.root,
+            self.sibling,
+            self.child,
+            "Split t2 into two tasks.",
+            caller_codename=self.sibling,
+        )
+        result = pull_inbox_gate(self.root, self.codename, apply=True)
+        self.assertEqual(result["applied"], [])
+        self.assertEqual(result["rejected"][0]["action"], "plan_feedback")
+        self.assertEqual(result["rejected"][0]["reason"], "unauthorized_feedback_sender")
+        workflow = json.loads((self.session_dir / "workflow.json").read_text())
+        self.assertEqual(workflow["phase"], "plan_user_review")
+
+    def test_pull_inbox_gate_apply_plan_feedback_from_parent(self) -> None:
+        self._write_workflow(phase="plan_user_review")
+        self._write_minimal_action_plan()
+        write_inbox(
+            self.root,
+            self.parent,
+            self.child,
+            "Split t2 into two tasks.",
+            caller_codename=self.parent,
+        )
+        result = pull_inbox_gate(self.root, self.codename, apply=True)
+        self.assertEqual(result["applied"][0]["action"], "plan_feedback")
+        workflow = json.loads((self.session_dir / "workflow.json").read_text())
+        self.assertEqual(workflow["phase"], "plan_loop")
+        feedback = (self.session_dir / "artifacts" / "plan-feedback.md").read_text()
+        self.assertIn(f"Inbox feedback from `{self.parent}`", feedback)
+
+    def test_pull_inbox_gate_rejects_feedback_when_no_program_parent(self) -> None:
+        standalone = "delta"
+        standalone_dir = self.root / "sessions" / standalone
+        standalone_dir.mkdir()
+        (standalone_dir / "session.json").write_text(
+            json.dumps({"codename": standalone, "tasks": []}) + "\n"
+        )
+        (standalone_dir / "TASKS.md").write_text("# Goal\n")
+        (standalone_dir / "artifacts").mkdir()
+        (standalone_dir / "artifacts" / "problem-brief.md").write_text(FIXTURE_BRIEF)
+        (standalone_dir / "workflow.json").write_text(
+            json.dumps(
+                {
+                    "version": 2,
+                    "phase": "brief_review",
+                    "gates": {
+                        "brief_accepted": False,
+                        "plan_user_accepted": False,
+                        "inbox": {"processed_markers": [], "last_pull_at": None},
+                    },
+                    "loops": {"plan": {"iteration": 0, "max": 5, "last_verdict": None}},
+                    "artifacts": {"brief": "artifacts/problem-brief.md"},
+                }
+            )
+            + "\n"
+        )
+        write_inbox(
+            self.root,
+            self.parent,
+            standalone,
+            "Fix wording.",
+            caller_codename=self.parent,
+        )
+        result = pull_inbox_gate(self.root, standalone, apply=True)
+        self.assertEqual(result["applied"], [])
+        self.assertEqual(result["rejected"][0]["reason"], "unauthorized_feedback_sender")
+        brief = (standalone_dir / "artifacts" / "problem-brief.md").read_text()
+        self.assertNotIn("Fix wording", brief)
 
     def test_pull_inbox_gate_json_helper(self) -> None:
         payload = pull_inbox_gate_json(self.root, self.codename, apply=False)

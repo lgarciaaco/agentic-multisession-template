@@ -614,7 +614,7 @@ class WorktreeGuardTests(unittest.TestCase):
         self.assertIn("**Gate brief_accepted:** True", ctx)
         self.assertIn("**Plan loop:** 2/5; last `REVISE`", ctx)
         self.assertIn("sessions/alpha/artifacts/problem-brief.md` (missing)", ctx)
-        self.assertIn("/workflow status", ctx)
+        self.assertIn("/workflow-orchestrator status", ctx)
         self.assertIn("**Resume:**", ctx)
         self.assertIn("plan loop", ctx.lower())
 

@@ -53,7 +53,7 @@ Single-session **Problem → Plan → Code → Review → PR → CI → Delivery
 | `/workflow-orchestrator status` | One-screen status |
 | `accept brief` / `accept` | Gate 1 |
 | `accept plan` | Gate 2 → `./scripts/workflow-accept-plan.sh <codename>` |
-| Inbox at gate | `./scripts/workflow-pull-inbox-gate.py <codename> [--apply]` every 2m while at brief/plan gate |
+| Inbox at gate | `python3 scripts/workflow-pull-inbox-gate.py <codename> [--apply]` every 2m while at brief/plan gate |
 | `reopen brief` / `reopen plan` | `python3 scripts/workflow-reopen-brief.py <codename>` / `python3 scripts/workflow-reopen-plan.py <codename>` |
 
 | Phase scripts | Command |
@@ -76,13 +76,13 @@ User gates **only at brief and plan** (plus correlated inbox at those gates — 
 
 ## Hub template upgrade
 
-**1.0.0-rc.1** is the **first stable candidate** release line — not an incremental dev milestone. Treat rc.1 as production-ready hub machinery; report gaps before the **1.0.0** tag.
+Installed version: **`.hub-version`** (currently **1.0.0-rc.3**). Upstream check: **`./scripts/hub-status.sh`**.
+
+**1.0.0-rc.1** was the **first stable candidate** release line — not an incremental dev milestone. Later rc bumps (rc.2, rc.3, …) tune production-ready hub machinery toward **1.0.0**; report gaps before the final tag.
 
 Ask **"Is there a new template version?"** → `./scripts/hub-status.sh` → explain hub changes + session notes in plain language (installed `.hub-version` vs upstream template releases).
 
 Say **"Upgrade"** → `.cursor/skills/hub-upgrade/SKILL.md` → `./scripts/hub-upgrade.sh --yes` (hub layer only; keeps `repos.yaml` and session folders).
-
-Installed version: `.hub-version` · upstream check: `./scripts/hub-status.sh`
 
 ## Reference
 
@@ -126,7 +126,20 @@ Session context lists which guideline files exist on bind. Optional `guidelines:
 
 `./scripts/session-inbox.sh write <from> <to> "message"` · read on bind or `./scripts/session-inbox.sh read <codename>`
 
-Program parent gate: parent **always reviews** child brief/plan against decomposition at gates (monitor `parent_next_action`, `gate_review` paths). Route via `python3 scripts/program-route-feedback.py` (exact `accept brief` / `accept plan` / reopen only). Free-text corrections: `./scripts/session-inbox.sh write` (not gate accept). See [docs/PROGRAM_ORCHESTRATOR.md](docs/PROGRAM_ORCHESTRATOR.md) § Parent gate review.
+Program parent gate: parent **always reviews** child brief/plan against decomposition at gates (monitor `parent_next_action`, `gate_review` paths). Route with required `--gate` and `--message` (gate strings must match script choices):
+
+```bash
+python3 scripts/program-route-feedback.py <parent> <child> \
+  --gate brief_review --message "accept brief"
+python3 scripts/program-route-feedback.py <parent> <child> \
+  --gate plan_user_review --message "accept plan"
+python3 scripts/program-route-feedback.py <parent> <child> \
+  --gate brief_review --message "reopen brief"
+python3 scripts/program-route-feedback.py <parent> <child> \
+  --gate plan_user_review --message "reopen plan"
+```
+
+Free-text corrections: `./scripts/session-inbox.sh write` (not gate accept). See [sessions/_inbox/README.md](sessions/_inbox/README.md) and [docs/PROGRAM_ORCHESTRATOR.md](docs/PROGRAM_ORCHESTRATOR.md) § Parent routing at child gates.
 
 ## Git / PRs
 

@@ -26,6 +26,10 @@ python3 scripts/test_workflow_delivery.py
 python3 scripts/test_workflow_pr_creation.py
 python3 scripts/test_workflow_ci_observe.py
 python3 scripts/test_workflow_inbox_gate.py
+python3 scripts/test_program_state.py
+python3 scripts/test_program_orchestrator.py
+python3 scripts/test_program_decompose.py
+python3 scripts/test_program_child_tabs.py
 ```
 
 - Open from a feature branch; wait for CI (`test` workflow)

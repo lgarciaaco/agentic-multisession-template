@@ -24,3 +24,10 @@
 Default both false for small hub-only audits unless security trigger matches.
 
 `triggers.structure` = true when manifest includes any file with `kind: code`.
+
+`triggers.infra` = true when any:
+
+- user prompt mentions Ansible, GitHub Actions, GHA, deploy pipeline, or infrastructure
+- manifest path matches `deploy/**`, `.github/workflows/**`, or `**/ansible/**` (any extension, including `.yml`, `.yaml`, `.sh` under those trees)
+
+Classify matching paths as `kind: config` (see rules/agents/scope-collector.md step 8).

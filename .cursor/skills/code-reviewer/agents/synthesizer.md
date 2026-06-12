@@ -10,4 +10,4 @@
 
 ## Report sections
 
-Summary, Scope, Verdict, Code findings, Structure, Documentation, Tests, Intent, Security (if ran), Positive notes, Deferred to CI
+Summary, Scope, Verdict, Code, Structure, Documentation, Tests, Intent, Security (if ran), Performance (if ran), Infra (if ran), Positive notes, Deferred to CI

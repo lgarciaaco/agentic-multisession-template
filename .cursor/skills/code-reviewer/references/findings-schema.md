@@ -24,7 +24,7 @@ Every specialist agent writes one file under `<workspace>/findings/`.
 
 | Field | Required | Values |
 |-------|----------|--------|
-| `agent` | yes | `scope-collector`, `code-python`, `code-typescript`, `docs`, `intent`, `tests`, `structure`, `security`, `performance` |
+| `agent` | yes | `scope-collector`, `code-python`, `code-typescript`, `docs`, `intent`, `tests`, `structure`, `security`, `performance`, `infra-yaml` |
 | `findings[].severity` | yes | `BLOCKER`, `REQUIRED`, `SUGGESTION`, `NIT` |
 | `findings[].file` | yes* | repo-relative path; `intent` may use criterion id in `file` |
 | `findings[].line` | no | integer when applicable |
@@ -60,7 +60,7 @@ Unmet criteria → add `REQUIRED` finding or populate `criteria` with `met: fals
     {"path": "AGENTS.md", "language": null, "kind": "doc"}
   ],
   "doc_corpus": ["AGENTS.md", "SESSIONS.md", "docs/REPOS.md"],
-  "triggers": {"security": true, "performance": false, "structure": true},
+  "triggers": {"security": true, "performance": false, "structure": true, "infra": false},
   "workflow": {
     "codename": "alpha",
     "action_plan_path": "sessions/alpha/artifacts/action-plan.md",

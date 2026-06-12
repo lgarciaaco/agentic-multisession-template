@@ -45,7 +45,7 @@ mkdir -p "<workspace>/findings"
 
 | Role | Runner |
 |------|--------|
-| Code (per language), docs, test, intent, structure, security, performance | **Task subagent** — orchestrator spawns parallel |
+| Code (per language), docs, test, intent, structure, security, performance, infra YAML | **Task subagent** — orchestrator spawns parallel |
 | Scope collector | Orchestrator inline → `scope_manifest.json` |
 | Synthesizer | Orchestrator inline → `report.md` + persistence |
 
@@ -75,6 +75,7 @@ Wait for all. Skip agents whose scope is empty — except Docs (always runs; fal
 | Structure | `triggers.structure` (code in manifest) | [agents/structure-reviewer.md](agents/structure-reviewer.md) |
 | Security | `triggers.security` | [agents/security-reviewer.md](agents/security-reviewer.md) |
 | Performance | `triggers.performance` | [agents/performance-reviewer.md](agents/performance-reviewer.md) |
+| Infra YAML | `triggers.infra` | [agents/infra-yaml-reviewer.md](agents/infra-yaml-reviewer.md) |
 
 Use Task prompts in each `agents/*.md`. Pass `workspace`. Output: `findings/<agent>.json`.
 
@@ -88,7 +89,7 @@ Readability stays in code agents.
 
 | Verdict | When |
 |---------|------|
-| FAIL | Any BLOCKER (code or security) |
+| FAIL | Any BLOCKER (code, security, or infra-yaml) |
 | INCOMPLETE | Any REQUIRED; any open SUGGESTION/NIT in findings; unmet intent criteria |
 | PASS | Clean findings (validated refusals in disposition artifact only) |
 
@@ -98,12 +99,12 @@ Docs: REQUIRED max (no BLOCKER). [rules/documentation.md](rules/documentation.md
 
 ## Report sections
 
-Summary, Scope, Verdict, Code, Structure, Documentation, Tests, Intent, Security (if ran), Positive notes, Deferred to CI.
+Summary, Scope, Verdict, Code, Structure, Documentation, Tests, Intent, Security (if ran), Performance (if ran), Infra (if ran), Positive notes, Deferred to CI.
 
 ## Pre-delivery
 
 - [ ] All spawned agents wrote findings JSON or explicit empty findings
-- [ ] Dedupe; BLOCKER only from code/security
+- [ ] Dedupe; BLOCKER only from code, security, or infra-yaml agents
 - [ ] Session: `reviews/r-NNN.json`, `progress.last_review`
 - [ ] `./scripts/sync-session.sh <codename>` when bound
 
@@ -121,6 +122,7 @@ Summary, Scope, Verdict, Code, Structure, Documentation, Tests, Intent, Security
 | Structure | [rules/structure.md](rules/structure.md) → [rules/agents/structure-reviewer.md](rules/agents/structure-reviewer.md) |
 | Security | [rules/security.md](rules/security.md) → [rules/agents/security-reviewer.md](rules/agents/security-reviewer.md) |
 | Performance | [rules/performance.md](rules/performance.md) → [rules/agents/performance-reviewer.md](rules/agents/performance-reviewer.md) |
+| Infra YAML | [rules/infra-yaml.md](rules/infra-yaml.md) → [rules/agents/infra-yaml-reviewer.md](rules/agents/infra-yaml-reviewer.md) |
 
 ## Hub skills
 

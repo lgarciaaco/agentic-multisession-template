@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Infra YAML reviewer** — code-reviewer pipeline specialist for Ansible, GitHub Actions, and deploy manifests (`triggers.infra`); `scripts/test_code_reviewer_skill.py` smoke tests
+
 ## [1.0.0-rc.3] - 2026-06-11
 
 ### Added

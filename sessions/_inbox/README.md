@@ -16,7 +16,7 @@ Message lands in `sessions/_inbox/alpha.md` (target = `<to>`).
 ./scripts/session-inbox.sh read alpha
 ```
 
-Any bound session may write here (`sessions/_inbox/` is shared). Do not put secrets in inbox files.
+Any bound session may send messages here via `./scripts/session-inbox.sh write <from> <to> "…"` — direct path edits under `sessions/_inbox/` are blocked when bound. Do not put secrets in inbox files.
 
 ## Workflow gate feedback
 

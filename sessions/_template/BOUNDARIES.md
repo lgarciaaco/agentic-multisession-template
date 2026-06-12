@@ -6,8 +6,8 @@ Bound to codename `CODENAME` via `sessions/bindings/` (see `sessions/context/`).
 
 - `sessions/CODENAME/worktrees/**` — product code (git worktrees from `repos.yaml`)
 - `sessions/CODENAME/session.json`, `TASKS.md`, `progress.json`, `workflow.json`
-- `sessions/CODENAME/artifacts/**`, `sessions/CODENAME/reviews/**` — workflow and code-review state
-- Cross-session: `sessions/_inbox/` via `./scripts/session-inbox.sh write`
+- `sessions/CODENAME/artifacts/**`, `sessions/CODENAME/reviews/**`, `sessions/CODENAME/checkpoints.json` — workflow and code-review state
+- Cross-session messages — `./scripts/session-inbox.sh write` only (hooks block direct edits under `sessions/_inbox/` when bound)
 
 ## Read-only
 
@@ -17,7 +17,7 @@ Bound to codename `CODENAME` via `sessions/bindings/` (see `sessions/context/`).
 
 - Any edit under `repos/`
 - Hub-root paths when bound — use worktrees for product code ([docs/REPOS.md](../../docs/REPOS.md) Guards)
-- Any path under `sessions/` except `sessions/CODENAME/` and `sessions/_inbox/`
+- Any path under `sessions/` except `sessions/CODENAME/`
 - `sessions/bindings/`, `sessions/context/`, `sessions/index.json`
 
 ## Enforced by hooks
@@ -26,7 +26,7 @@ Cursor path guards: [docs/REPOS.md](../../docs/REPOS.md) Guards (hub-root blocke
 
 ## Self-hosted hub
 
-When `self_hosted: true` in `repos-status.sh`, see [docs/REPOS.md](../../docs/REPOS.md) Self-hosted hub.
+When `self_hosted: true` in `./scripts/repos-status.sh`, see [docs/REPOS.md](../../docs/REPOS.md) Self-hosted hub.
 
 ## Hub sessions (`mode`: `hub`)
 

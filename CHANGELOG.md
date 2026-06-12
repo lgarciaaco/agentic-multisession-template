@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- BOUNDARIES template, SESSIONS.md, docs/REPOS.md, and inbox README aligned: bound sessions cannot edit `sessions/_inbox/` paths directly; cross-session messages via `./scripts/session-inbox.sh write` only
 - `advance_code_review_loop` on PASS now sets phase `pr_creation` (was `delivery`)
 - `sessions/_template/workflow.json` version 2: adds `loops.pr_creation` and `loops.ci_observe`
 - `workflow_resume.py` returns next-action hints for `pr_creation` and `ci_observe` phases

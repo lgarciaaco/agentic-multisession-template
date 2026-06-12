@@ -78,7 +78,7 @@ Say **"Upgrade"** → `.cursor/skills/hub-upgrade/SKILL.md` → `./scripts/hub-u
 ## Scope
 
 - **Product:** `sessions/<codename>/worktrees/**` + session metadata; `repos/` read-only ([docs/REPOS.md](docs/REPOS.md) Guards)
-- **Forbidden:** other `sessions/<other>/`, edits under `repos/`, hub-root when bound — [docs/REPOS.md](docs/REPOS.md) Guards
+- **Forbidden:** other `sessions/<other>/`, edits under `repos/`, hub-root when bound, direct edits under `sessions/_inbox/` when bound (use `./scripts/session-inbox.sh write` — [docs/REPOS.md](docs/REPOS.md) Guards)
 
 ## Coding guidelines
 

@@ -222,6 +222,7 @@ hub root (main)                           # hook-blocked when bound; refresh via
 
 - **`repos/`** — read-only (hook denies edits)
 - **`sessions/<codename>/worktrees/`** — writable product code
+- **`sessions/_inbox/`** — direct path edits blocked when bound; use `./scripts/session-inbox.sh write`
 - **Hub root product paths** — blocked for bound sessions (`scripts/`, `.cursor/`, `docs/`, root markdown)
 - **Hub root** — blocked for bound sessions (including `repos.yaml`, `.hub-version`, `.hub-upstream`); registry pins unbound-only
 

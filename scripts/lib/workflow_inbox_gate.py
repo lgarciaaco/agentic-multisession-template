@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 from datetime import datetime, timezone
@@ -11,7 +10,13 @@ from typing import Any
 
 from hub_paths import resolve_session_artifact
 from program_state import GATE_PHASES, find_program_parent
-from session_binding import read_inbox, sanitize_goal_text, validate_codename
+from session_binding import (
+    get_inbox_block_provenance,
+    inbox_block_marker,
+    read_inbox,
+    sanitize_goal_text,
+    validate_codename,
+)
 from workflow_plan import (
     INBOX_GATE_POLL_SECONDS,
     accept_action_plan,
@@ -73,9 +78,7 @@ def inbox_gate_state(workflow: dict[str, Any]) -> dict[str, Any]:
 
 
 def block_marker(from_session: str, date: str, body: str) -> str:
-    payload = f"{from_session}|{date}|{body.strip()}"
-    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
-    return f"{from_session}:{date}:{digest}"
+    return inbox_block_marker(from_session, date, body)
 
 
 def parse_inbox_blocks(content: str) -> list[dict[str, str]]:
@@ -120,10 +123,13 @@ def gate_command_sender_authorized(
     target_codename: str,
     from_session: str,
     body: str,
+    *,
+    marker: str | None = None,
 ) -> bool:
     """Return True when from_session may apply inbox gate commands to target.
 
-    Gate commands require registered program parent plus program-route marker in body.
+    Gate commands require registered program parent, program-route marker in body,
+    and verified write provenance from program-route-feedback (not forgeable metadata).
     Feedback actions (brief_correction, plan_feedback) are not checked here.
     """
     try:
@@ -136,7 +142,20 @@ def gate_command_sender_authorized(
     parent = find_program_parent(root, target)
     if parent is None or sender != parent:
         return False
-    return _PROGRAM_GATE_MARKER in body
+    if _PROGRAM_GATE_MARKER not in body:
+        return False
+    if not marker:
+        return False
+    provenance = get_inbox_block_provenance(root, target, marker)
+    if not provenance:
+        return False
+    if provenance.get("kind") != "program_route":
+        return False
+    if provenance.get("verified_from") != parent:
+        return False
+    if provenance.get("caller") != "program-route-feedback":
+        return False
+    return True
 
 
 def unprocessed_inbox_blocks(
@@ -329,7 +348,7 @@ def pull_inbox_gate(
         marker = item["marker"]
 
         if is_gate_command_action(action) and not gate_command_sender_authorized(
-            root, codename, from_session, body
+            root, codename, from_session, body, marker=marker
         ):
             applied_markers.append(marker)
             rejected.append(

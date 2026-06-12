@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -757,6 +758,76 @@ def inbox_path(root: Path, target_codename: str) -> Path:
     return root / "sessions" / "_inbox" / f"{target_codename}.md"
 
 
+def inbox_provenance_dir(root: Path) -> Path:
+    return root / "sessions" / "_inbox" / ".provenance"
+
+
+def inbox_provenance_path(root: Path, target_codename: str) -> Path:
+    target = validate_codename(target_codename)
+    return inbox_provenance_dir(root) / f"{target}.json"
+
+
+def inbox_block_marker(from_session: str, date: str, body: str) -> str:
+    payload = f"{from_session}|{date}|{body.strip()}"
+    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
+    return f"{from_session}:{date}:{digest}"
+
+
+def _load_inbox_provenance(root: Path, target_codename: str) -> dict[str, dict]:
+    path = inbox_provenance_path(root, target_codename)
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text())
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _save_inbox_provenance(root: Path, target_codename: str, data: dict[str, dict]) -> None:
+    path = inbox_provenance_path(root, target_codename)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2) + "\n")
+
+
+def record_inbox_block_provenance(
+    root: Path,
+    target_codename: str,
+    marker: str,
+    *,
+    kind: str,
+    verified_from: str,
+    caller: str,
+) -> None:
+    data = _load_inbox_provenance(root, target_codename)
+    data[marker] = {
+        "kind": kind,
+        "verified_from": verified_from,
+        "caller": caller,
+    }
+    _save_inbox_provenance(root, target_codename, data)
+
+
+def get_inbox_block_provenance(
+    root: Path, target_codename: str, marker: str
+) -> dict | None:
+    entry = _load_inbox_provenance(root, target_codename).get(marker)
+    return entry if isinstance(entry, dict) else None
+
+
+_PROGRAM_GATE_MARKER = "[program-orchestrator gate="
+
+
+def resolve_inbox_caller(root: Path, *, as_codename: str | None = None) -> str | None:
+    bound, _ = resolve_codename(root)
+    if as_codename:
+        caller = validate_codename(as_codename)
+        if bound and caller != bound:
+            raise ValueError("--as does not match bound session caller")
+        return caller
+    return bound
+
+
 def read_inbox(root: Path, codename: str) -> str | None:
     path = inbox_path(root, codename)
     if not path.exists():
@@ -765,26 +836,109 @@ def read_inbox(root: Path, codename: str) -> str | None:
     return text if text else None
 
 
-def write_inbox(root: Path, from_codename: str, to_codename: str, message: str) -> Path:
+def write_inbox(
+    root: Path,
+    from_codename: str,
+    to_codename: str,
+    message: str,
+    *,
+    caller_codename: str | None = None,
+) -> Path:
     """Append a message from one session into another session's inbox file."""
     message = sanitize_goal_text(message.strip())
     if not message:
         raise ValueError("inbox message must not be empty")
-    for raw in (from_codename, to_codename):
-        name = validate_codename(raw)
+    from_name = validate_codename(from_codename)
+    to_name = validate_codename(to_codename)
+    for name in (from_name, to_name):
         if not (root / "sessions" / name).is_dir():
             raise ValueError(f"invalid session codename: {name}")
 
-    path = inbox_path(root, to_codename)
+    caller = (
+        validate_codename(caller_codename)
+        if caller_codename is not None
+        else resolve_inbox_caller(root)
+    )
+    if caller is None:
+        raise ValueError(
+            "inbox write requires bound session caller or explicit caller_codename"
+        )
+    if from_name != caller:
+        raise ValueError(
+            f"inbox from_codename {from_name!r} does not match caller {caller!r}"
+        )
+    return _append_inbox_message(
+        root,
+        from_name,
+        to_name,
+        message,
+        provenance_kind="cli",
+        verified_caller=caller,
+    )
+
+
+def write_inbox_program_route(
+    root: Path,
+    parent_codename: str,
+    child_codename: str,
+    message: str,
+) -> Path:
+    """Trusted program-orchestrator parent route — internal API only."""
+    from program_state import find_program_parent
+
+    message = sanitize_goal_text(message.strip())
+    if not message:
+        raise ValueError("inbox message must not be empty")
+    parent = validate_codename(parent_codename)
+    child = validate_codename(child_codename)
+    for name in (parent, child):
+        if not (root / "sessions" / name).is_dir():
+            raise ValueError(f"invalid session codename: {name}")
+    registered = find_program_parent(root, child)
+    if registered is None or registered != parent:
+        raise ValueError(
+            "program_route inbox write requires registered program parent as from_codename"
+        )
+    if _PROGRAM_GATE_MARKER not in message:
+        raise ValueError("program_route inbox write requires program gate marker in message")
+    return _append_inbox_message(
+        root,
+        parent,
+        child,
+        message,
+        provenance_kind="program_route",
+        verified_caller="program-route-feedback",
+    )
+
+
+def _append_inbox_message(
+    root: Path,
+    from_name: str,
+    to_name: str,
+    message: str,
+    *,
+    provenance_kind: str,
+    verified_caller: str,
+) -> Path:
+    path = inbox_path(root, to_name)
     path.parent.mkdir(parents=True, exist_ok=True)
     stamp = _utc_now_iso()[:10]
-    block = f"\n\n---\n\n**From `{from_codename}`** ({stamp})\n\n{message}\n"
+    marker = inbox_block_marker(from_name, stamp, message)
+    record_inbox_block_provenance(
+        root,
+        to_name,
+        marker,
+        kind=provenance_kind,
+        verified_from=from_name,
+        caller=verified_caller,
+    )
+    block = f"\n\n---\n\n**From `{from_name}`** ({stamp})\n\n{message}\n"
 
     if path.exists():
         path.write_text(path.read_text().rstrip() + block + "\n")
     else:
         header = (
-            f"# Inbox for `{to_codename}`\n\n"
+            f"# Inbox for `{to_name}`\n\n"
             "Messages from other sessions. Written via `./scripts/session-inbox.sh write`.\n"
         )
         path.write_text(header + block + "\n")
@@ -1024,7 +1178,10 @@ def guard_path_decision(root: Path, codename: str, file_path: str) -> dict:
 
     inbox_dir = root / "sessions" / "_inbox"
     if _path_is_within(resolved, inbox_dir) or resolved == inbox_dir:
-        return _GUARD_ALLOW
+        return _guard_deny(
+            "Direct inbox path edits are blocked for bound sessions.",
+            "Use ./scripts/session-inbox.sh write to send cross-session messages.",
+        )
 
     session_dir = root / "sessions" / name
     session = _load_session_json(root, name) or {}

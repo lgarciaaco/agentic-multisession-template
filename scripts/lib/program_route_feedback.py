@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from program_state import GATE_PHASES, load_program
-from session_binding import validate_codename, write_inbox
+from session_binding import resolve_codename, validate_codename, write_inbox_program_route
 
 ALLOWED_MESSAGES = {
     "brief_review": frozenset({"accept brief", "accept", "reopen brief"}),
@@ -48,5 +48,10 @@ def route_feedback(
     )
     if dry_run:
         return payload
-    write_inbox(root, parent_name, child_name, payload)
+    bound, _ = resolve_codename(root)
+    if bound and bound != parent_name:
+        raise ValueError(
+            f"route_feedback requires bound session {parent_name!r}, not {bound!r}"
+        )
+    write_inbox_program_route(root, parent_name, child_name, payload)
     return payload

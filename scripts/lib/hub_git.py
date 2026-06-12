@@ -65,7 +65,10 @@ def sync_local_branch_to_upstream(repo_dir: Path, branch: str) -> str:
     ref = upstream_ref(repo_dir, branch)
     current = _run(repo_dir, "branch", "--show-current", check=False).stdout.strip()
     if current != branch:
-        _run(repo_dir, "checkout", branch)
+        checkout = _run(repo_dir, "checkout", branch, check=False)
+        if checkout.returncode != 0:
+            msg = checkout.stderr.strip() or checkout.stdout.strip() or "checkout failed"
+            raise RuntimeError(f"could not checkout {branch} in {repo_dir}: {msg}")
     result = _run(repo_dir, "merge", "--ff-only", ref, check=False)
     if result.returncode != 0:
         msg = result.stderr.strip() or result.stdout.strip() or "merge --ff-only failed"

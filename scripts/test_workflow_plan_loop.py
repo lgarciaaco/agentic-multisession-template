@@ -20,6 +20,7 @@ from workflow_plan import (  # noqa: E402
     plan_loop_escalate,
     resolve_plan_workspace,
     run_plan_loop,
+    set_action_plan_reviewer_approved,
     synthesize_plan_verdict,
     write_plan_scope_manifest,
 )
@@ -326,6 +327,60 @@ class WorkflowPlanLoopTests(unittest.TestCase):
         self.assertEqual(lines[1], "APPROVE")
         workflow = json.loads((self.session_dir / "workflow.json").read_text())
         self.assertEqual(workflow["phase"], "plan_user_review")
+
+    def test_set_action_plan_reviewer_approved_raises_when_plan_missing(self) -> None:
+        (self.session_dir / "artifacts" / "action-plan.md").unlink()
+        with self.assertRaises(FileNotFoundError):
+            set_action_plan_reviewer_approved(
+                self.session_dir,
+                "artifacts/action-plan.md",
+            )
+
+    def test_run_plan_loop_missing_plan_does_not_advance_phase(self) -> None:
+        (self.session_dir / "artifacts" / "action-plan.md").unlink(missing_ok=True)
+        approve_doc = {
+            "agent": "plan",
+            "criteria": [{"id": "SC-1", "met": True, "evidence": "t1"}],
+            "findings": [],
+            "verdict": "APPROVE",
+        }
+        with self.assertRaises(FileNotFoundError):
+            run_plan_loop(self.root, self.codename, [approve_doc], workflow_id="wf-missing")
+        workflow = json.loads((self.session_dir / "workflow.json").read_text())
+        self.assertEqual(workflow["phase"], "plan_loop")
+
+    def test_workflow_plan_synthesize_cli_missing_plan_exits_nonzero(self) -> None:
+        (self.session_dir / "artifacts" / "action-plan.md").unlink(missing_ok=True)
+        workspace = self.session_dir / "reviews" / "workspace" / "wf-missing-plan"
+        workspace.mkdir(parents=True)
+        (workspace / "findings").mkdir()
+        (workspace / "plan_scope_manifest.json").write_text(
+            json.dumps({"workflow_id": "wf-missing-plan"}) + "\n"
+        )
+        (workspace / "findings" / "plan.json").write_text(
+            json.dumps(
+                {
+                    "agent": "plan",
+                    "criteria": [{"id": "SC-1", "met": True, "evidence": "t1"}],
+                    "findings": [],
+                    "verdict": "APPROVE",
+                }
+            )
+            + "\n"
+        )
+        script = Path(__file__).resolve().parent / "workflow-plan-synthesize.py"
+        env = {**os.environ, "WORKSPACE_ROOT": str(self.root)}
+        rel = "sessions/alpha/reviews/workspace/wf-missing-plan"
+        result = subprocess.run(
+            [sys.executable, str(script), "alpha", rel],
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
+        )
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        workflow = json.loads((self.session_dir / "workflow.json").read_text())
+        self.assertEqual(workflow["phase"], "plan_loop")
 
     def test_workflow_plan_synthesize_cli_rejects_bad_path(self) -> None:
         script = Path(__file__).resolve().parent / "workflow-plan-synthesize.py"

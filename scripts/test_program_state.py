@@ -110,6 +110,95 @@ class ProgramStateTests(unittest.TestCase):
         self.assertTrue(loaded["decomposition_approved"])
         self.assertEqual(loaded["active_children"][0]["codename"], "november")
 
+    @mock.patch("program_bootstrap._run_script")
+    def test_bootstrap_persists_active_children_incrementally_on_mid_loop_failure(
+        self, run_script
+    ) -> None:
+        program = default_program("mike")
+        program["proposed_children"] = [
+            {
+                "id": "pc1",
+                "suggested_codename": "november",
+                "title": "First",
+                "goal": "Goal one",
+                "repo": "template",
+                "depends_on": [],
+            },
+            {
+                "id": "pc2",
+                "suggested_codename": "oscar",
+                "title": "Second",
+                "goal": "Goal two",
+                "repo": "template",
+                "depends_on": [],
+            },
+        ]
+        save_program(self.session_dir, program)
+
+        def side_effect(root, script, *args):
+            if args and args[0] == "oscar":
+                raise RuntimeError("new-session.sh failed")
+            return args[0]
+
+        run_script.side_effect = side_effect
+
+        sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+        from program_bootstrap import bootstrap_children  # noqa: E402
+
+        os.environ.pop("TMUX", None)
+        with mock.patch("sys.stdout"):
+            with self.assertRaises(RuntimeError):
+                bootstrap_children(self.root, "mike", approve=True)
+
+        loaded = load_program(self.session_dir)
+        self.assertEqual(len(loaded["active_children"]), 1)
+        self.assertEqual(loaded["active_children"][0]["codename"], "november")
+
+    @mock.patch("program_bootstrap._run_script")
+    def test_bootstrap_retry_preserves_existing_active_children(self, run_script) -> None:
+        program = default_program("mike")
+        program["proposed_children"] = [
+            {
+                "id": "pc1",
+                "suggested_codename": "november",
+                "title": "First",
+                "goal": "Goal one",
+                "repo": "template",
+                "depends_on": [],
+            },
+            {
+                "id": "pc2",
+                "suggested_codename": "oscar",
+                "title": "Second",
+                "goal": "Goal two",
+                "repo": "template",
+                "depends_on": [],
+            },
+        ]
+        program["active_children"] = [
+            {"codename": "november", "status": "running", "started": "2026-06-12T00:00:00Z"}
+        ]
+        save_program(self.session_dir, program)
+
+        run_script.return_value = "oscar"
+
+        sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+        from program_bootstrap import bootstrap_children  # noqa: E402
+
+        os.environ.pop("TMUX", None)
+        with mock.patch("sys.stdout"):
+            result = bootstrap_children(self.root, "mike", approve=True)
+
+        scripts_called = [call[0][1] for call in run_script.call_args_list]
+        self.assertEqual(scripts_called.count("new-session.sh"), 1)
+        loaded = load_program(self.session_dir)
+        self.assertEqual(len(loaded["active_children"]), 2)
+        self.assertEqual(
+            [child["codename"] for child in loaded["active_children"]],
+            ["november", "oscar"],
+        )
+        self.assertEqual(len(result["children"]), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

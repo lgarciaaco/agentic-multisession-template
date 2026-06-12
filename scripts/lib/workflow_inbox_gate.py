@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import Any
 
 from hub_paths import resolve_session_artifact
-from session_binding import read_inbox, sanitize_goal_text
+from program_state import find_program_parent
+from session_binding import read_inbox, sanitize_goal_text, validate_codename
 from workflow_plan import (
     INBOX_GATE_POLL_SECONDS,
     accept_action_plan,
@@ -55,6 +56,9 @@ _PHASE_FEEDBACK: dict[str, str] = {
     "brief_review": "brief_correction",
     "plan_user_review": "plan_feedback",
 }
+
+_GATE_COMMAND_ACTIONS = frozenset({"accept_brief", "accept_plan", "reopen_brief", "reopen_plan"})
+_PROGRAM_GATE_MARKER = "[program-orchestrator gate="
 
 
 def _utc_now_iso() -> str:
@@ -108,6 +112,34 @@ def classify_gate_message(phase: str, body: str) -> str | None:
     return _PHASE_FEEDBACK[phase]
 
 
+def is_gate_command_action(action: str) -> bool:
+    return action in _GATE_COMMAND_ACTIONS
+
+
+def gate_command_sender_authorized(
+    root: Path,
+    target_codename: str,
+    from_session: str,
+    body: str,
+) -> bool:
+    """Return True when from_session may apply inbox gate commands to target.
+
+    Gate commands require registered program parent plus program-route marker in body.
+    Feedback actions (brief_correction, plan_feedback) are not checked here.
+    """
+    try:
+        target = validate_codename(target_codename)
+        sender = validate_codename(from_session)
+    except ValueError:
+        return False
+    if sender == target:
+        return False
+    parent = find_program_parent(root, target)
+    if parent is None or sender != parent:
+        return False
+    return _PROGRAM_GATE_MARKER in body
+
+
 def unprocessed_inbox_blocks(
     root: Path,
     codename: str,
@@ -124,7 +156,7 @@ def unprocessed_inbox_blocks(
 def set_problem_brief_accepted(session_dir: Path, brief_rel: str) -> None:
     brief_path = resolve_session_artifact(session_dir, brief_rel)
     if not brief_path.exists():
-        return
+        raise ValueError(f"missing brief artifact: {brief_rel}")
     accepted = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     text = brief_path.read_text()
     text = re.sub(
@@ -179,6 +211,7 @@ def apply_brief_correction(
     *,
     from_session: str,
 ) -> dict[str, Any]:
+    from_session = validate_codename(from_session)
     session_dir = root / "sessions" / codename
     workflow = load_workflow(session_dir)
     phase = str(workflow.get("phase") or "")
@@ -206,6 +239,7 @@ def apply_plan_feedback(
     *,
     from_session: str,
 ) -> dict[str, Any]:
+    from_session = validate_codename(from_session)
     session_dir = root / "sessions" / codename
     workflow = load_workflow(session_dir)
     phase = str(workflow.get("phase") or "")
@@ -278,6 +312,7 @@ def pull_inbox_gate(
         "last_pull_at": inbox.get("last_pull_at"),
         "pending": pending,
         "applied": [],
+        "rejected": [],
     }
 
     if not apply or not pending:
@@ -287,11 +322,26 @@ def pull_inbox_gate(
         return result
 
     applied_markers: list[str] = []
+    rejected: list[dict[str, Any]] = []
     for item in pending:
         action = item["action"]
         from_session = item["from"]
         body = item["body"]
         marker = item["marker"]
+
+        if is_gate_command_action(action) and not gate_command_sender_authorized(
+            root, codename, from_session, body
+        ):
+            applied_markers.append(marker)
+            rejected.append(
+                {
+                    "action": action,
+                    "from": from_session,
+                    "marker": marker,
+                    "reason": "unauthorized_gate_sender",
+                }
+            )
+            continue
 
         if action == "accept_brief":
             accept_brief(root, codename, source=f"inbox:{from_session}")
@@ -349,6 +399,7 @@ def pull_inbox_gate(
     mark_inbox_processed(workflow, applied_markers)
     save_workflow(session_dir, workflow)
     result["last_pull_at"] = inbox_gate_state(workflow).get("last_pull_at")
+    result["rejected"] = rejected
     return result
 
 

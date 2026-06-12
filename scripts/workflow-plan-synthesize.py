@@ -73,9 +73,14 @@ def main() -> int:
     workflow = update_plan_loop_state(workflow, iteration=iteration, verdict=verdict)
 
     if plan_loop_complete(verdict):
-        workflow["phase"] = "plan_user_review"
         plan_rel = (workflow.get("artifacts") or {}).get("plan", "artifacts/action-plan.md")
-        set_action_plan_reviewer_approved(session_dir, plan_rel)
+        try:
+            set_action_plan_reviewer_approved(session_dir, plan_rel)
+        except FileNotFoundError as exc:
+            print(str(exc), file=sys.stderr)
+            save_workflow(session_dir, workflow)
+            return 1
+        workflow["phase"] = "plan_user_review"
     elif plan_loop_escalate(verdict, iteration, maximum):
         pass  # conductor escalates to user; phase unchanged
 

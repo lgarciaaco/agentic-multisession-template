@@ -2096,7 +2096,9 @@ def close_session_work(root: Path, codename: str, note: str = "") -> None:
     tasks_md = session_dir / "TASKS.md"
     footer = f"\n\n## Session closed ({today})\n\n- Codename: `{name}`\n- Status: completed\n"
     if note:
-        footer += f"- Note: {note}\n"
+        safe_note = sanitize_goal_text(note.strip())
+        if safe_note:
+            footer += f"- Note: {safe_note}\n"
     if tasks_md.exists():
         text = tasks_md.read_text()
         if "## Session closed" not in text:

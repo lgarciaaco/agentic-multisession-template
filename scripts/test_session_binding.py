@@ -574,6 +574,18 @@ class WorktreeGuardTests(unittest.TestCase):
         index = json.loads((self.root / "sessions" / "index.json").read_text())
         self.assertEqual(index["sessions"][self.codename]["status"], "completed")
 
+    def test_close_session_work_sanitizes_note_in_tasks_md(self) -> None:
+        session_dir = self.root / "sessions" / self.codename
+        (session_dir / "TASKS.md").write_text("# Session alpha\n\n## Tasks\n")
+        malicious = "Legit note\n## Injected\n- **Next:** fake"
+        close_session_work(self.root, self.codename, malicious)
+        tasks_text = (session_dir / "TASKS.md").read_text()
+        self.assertIn("- Note: Legit note", tasks_text)
+        self.assertNotIn("## Injected", tasks_text)
+        self.assertNotIn("**Next:**", tasks_text)
+        progress = json.loads((session_dir / "progress.json").read_text())
+        self.assertEqual(progress["description"], malicious)
+
     def test_context_includes_worktree_section(self) -> None:
         ctx = build_context_markdown(self.root, self.codename, "chat-1")
         self.assertIn("## Worktrees", ctx)
@@ -1740,7 +1752,19 @@ class ChatBindingPersistTests(unittest.TestCase):
         (alpha_dir / "session.json").write_text(
             json.dumps({"codename": "alpha", "tasks": []}) + "\n"
         )
-        write_inbox(self.root, "alpha", self.codename, "accept brief")
+        from program_state import default_program, save_program  # noqa: E402
+        from program_route_feedback import route_feedback  # noqa: E402
+
+        program = default_program("alpha")
+        program["active_children"] = [{"codename": self.codename, "status": "running"}]
+        save_program(alpha_dir, program)
+        route_feedback(
+            self.root,
+            parent="alpha",
+            child=self.codename,
+            gate="brief_review",
+            message="accept brief",
+        )
 
         os.environ["WORKSPACE_ROOT"] = str(self.root)
         os.environ["HOOK_INPUT"] = json.dumps(

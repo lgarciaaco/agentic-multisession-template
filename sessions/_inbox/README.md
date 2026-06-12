@@ -22,6 +22,8 @@ Any bound session may write here (`sessions/_inbox/` is shared). Do not put secr
 
 When session B runs `/workflow-orchestrator` and is waiting at a user gate, correlated inbox messages count as user feedback. Other sessions (monitoring agents) can approve or revise without switching chats.
 
+**Authorization:** Inbox auto-apply for gate commands (`accept brief`, `accept plan`, `reopen brief`, `reopen plan`) accepts only from the target session's registered program parent when the message includes the `[program-orchestrator gate=…]` marker from `program-route-feedback.py`. Self-writes and sibling gate commands are rejected, marked processed, and do not advance workflow. Inbox `From` headers are not cryptographically bound — use `program-route-feedback.py` for cross-session gate auto-apply. Chat gate commands and `./scripts/workflow-accept-*.sh` remain authorized user paths. Brief corrections and plan feedback still require a valid sender codename.
+
 | Target phase | First line of message | Effect |
 |--------------|----------------------|--------|
 | `brief_review` | `accept brief` or `accept` | Accept brief → plan loop |

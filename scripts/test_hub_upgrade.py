@@ -15,6 +15,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from hub_upgrade import (  # noqa: E402
     DEFAULT_UPSTREAM,
+    UPSTREAM_CACHE_DIR,
     UpstreamSnapshot,
     compare_versions,
     ensure_upstream_tree,
@@ -251,6 +252,32 @@ class HubUpgradeFlowTests(unittest.TestCase):
             clone_args = next(args for args in captured if args[:2] == ["git", "clone"])
             url_idx = clone_args.index(DEFAULT_UPSTREAM)
             self.assertEqual(clone_args[url_idx - 1], "--")
+
+    def test_ensure_upstream_tree_fetch_argv_places_options_before_ref(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cache = root / UPSTREAM_CACHE_DIR
+            cache.mkdir(parents=True)
+            subprocess.run(["git", "init", "-b", "main", str(cache)], check=True, capture_output=True)
+
+            captured: list[list[str]] = []
+
+            def fake_run_git(args: list[str], *, check: bool = True) -> subprocess.CompletedProcess:
+                captured.append(args)
+                return subprocess.CompletedProcess(args, 0, "", "")
+
+            with patch("hub_upgrade._run_git", side_effect=fake_run_git):
+                ensure_upstream_tree(root, DEFAULT_UPSTREAM, "main", fetch=True)
+
+            fetch_args = next(
+                args
+                for args in captured
+                if len(args) > 4 and args[1:4] == ["-C", str(cache), "fetch"]
+            )
+            self.assertEqual(
+                fetch_args,
+                ["git", "-C", str(cache), "fetch", "origin", "--depth", "1", "--prune", "main"],
+            )
 
     def test_hub_status_invalid_changelog(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -54,7 +54,7 @@ def _suggest_codename(root: Path, used: set[str], index: int) -> str:
 
 
 def _default_repo_alias(root: Path) -> str:
-    repos = load_repos(root).get("repos") or {}
+    repos = load_repos(root)
     if not repos:
         raise ValueError("repos.yaml has no entries — configure repos before decomposing")
     if "template" in repos:

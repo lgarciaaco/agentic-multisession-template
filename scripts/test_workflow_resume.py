@@ -74,9 +74,9 @@ class WorkflowResumeTests(unittest.TestCase):
 
     def test_workflow_next_action_plan_user_review(self) -> None:
         action = workflow_next_action({"phase": "plan_user_review", "gates": {}, "loops": {}})
-        self.assertIn("refused dispositions", action)
-        self.assertIn("accept plan", action)
-        self.assertIn("plan-feedback", action)
+        self.assertIn("auto-applied on sync-session", action)
+        self.assertIn("workflow-pull-inbox-gate.py", action)
+        self.assertIn("plan_user_review", action)
 
     def test_format_workflow_section_includes_resume_hint(self) -> None:
         section = format_workflow_section(self.root, self.codename)

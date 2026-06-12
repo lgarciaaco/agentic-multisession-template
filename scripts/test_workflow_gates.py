@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -164,6 +165,52 @@ class WorkflowGatesTests(unittest.TestCase):
         workflow_path.write_text(json.dumps(workflow, indent=2) + "\n")
         with self.assertRaises(ValueError):
             sync_action_plan_tasks(self.root, self.codename)
+
+
+INJECTION_PAYLOADS = (
+    "$(touch /tmp/wf-inject-marker)",
+    "alpha'; touch /tmp/wf-inject-marker; echo 'x",
+)
+INJECTION_MARKER = Path("/tmp/wf-inject-marker")
+
+
+class WorkflowAcceptScriptInjectionTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.scripts = Path(__file__).resolve().parent
+        if INJECTION_MARKER.exists():
+            INJECTION_MARKER.unlink()
+
+    def tearDown(self) -> None:
+        if INJECTION_MARKER.exists():
+            INJECTION_MARKER.unlink()
+        self.tmp.cleanup()
+
+    def _run_wrapper(self, script_name: str, codename: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [str(self.scripts / script_name), codename],
+            cwd=self.root,
+            env={"WORKSPACE_ROOT": str(self.root)},
+            capture_output=True,
+            text=True,
+        )
+
+    def test_accept_brief_rejects_shell_injection_payloads(self) -> None:
+        for payload in INJECTION_PAYLOADS:
+            with self.subTest(payload=payload):
+                self.assertFalse(INJECTION_MARKER.exists())
+                result = self._run_wrapper("workflow-accept-brief.sh", payload)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(INJECTION_MARKER.exists())
+
+    def test_accept_plan_rejects_shell_injection_payloads(self) -> None:
+        for payload in INJECTION_PAYLOADS:
+            with self.subTest(payload=payload):
+                self.assertFalse(INJECTION_MARKER.exists())
+                result = self._run_wrapper("workflow-accept-plan.sh", payload)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(INJECTION_MARKER.exists())
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ Parallel Cursor chats → **codenames** under `sessions/<codename>/`.
 
 **Quick links:** [AGENTS.md](AGENTS.md) (agent bootstrap) · [docs/WORKFLOW.md](docs/WORKFLOW.md) (pipeline) · [docs/REPOS.md](docs/REPOS.md) (registry) · `sessions/<codename>/BOUNDARIES.md`
 
-**Canonical topics:** install/bootstrap → [AGENTS.md](AGENTS.md); session bind/end → this file; `/workflow` gates → [docs/WORKFLOW.md](docs/WORKFLOW.md); repos/worktrees → [docs/REPOS.md](docs/REPOS.md).
+**Canonical topics:** install/bootstrap → [AGENTS.md](AGENTS.md); session bind/end → this file; `/workflow-orchestrator` gates → [docs/WORKFLOW.md](docs/WORKFLOW.md); repos/worktrees → [docs/REPOS.md](docs/REPOS.md).
 
 ---
 
@@ -198,7 +198,7 @@ Do **not** run bare `agent` in tmux — use the project launcher so hooks and se
 
 ---
 
-## Single-session workflow (`/workflow`)
+## Single-session workflow (`/workflow-orchestrator`)
 
 Optional pipeline in **one chat** — Problem → Plan → Code → Review → PR → CI → Delivery. Replaces multi-chat inbox relay for linear feature delivery.
 
@@ -213,7 +213,7 @@ Optional pipeline in **one chat** — Problem → Plan → Code → Review → P
 | CI observe | `ci_observe` (rebase/fix loop, 5-iter cap) | — |
 | Delivery | `delivery` → `completed` | inform (report) |
 
-**Start or resume:** `/workflow` loads `.cursor/skills/workflow-orchestrator/SKILL.md`, reads `sessions/<codename>/workflow.json` `phase` and context **Resume** — continues without replaying chat history.
+**Start or resume:** `/workflow-orchestrator` loads `.cursor/skills/workflow-orchestrator/SKILL.md`, reads `sessions/<codename>/workflow.json` `phase` and context **Resume** — continues without replaying chat history.
 
 **Scripts:** see workflow rows in [Commands](#commands) (plan, code-review, PR creation, CI observe, and delivery scripts). Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
 
@@ -223,7 +223,7 @@ Optional pipeline in **one chat** — Problem → Plan → Code → Review → P
 
 ## Cross-session inbox (optional)
 
-For notes between **parallel** sessions when not using `/workflow`. Not required for the single-session pipeline.
+For notes between **parallel** sessions when not using `/workflow-orchestrator`. Not required for the single-session pipeline.
 
 | Action | Command |
 |--------|---------|

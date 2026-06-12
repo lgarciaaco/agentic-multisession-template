@@ -23,6 +23,6 @@ Triggers: `start work`, `/start-work`, `new task`
 ./scripts/set-session-scope.sh <codename> --goal "…"
 ```
 
-Full delivery pipeline: [workflow-orchestrator](../workflow-orchestrator/SKILL.md) (`/workflow`).
+Full delivery pipeline: [workflow-orchestrator](../workflow-orchestrator/SKILL.md) (`/workflow-orchestrator`).
 
 When `sessions/<codename>/workflow.json` exists, **do not** ask the user to commit, open a PR, or choose between coding and code review — the workflow conductor auto-enters the code review loop after each implementation slice.

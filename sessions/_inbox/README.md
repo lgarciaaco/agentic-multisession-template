@@ -20,7 +20,7 @@ Any bound session may write here (`sessions/_inbox/` is shared). Do not put secr
 
 ## Workflow gate feedback
 
-When session B runs `/workflow` and is waiting at a user gate, correlated inbox messages count as user feedback. Other sessions (monitoring agents) can approve or revise without switching chats.
+When session B runs `/workflow-orchestrator` and is waiting at a user gate, correlated inbox messages count as user feedback. Other sessions (monitoring agents) can approve or revise without switching chats.
 
 | Target phase | First line of message | Effect |
 |--------------|----------------------|--------|

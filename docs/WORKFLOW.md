@@ -13,7 +13,7 @@ Single-session pipeline: **Problem → Plan → Code → Review → PR → CI �
 ./scripts/resolve-session.sh          # must print codename
 ```
 
-In chat: **`/workflow`**
+In chat: **`/workflow-orchestrator`**
 
 Conductor bootstraps `workflow.json` + `artifacts/` from `sessions/_template/` if missing.
 
@@ -104,7 +104,7 @@ Presents `artifacts/delivery-report.md`; `phase: completed`. Not a user gate.
 
 ## Resume after interruption
 
-New message **`/workflow`** in the same bound chat:
+New message **`/workflow-orchestrator`** in the same bound chat:
 
 - Read `workflow.json` `phase` and context **Resume** line
 - Continue from that phase — do not restart from chat history

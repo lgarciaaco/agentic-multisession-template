@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from hub_paths import resolve_session_artifact
-from program_state import find_program_parent
+from program_state import GATE_PHASES, find_program_parent
 from session_binding import read_inbox, sanitize_goal_text, validate_codename
 from workflow_plan import (
     INBOX_GATE_POLL_SECONDS,
@@ -20,7 +20,6 @@ from workflow_plan import (
 )
 from workflow_resume import reopen_brief, reopen_plan
 
-GATE_PHASES = frozenset({"brief_review", "plan_user_review"})
 INBOX_POLL_SECONDS = INBOX_GATE_POLL_SECONDS
 
 _INBOX_BLOCK_RE = re.compile(

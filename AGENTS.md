@@ -39,6 +39,8 @@ Regenerate a multi-root editor workspace: `./scripts/generate-workspace.sh` → 
 
 **`/sessions-orchestrator`** → `.cursor/skills/sessions-orchestrator/SKILL.md` · [docs/PROGRAM_ORCHESTRATOR.md](docs/PROGRAM_ORCHESTRATOR.md)
 
+**Check children / `/sessions-orchestrator status`:** parallel Task(child-reviewer) per active child; parent responds with `Parent next:` + box table + **Your action — `<codename>`** blocks (proactive brief/plan assessment when gate artifacts exist).
+
 Single-session **Problem → Plan → Code → Review → PR → CI → Delivery** in one chat. State: `sessions/<codename>/workflow.json`; artifacts under `sessions/<codename>/artifacts/`. Chat context includes phase, gates, loops, artifact paths, and **Resume** when `workflow.json` exists.
 
 | Trigger | Action |

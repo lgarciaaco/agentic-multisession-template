@@ -19,4 +19,4 @@ Agent entry: [AGENTS.md](../../AGENTS.md)
 
 ## Subagent isolation
 
-Workflow plan loop and code review specialists require **Task subagents**. Conductors spawn roles; they do not inline plan, plan review, or specialist findings. See workflow-orchestrator [rules/conductor.md](workflow-orchestrator/rules/conductor.md) and code-reviewer SKILL.
+Workflow plan loop and code review specialists require **Task subagents**. Program parent **check children** spawns one Task(child-reviewer) per active child. Conductors spawn roles; they do not inline plan, plan review, multi-child gate review, or specialist findings. See workflow-orchestrator [rules/conductor.md](workflow-orchestrator/rules/conductor.md), [sessions-orchestrator/SKILL.md](sessions-orchestrator/SKILL.md), and code-reviewer SKILL.

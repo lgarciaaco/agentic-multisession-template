@@ -113,7 +113,7 @@ Session context lists which guideline files exist on bind. Optional `guidelines:
 | Start | `.cursor/skills/session-orchestrator` |
 | Program | `.cursor/skills/sessions-orchestrator` |
 | Workflow | `.cursor/skills/workflow-orchestrator` |
-| Code review | `.cursor/skills/code-reviewer` |
+| Code review (`/pr-review`) | `.cursor/skills/code-reviewer` |
 | Hub upgrade | `.cursor/skills/hub-upgrade` |
 | Git commit | `.cursor/skills/git-commit` |
 | PR create | `.cursor/skills/pr-create` |

@@ -13,6 +13,8 @@ alwaysApply: true
 
 **Workflow** / `/workflow-orchestrator` → load `.cursor/skills/workflow-orchestrator/SKILL.md`. Resume from `workflow.json` phase; do not restart from chat history.
 
+**`/pr-review`** → load `.cursor/skills/code-reviewer/SKILL.md`. Program child PR review per sessions-orchestrator.
+
 **`/workflow-orchestrator status`** → same skill; one-screen status from `workflow.json`.
 
 **`accept brief`** / **`accept`** → workflow gate 1 (phase `brief_review`).

@@ -2,8 +2,8 @@
 name: code-reviewer
 description: >-
   Multi-agent code and documentation review with auto-computed scope. Spawns
-  specialist Task subagents; synthesizes unified report. Use for code review,
-  audit, quality gate, docs review, or verify session work.
+  specialist Task subagents; synthesizes unified report. Use for /pr-review,
+  code review, audit, quality gate, docs review, or verify session work.
 ---
 
 # Code reviewer

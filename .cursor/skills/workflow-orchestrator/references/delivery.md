@@ -18,7 +18,7 @@ Sources:
 - `artifacts/plan-review/pr-NNN.json` — latest plan review
 - `reviews/r-NNN.json` — latest code review
 
-## Resume on `/workflow`
+## Resume on `/workflow-orchestrator`
 
 Chat context **Workflow** section includes **Resume** from `workflow_next_action()` — conductor continues that phase without replaying chat history.
 

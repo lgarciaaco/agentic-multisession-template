@@ -1,6 +1,6 @@
 # workflow.json schema
 
-Canonical path: `sessions/<codename>/workflow.json`. Created when user runs `/workflow`; resume reads this file first.
+Canonical path: `sessions/<codename>/workflow.json`. Created when user runs `/workflow-orchestrator`; resume reads this file first.
 
 ## Top-level fields
 
@@ -96,4 +96,4 @@ Conductor updates `phase`, `gates`, `loops` after each transition. `./scripts/sy
 
 ## New sessions
 
-`create_session_tree()` does **not** copy `workflow.json` or `artifacts/` — workflow is opt-in via `/workflow` bootstrap (see SKILL.md). Template files live under `sessions/_template/` for manual or conductor copy.
+`create_session_tree()` does **not** copy `workflow.json` or `artifacts/` — workflow is opt-in via `/workflow-orchestrator` bootstrap (see SKILL.md). Template files live under `sessions/_template/` for manual or conductor copy.

@@ -40,7 +40,8 @@ python3 -c "
 from pathlib import Path
 import sys
 sys.path.insert(0, 'scripts/lib')
-from session_binding import guard_path_decision, hub_root
+from hub_paths import hub_root
+from session_binding import guard_path_decision
 root = hub_root()
 c = '<codename>'
 checks = [

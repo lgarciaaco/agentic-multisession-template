@@ -7,12 +7,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from program_state import load_program
+from program_state import GATE_PHASES, load_program
 from session_binding import validate_codename
 from workflow_plan import load_workflow
 from workflow_resume import workflow_next_action
-
-GATE_PHASES = frozenset({"brief_review", "plan_user_review"})
 
 GATE_ARTIFACT = {
     "brief_review": "artifacts/problem-brief.md",

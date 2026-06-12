@@ -11,6 +11,8 @@ import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+from hub_paths import hub_root
+
 CLOSED_STATUSES = frozenset({"completed", "closed", "cancelled"})
 RESERVED_SESSION_DIRS = frozenset({"bindings", "context", "_inbox"})
 CODENAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
@@ -516,13 +518,6 @@ def sanitize_goal_text(value: str, *, max_len: int = 2000) -> str:
 
 def _is_goal_heading(line: str) -> bool:
     return line.strip() == "## Goal"
-
-
-def hub_root() -> Path:
-    env = os.environ.get("WORKSPACE_ROOT", "").strip()
-    if env:
-        return Path(env)
-    return Path(__file__).resolve().parent.parent.parent
 
 
 def tmux_pane_option() -> str:
@@ -1297,7 +1292,8 @@ def _maybe_apply_inbox_gate_at_sync(root: Path, codename: str) -> None:
         return
     phase = str(workflow.get("phase") or "")
     try:
-        from workflow_inbox_gate import GATE_PHASES, pull_inbox_gate
+        from program_state import GATE_PHASES
+        from workflow_inbox_gate import pull_inbox_gate
 
         if phase not in GATE_PHASES:
             return

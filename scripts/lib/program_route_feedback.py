@@ -209,6 +209,7 @@ def evaluate_route_feedback(
     gate: str,
     message: str,
     force: bool = False,
+    workflow: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Read-only guard evaluation for monitor and tests."""
     parent_name = validate_codename(parent)
@@ -222,10 +223,11 @@ def evaluate_route_feedback(
         entry = _active_child_entry(program, child_name)
     except ValueError as exc:
         return {"routable": False, "skip_reason": str(exc)}
-    try:
-        workflow = _load_child_workflow(root, child_name)
-    except ValueError as exc:
-        return {"routable": False, "skip_reason": str(exc)}
+    if workflow is None:
+        try:
+            workflow = _load_child_workflow(root, child_name)
+        except ValueError as exc:
+            return {"routable": False, "skip_reason": str(exc)}
     phase = workflow.get("phase")
     if phase != gate:
         return {
@@ -245,6 +247,7 @@ def evaluate_route_correction(
     child: str,
     message: str,
     force: bool = False,
+    workflow: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Read-only correction guard evaluation for monitor and tests."""
     parent_name = validate_codename(parent)
@@ -257,10 +260,11 @@ def evaluate_route_correction(
         entry = _active_child_entry(program, child_name)
     except ValueError as exc:
         return {"routable": False, "skip_reason": str(exc)}
-    try:
-        workflow = _load_child_workflow(root, child_name)
-    except ValueError as exc:
-        return {"routable": False, "skip_reason": str(exc)}
+    if workflow is None:
+        try:
+            workflow = _load_child_workflow(root, child_name)
+        except ValueError as exc:
+            return {"routable": False, "skip_reason": str(exc)}
     skip = _correction_skip_reason(workflow, entry, body, force=force)
     if skip:
         return {"routable": False, "skip_reason": skip}
@@ -273,6 +277,7 @@ def _first_routable_gate_feedback(
     parent: str,
     child: str,
     gate: str,
+    workflow: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Probe all allowed gate messages; routable if any action passes guards."""
     evaluation: dict[str, Any] = {
@@ -286,6 +291,7 @@ def _first_routable_gate_feedback(
             child=child,
             gate=gate,
             message=msg,
+            workflow=workflow,
         )
         if candidate.get("routable"):
             return candidate
@@ -299,6 +305,7 @@ def child_route_snapshot_fields(
     parent: str,
     child_entry: dict[str, Any],
     pending_gate: str | None,
+    workflow: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Monitor fields: last route metadata plus hypothetical routable evaluation."""
     child_name = validate_codename(str(child_entry.get("codename", "")))
@@ -314,6 +321,7 @@ def child_route_snapshot_fields(
             parent=parent,
             child=child_name,
             gate="brief_review",
+            workflow=workflow,
         )
     elif pending_gate == "plan_user_review":
         evaluation = _first_routable_gate_feedback(
@@ -321,6 +329,7 @@ def child_route_snapshot_fields(
             parent=parent,
             child=child_name,
             gate="plan_user_review",
+            workflow=workflow,
         )
     else:
         evaluation = evaluate_route_correction(
@@ -328,6 +337,7 @@ def child_route_snapshot_fields(
             parent=parent,
             child=child_name,
             message="progress nudge",
+            workflow=workflow,
         )
     fields["routable"] = bool(evaluation.get("routable"))
     fields["route_skip_reason"] = evaluation.get("skip_reason")

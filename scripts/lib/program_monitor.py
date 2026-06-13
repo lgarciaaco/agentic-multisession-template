@@ -277,6 +277,7 @@ def child_snapshot(
                 parent=parent_codename,
                 child_entry=child_entry,
                 pending_gate=snapshot.get("pending_gate"),
+                workflow=workflow,
             )
         )
     return snapshot

@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from hub_paths import hub_root  # noqa: E402
 from program_route_feedback import route_correction, route_feedback  # noqa: E402
 from gate_command_registry import allowed_route_messages, normalize_route_message  # noqa: E402
+from program_state import GATE_PHASES  # noqa: E402
 from session_binding import validate_codename  # noqa: E402
 
 
@@ -22,7 +23,7 @@ def main() -> int:
     parser.add_argument("child", help="Child session codename")
     parser.add_argument(
         "--gate",
-        choices=("brief_review", "plan_user_review"),
+        choices=tuple(sorted(GATE_PHASES)),
         help="Gate phase for accept/reopen commands",
     )
     parser.add_argument("--message", required=True, help="Gate command or free-text correction")
@@ -50,7 +51,7 @@ def main() -> int:
             )
         else:
             normalized = normalize_route_message(args.message)
-            for gate in ("brief_review", "plan_user_review"):
+            for gate in sorted(GATE_PHASES):
                 if normalized in allowed_route_messages(gate):
                     print(
                         f"gate command {args.message!r} requires --gate {gate}",

@@ -35,7 +35,7 @@ python3 scripts/program-route-feedback.py <parent> <child> \
   --message "Tighten SC-1 wording."
 ```
 
-The child agent receives these as chat prompts. Standalone sessions (no program parent) may still poll inbox at gates; program parent inbox gate auto-apply is disabled. While in `brief_review`, poll every 2 minutes (standalone monitoring inbox only):
+The child agent receives these as chat prompts. Standalone sessions (no program parent) may still poll inbox at gates; **inbox gate-command auto-apply is disabled** (`gate_command_sender_authorized` always returns false — see [REPOS.md](REPOS.md) Limitations). Program parents route gate commands via tmux send-keys only. While in `brief_review`, poll every 2 minutes (standalone monitoring inbox only):
 
 ```bash
 python3 scripts/workflow-pull-inbox-gate.py <codename> --apply
@@ -126,7 +126,7 @@ Example mid-plan: phase `plan_loop`, iteration 2, last `REVISE` → resume plan-
 
 ## RC release smoke
 
-Before tagging **1.0.0-rc.1**, run [RC-SMOKE-CHECKLIST.md](RC-SMOKE-CHECKLIST.md) once on the merged rc tip and record pass/fail in the delivery report.
+Before tagging the **next stable-candidate rc** or **1.0.0**, run [RC-SMOKE-CHECKLIST.md](RC-SMOKE-CHECKLIST.md) once on the merged rc tip and record pass/fail in the delivery report.
 
 ## Scripts reference
 
@@ -135,7 +135,7 @@ Before tagging **1.0.0-rc.1**, run [RC-SMOKE-CHECKLIST.md](RC-SMOKE-CHECKLIST.md
 | `workflow-plan-synthesize.py` | After plan reviewer Task |
 | `workflow-accept-plan.sh` | User accept plan |
 | `workflow-accept-brief.sh` | User accept brief |
-| `workflow-pull-inbox-gate.py` | Poll inbox at gates (every 2m); `--apply` when correlated |
+| `workflow-pull-inbox-gate.py` | Poll inbox at gates (every 2m); gate commands not auto-applied (see REPOS.md Limitations) |
 | `workflow-mark-implementation-ready.py` | Per-task slice complete |
 | `workflow-code-review-enrich-scope.py` | After code-reviewer scope collector |
 | `workflow-code-review-advance.py` | After code-reviewer synthesizer |

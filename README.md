@@ -35,6 +35,8 @@ Hub-only (no product repos yet) is valid — `repos: {}` until you tell the agen
 
 **Staying current:** ask the agent *"Is there a new template version?"* then *"Upgrade"* when ready — `./scripts/hub-status.sh` compares your installed `.hub-version` to upstream template releases. Upgrades refresh scripts/hooks/docs without rebuilding sessions or repos. See [CHANGELOG.md](CHANGELOG.md) session notes per release.
 
+**Custom upstream:** when your hub's git origin is not the template repo, copy `.hub-upstream.example` → `.hub-upstream` at hub root (unbound only). See [docs/REPOS.md](docs/REPOS.md) Self-hosted hub.
+
 Optional manual install before tmux:
 
 ```bash

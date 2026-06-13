@@ -326,6 +326,75 @@ print(status_path)
         self.assertEqual(review["decomposition_scope"]["title"], "Plan child")
         self.assertEqual(review["child_scope"]["title"], "Child session title")
 
+
+
+    def test_route_feedback_rejects_missing_child_workflow(self) -> None:
+        child_dir = self.root / "sessions" / self.child
+        wf = child_dir / "workflow.json"
+        if wf.exists():
+            wf.unlink()
+        with mock.patch(
+            "program_route_feedback.resolve_codename",
+            return_value=(self.parent, "binding"),
+        ):
+            with self.assertRaisesRegex(ValueError, "has no workflow.json"):
+                route_feedback(
+                    self.root,
+                    parent=self.parent,
+                    child=self.child,
+                    gate="brief_review",
+                    message="accept brief",
+                )
+
+
+    def test_route_feedback_rejects_gate_phase_mismatch(self) -> None:
+        child_dir = self.root / "sessions" / self.child
+        workflow = {
+            "version": 2,
+            "phase": "plan_user_review",
+            "gates": {"brief_accepted": True, "plan_user_accepted": False},
+            "loops": {},
+            "artifacts": {},
+        }
+        (child_dir / "workflow.json").write_text(json.dumps(workflow, indent=2) + "\n")
+        with mock.patch(
+            "program_route_feedback.resolve_codename",
+            return_value=(self.parent, "binding"),
+        ):
+            with self.assertRaisesRegex(ValueError, "workflow phase is 'plan_user_review'"):
+                route_feedback(
+                    self.root,
+                    parent=self.parent,
+                    child=self.child,
+                    gate="brief_review",
+                    message="accept brief",
+                )
+
+    def test_route_feedback_dry_run_checks_gate_phase(self) -> None:
+        child_dir = self.root / "sessions" / self.child
+        workflow = {
+            "version": 2,
+            "phase": "implementation",
+            "gates": {"brief_accepted": True, "plan_user_accepted": True},
+            "loops": {},
+            "artifacts": {},
+        }
+        (child_dir / "workflow.json").write_text(json.dumps(workflow, indent=2) + "\n")
+        with mock.patch(
+            "program_route_feedback.resolve_codename",
+            return_value=(self.parent, "binding"),
+        ):
+            with self.assertRaisesRegex(ValueError, "workflow phase is 'implementation'"):
+                route_feedback(
+                    self.root,
+                    parent=self.parent,
+                    child=self.child,
+                    gate="brief_review",
+                    message="accept brief",
+                    dry_run=True,
+                )
+
+
     def test_route_feedback_sends_keys(self) -> None:
         payload = self._route_feedback(
             gate="brief_review",

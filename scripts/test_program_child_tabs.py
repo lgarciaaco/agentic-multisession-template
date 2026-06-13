@@ -164,18 +164,32 @@ class ProgramChildTabsTests(unittest.TestCase):
         self.assertEqual(program["active_children"][0]["pane_id"], "%1")
         self.assertEqual(program["active_children"][1]["pane_id"], "%2")
 
-    @patch("program_child_tabs._pane_codename", return_value="november")
-    @patch("program_child_tabs._pane_alive", return_value=True)
-    def test_resolve_child_pane_uses_stored_id(self, _alive, _codename) -> None:
+    @patch("program_child_tabs._pane_matches_child", return_value=True)
+    def test_resolve_child_pane_uses_stored_id(self, _match) -> None:
         pane = resolve_child_pane(self.root, "november", "%1")
         self.assertEqual(pane, "%1")
 
-    @patch("program_child_tabs._pane_alive", return_value=False)
+    @patch("program_child_tabs._pane_matches_child", return_value=False)
     @patch("program_child_tabs.list_hub_panes")
-    def test_resolve_child_pane_falls_back_to_scan(self, list_panes, _alive) -> None:
+    def test_resolve_child_pane_falls_back_to_scan(self, list_panes, _match) -> None:
         list_panes.return_value = [{"pane_id": "%9", "codename": "november", "path": str(self.root)}]
         pane = resolve_child_pane(self.root, "november", "%stale")
         self.assertEqual(pane, "%9")
+
+    @patch("program_child_tabs._pane_matches_child", return_value=False)
+    @patch("program_child_tabs.list_hub_panes")
+    def test_resolve_child_pane_rejects_out_of_hub_stored_pane(self, list_panes, _match) -> None:
+        list_panes.return_value = [
+            {"pane_id": "%9", "codename": "november", "path": str(self.root)}
+        ]
+        pane = resolve_child_pane(self.root, "november", "%1")
+        self.assertEqual(pane, "%9")
+
+    @patch("program_child_tabs._pane_matches_child", return_value=False)
+    @patch("program_child_tabs.list_hub_panes", return_value=[])
+    def test_resolve_child_pane_raises_when_stored_invalid_and_no_scan_match(self, _list, _match) -> None:
+        with self.assertRaisesRegex(ValueError, "no tmux pane found"):
+            resolve_child_pane(self.root, "november", "%1")
 
     def test_persist_child_panes_merges_window_records(self) -> None:
         program = default_program(self.parent)

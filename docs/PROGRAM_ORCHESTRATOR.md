@@ -66,13 +66,29 @@ The parent window stays selected. Bootstrap persists each child's `pane_id` on `
 
 ### Shared pane helpers (`program_child_tabs.py`)
 
-Program routing and future tab cleanup (pc3) share:
+Program routing and completed-child tab cleanup share:
 
 - `resolve_child_pane(root, codename, stored_pane_id=None)` — live pane id from stored value or `@workspace-codename` scan
+- `resolve_child_window(root, codename, pane_id=..., window_label=...)` — resolve pane for routing or cleanup
 - `send_to_child_pane(pane_id, text)` — `tmux send-keys` with trailing Enter
 - `persist_child_panes(program, windows)` — merge bootstrap window records into `program.json`
+- `close_child_window(pane_id)` — kill the tmux window containing the pane (used by tab cleanup)
 
 Outside tmux, route scripts fail fast with manual steps (no inbox fallback).
+
+### Completed-child tab cleanup
+
+On each `program-monitor.py` pass, `monitor_program` calls `cleanup_completed_children` before building child snapshots:
+
+1. For each entry in `program.json` → `active_children[]`, read the child's `workflow.json` phase.
+2. When phase is **`completed`**, set `active_children[].status` to `completed` and persist `program.json` when any status changes.
+3. When running inside tmux, resolve the child window from stored `pane_id` / `window_label` (or live `@workspace-codename` scan) via `resolve_child_window`.
+4. Call `close_child_window` only when `is_safe_child_close_target` passes:
+   - child codename must differ from the parent codename
+   - pane must be live and match the child codename under hub root (`_pane_matches_child`)
+   - target window must not be the parent's current tmux window
+
+Cleanup is best-effort: a failed close leaves the window open; the next monitor pass retries while phase stays `completed`.
 
 ## Check children / status (one screen)
 
@@ -97,22 +113,6 @@ Parent next: <from parent_next_action>
 **Not in chat:** **Your action — codename** blocks, long Status prose, or full **Parent assessment** / **Cross-child check** — those live in `artifacts/program-status.md` only.
 
 Monitor JSON `gate_review.sibling_program_context` supplies read-only sibling decomposition goals (and plan summaries at plan gates) so child-reviewer Tasks catch cross-child overlap without reading sibling session folders.
-
-## Merge boundaries (xray program)
-
-Self-hosted hub **`template`** worktree per child. pc6 (child-6) documents ownership to reduce PR conflict with parallel siblings.
-
-| Area | pc6 (child-6) owns | pc2 (child-2) owns | pc3 (child-3) owns |
-|------|-------------------|-------------------|-------------------|
-| `scripts/lib/program_monitor.py` | Sibling context helpers; `child_gate_review` / `child_snapshot` enrichment | — | EOF `monitor_program` cleanup hook only |
-| `scripts/program-monitor.py` | Slim `format_text` table + sibling lines | — | — |
-| `scripts/program-status-report.sh` | Detail sections + `--reviews-json` merge | — | — |
-| `.cursor/skills/sessions-orchestrator/` | child-reviewer.md, Check children slim format, model slug | Parent gate routing → tmux send-keys | Tab cleanup on child `completed` |
-| `docs/PROGRAM_ORCHESTRATOR.md` | This section + cross-child review | Inbox routing section | Tab cleanup section |
-
-**Recommended rebase order:** pc6 monitor helpers first (isolated block), then pc3 append cleanup hook, then pc2 routing skill edits in non-overlapping sections.
-
-**pc6 defers:** `program-route-feedback.py`, inbox program paths, `program_child_tabs.py` send-keys routing (pc2); tmux window kill on completion (pc3).
 
 ## Parent gate review (mandatory)
 

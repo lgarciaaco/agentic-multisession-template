@@ -70,27 +70,41 @@ See [SESSIONS.md](../SESSIONS.md) § Program orchestrator child tabs.
 
 When the user checks children or runs `/sessions-orchestrator status`:
 
-1. `python3 scripts/program-monitor.py <parent>` + `./scripts/program-status-report.sh <parent>`
-2. Spawn **Task(child-reviewer)** per active child in parallel — [.cursor/skills/sessions-orchestrator/agents/child-reviewer.md](../.cursor/skills/sessions-orchestrator/agents/child-reviewer.md)
-3. Parent synthesizes into the mandatory chat format (skill: **Check children**)
+1. `python3 scripts/program-monitor.py <parent>` + `./scripts/program-status-report.sh <parent> [--reviews-json path]`
+2. Spawn **Task(child-reviewer)** per active child in parallel — model `claude-4.6-sonnet-medium-thinking` per [agents/child-reviewer.md](../.cursor/skills/sessions-orchestrator/agents/child-reviewer.md)
+3. Merge subagent returns into status report via `--reviews-json` (see child-reviewer **Parent synthesis**)
+4. Parent chat: **one screen max** — `Parent next` plus slim table only
 
 ```text
 Parent next: <from parent_next_action>
 
-┌────────┬──────────────┬───────┬──────────────────────────────────────────┐
-│ Child  │ Phase        │ Gate  │ Status                                   │
-├────────┼──────────────┼───────┼──────────────────────────────────────────┤
-│ …      │ brief_review │ brief │ …                                        │
-└────────┴──────────────┴───────┴──────────────────────────────────────────┘
-
-### Your action — `<codename>`
-**Child agent:** …
-**Parent:** … (brief/plan assessment when artifact present — proactive, not deferred)
+| Child | Phase | Gate | Next |
+|-------|-------|------|------|
+| child-1 | plan_user_review | plan | Accept plan or send corrections |
+| child-2 | implementation | — | Continue t3 in worktree |
 ```
 
-Gate column: `brief` | `plan` | `—`. One **Your action** block per active child.
+**Gate column:** `brief` | `plan` | `—`. **Next** column: one line from subagent **Next** section.
 
-Do not ask the user to relay messages between agents or sessions. Do not say "accept X when you've reviewed" — **review first, always** (subagents assess; parent presents in **Your action**).
+**Not in chat:** **Your action — codename** blocks, long Status prose, or full **Parent assessment** / **Cross-child check** — those live in `artifacts/program-status.md` only.
+
+Monitor JSON `gate_review.sibling_program_context` supplies read-only sibling decomposition goals (and plan summaries at plan gates) so child-reviewer Tasks catch cross-child overlap without reading sibling session folders.
+
+## Merge boundaries (xray program)
+
+Self-hosted hub **`template`** worktree per child. pc6 (child-6) documents ownership to reduce PR conflict with parallel siblings.
+
+| Area | pc6 (child-6) owns | pc2 (child-2) owns | pc3 (child-3) owns |
+|------|-------------------|-------------------|-------------------|
+| `scripts/lib/program_monitor.py` | Sibling context helpers; `child_gate_review` / `child_snapshot` enrichment | — | EOF `monitor_program` cleanup hook only |
+| `scripts/program-monitor.py` | Slim `format_text` table + sibling lines | — | — |
+| `scripts/program-status-report.sh` | Detail sections + `--reviews-json` merge | — | — |
+| `.cursor/skills/sessions-orchestrator/` | child-reviewer.md, Check children slim format, model slug | Parent gate routing → tmux send-keys | Tab cleanup on child `completed` |
+| `docs/PROGRAM_ORCHESTRATOR.md` | This section + cross-child review | Inbox routing section | Tab cleanup section |
+
+**Recommended rebase order:** pc6 monitor helpers first (isolated block), then pc3 append cleanup hook, then pc2 routing skill edits in non-overlapping sections.
+
+**pc6 defers:** `program-route-feedback.py`, inbox program paths, `program_child_tabs.py` send-keys routing (pc2); tmux window kill on completion (pc3).
 
 ## Parent gate review (mandatory)
 
@@ -101,7 +115,7 @@ Parent sessions coordinate; they do not edit child sessions.
 | Accept / reopen gate | `python3 scripts/program-route-feedback.py` | `python3 scripts/program-route-feedback.py <parent> <child> --gate brief_review --message "accept brief"` (also `--gate plan_user_review --message "accept plan"`; reopen with `--message "reopen brief"` / `"reopen plan"`) |
 | Brief or plan correction | `session-inbox.sh write <parent> <child> "…"` | Prose review notes |
 
-**Read-only review (mandatory at gates):** inspect child `artifacts/problem-brief.md` or `artifacts/action-plan.md`; compare to decomposition scope; present assessment before routing. Never patch child artifacts or worktrees from the parent chat. Monitor JSON includes `gate_review` paths and `parent_next_action`.
+**Read-only review (mandatory at gates):** inspect child gate artifacts via monitor `gate_review`; compare to decomposition scope and `sibling_program_context`; read full assessments in `artifacts/program-status.md` before routing. Never patch child artifacts or worktrees from the parent chat. Monitor JSON includes `gate_review` paths, `sibling_program_context`, and `parent_next_action`.
 
 **Gate commands must be exact.** Prose such as "brief looks good — proceed" classifies as `brief_correction`, not `accept brief`. Use full CLI invocations when approving a gate:
 

@@ -10,7 +10,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from hub_paths import hub_root  # noqa: E402
-from program_monitor import monitor_program  # noqa: E402
+from program_monitor import gate_column_short, monitor_program  # noqa: E402
+
+
+def _one_line_next(child: dict) -> str:
+    if child.get("error"):
+        return f"error: {child['error']}"
+    hint = child.get("resume_hint") or "—"
+    return str(hint).replace("|", "/").replace("\n", " ").strip()
 
 
 def format_text(report: dict) -> str:
@@ -20,18 +27,15 @@ def format_text(report: dict) -> str:
         "",
         f"Parent next: {report.get('parent_next_action') or '—'}",
         "",
+        "| Child | Phase | Gate | Next |",
+        "|-------|-------|------|------|",
     ]
     for child in report.get("children") or []:
-        gate = child.get("pending_gate") or "—"
-        lines.append(
-            f"- `{child['codename']}` phase={child.get('phase')} pending_gate={gate}"
-        )
-        if child.get("error"):
-            lines.append(f"  error: {child['error']}")
-        review = child.get("gate_review")
-        if review:
-            present = "present" if review.get("artifact_present") else "missing"
-            lines.append(f"  review: {review.get('artifact_path')} ({present})")
+        gate = gate_column_short(child.get("pending_gate"))
+        phase = child.get("phase") or "—"
+        codename = child.get("codename") or "—"
+        next_line = _one_line_next(child)
+        lines.append(f"| `{codename}` | {phase} | {gate} | {next_line} |")
     return "\n".join(lines) + "\n"
 
 

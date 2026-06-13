@@ -61,50 +61,53 @@ When any child has `pending_gate`, run monitor + status report **before** presen
 When the user asks to **check children**, **status**, **standup**, or **how are the child sessions** — or when presenting `/sessions-orchestrator status`:
 
 1. Run `program-monitor.py` + `program-status-report.sh`.
-2. Spawn **Task(child-reviewer)** per active child **in parallel** — [agents/child-reviewer.md](agents/child-reviewer.md). Pass that child's monitor JSON slice.
+2. Spawn **Task(child-reviewer)** per active child **in parallel** — [agents/child-reviewer.md](agents/child-reviewer.md). Pass that child's monitor JSON slice (includes `gate_review.sibling_program_context`).
 3. Parent synthesizes subagent returns; **never** inline-read all child artifacts in the parent without subagents.
+4. Merge Task returns into status report:
 
-**Proactive gate review:** At `brief_review` or `plan_user_review`, each subagent **must** read the gate artifact and return **Parent assessment** (alignment, gaps, accept/reopen/inbox recommendation). Include that assessment in **Your action** below — do not defer with "review when ready".
+```bash
+./scripts/program-status-report.sh <parent> --reviews-json /tmp/child-reviews.json
+```
 
-### Response format (mandatory)
+`child-reviews.json` keys child codenames; values hold `next`, `parent_assessment`, `cross_child_check`, `child_agent_action` from each subagent.
+
+**Task spawn:** pass `model: claude-4.6-sonnet-medium-thinking` (must match **Model assignments** and [agents/child-reviewer.md](agents/child-reviewer.md)).
+
+**Proactive gate review:** At `brief_review` or `plan_user_review`, each subagent **must** read the gate artifact and return **Parent assessment** + **Cross-child check**. Detail lives in `artifacts/program-status.md` — not deferred with "review when ready".
+
+### Response format (mandatory — one screen max)
+
+Chat output is **only** `Parent next` plus the slim table. No **Your action — codename** blocks. Full gate review detail is in `artifacts/program-status.md`.
 
 ```text
 Parent next: <short imperative from parent_next_action>
 
-┌────────┬──────────────┬───────┬──────────────────────────────────────────┐
-│ Child  │ Phase        │ Gate  │ Status                                   │
-├────────┼──────────────┼───────┼──────────────────────────────────────────┤
-│ <name> │ <phase>      │ brief │ <Status section from subagent>           │
-│ …      │ …            │ plan  │ …                                        │
-│ …      │ intake       │ —     │ …                                        │
-└────────┴──────────────┴───────┴──────────────────────────────────────────┘
+| Child | Phase | Gate | Next |
+|-------|-------|------|------|
+| <name> | <phase> | brief | <Next line from subagent> |
+| … | … | plan | … |
+| … | intake | — | … |
 ```
 
 **Gate column:** `brief` when `pending_gate` is `brief_review`; `plan` when `plan_user_review`; `—` otherwise.
 
-Then **one block per child** (all active children, not only pending gates):
+**Next column:** one line from subagent **Next** section (or monitor `resume_hint` when no subagent ran).
 
-```markdown
-### Your action — `<codename>`
-
-**Child agent:** <Child agent action from subagent>
-
-**Parent:** <Parent assessment when brief/plan artifact exists or gate pending; otherwise monitor-only note>
-```
+Point the user to `artifacts/program-status.md` for **Parent assessment**, **Cross-child check**, and **Child agent action** per child.
 
 Do not ask the user to relay messages between parent and child tabs.
 
 ## `/sessions-orchestrator status`
 
-Same protocol as **Check children**: monitor + parallel Task(child-reviewer) per child, then the mandatory table + **Your action** blocks.
+Same protocol as **Check children**: monitor + parallel Task(child-reviewer) per child (`model: claude-4.6-sonnet-medium-thinking`), merge reviews into program-status.md, then the slim chat table only.
 
 ## Parent gate review (mandatory)
 
-At every child gate the parent **always reviews** — never defer with "accept when ready" or offer "review X / accept X" as alternatives. Gate review runs through **Check children** Task(child-reviewer) subagents; **Parent assessment** in **Your action** blocks is mandatory when brief/plan artifacts exist.
+At every child gate the parent **always reviews** — never defer with "accept when ready" or offer "review X / accept X" as alternatives. Gate review runs through **Check children** Task(child-reviewer) subagents; **Parent assessment** and **Cross-child check** must appear in `artifacts/program-status.md` when brief/plan artifacts exist.
 
-1. Run monitor + status report (or full **Check children** flow).
-2. Subagent reads `gate_review.artifact_path` and compares to decomposition scope in `program-plan.md`.
-3. Parent presents subagent **Parent assessment** in **Your action — `<codename>`** before routing.
+1. Run monitor + status report with merged subagent reviews (or full **Check children** flow).
+2. Subagent reads `gate_review.artifact_path`, `gate_review.sibling_program_context`, and compares to full `program-plan.md`.
+3. Parent chat shows slim table only; user reads **Parent assessment** in program-status.md before routing.
 4. User routes the gate (exact commands below) or sends corrections via inbox — parent does not skip the review step.
 
 | Child phase | After review, user may say | Block / reopen |

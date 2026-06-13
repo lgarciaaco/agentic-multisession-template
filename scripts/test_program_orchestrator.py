@@ -17,6 +17,8 @@ from program_monitor import (  # noqa: E402
     child_gate_review,
     monitor_program,
     program_parent_next_action,
+    render_program_status_markdown,
+    sibling_program_context,
 )
 from program_route_feedback import route_feedback  # noqa: E402
 from workflow_inbox_gate import classify_gate_message, parse_inbox_blocks, pull_inbox_gate  # noqa: E402
@@ -115,6 +117,7 @@ class ProgramOrchestratorTests(unittest.TestCase):
         self.assertIn("Child session goal", review["child_scope"]["goal"] or "")
         self.assertIn("Review child", report["parent_next_action"])
         self.assertIn("sessions/november/", report["parent_next_action"])
+        self.assertIn("cross-child", report["parent_next_action"].lower())
         self.assertNotIn("when you've reviewed", report["parent_next_action"].lower())
 
     def test_child_gate_review_rejects_invalid_codename(self) -> None:
@@ -152,7 +155,45 @@ class ProgramOrchestratorTests(unittest.TestCase):
         spec.loader.exec_module(mod)
         text = mod.format_text(report)
         self.assertIn("Parent next:", text)
-        self.assertIn("review: sessions/november/artifacts/problem-brief.md (present)", text)
+        self.assertIn("| Child | Phase | Gate | Next |", text)
+        self.assertIn(f"| `{self.child}` | brief_review | brief |", text)
+        self.assertNotIn("review: sessions/", text)
+        self.assertNotIn("siblings:", text)
+
+    def test_program_status_report_reviews_json_smoke(self) -> None:
+        child_dir = self.root / "sessions" / self.child
+        (child_dir / "artifacts" / "problem-brief.md").write_text("# Brief\n")
+        reviews_path = self.root / "child-reviews.json"
+        reviews_path.write_text(
+            json.dumps(
+                {
+                    self.child: {
+                        "next": "Accept brief or send corrections",
+                        "parent_assessment": "Aligned with decomposition scope.",
+                        "cross_child_check": "No sibling overlap.",
+                        "child_agent_action": "Wait for accept brief.",
+                    }
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        script = ROOT / "scripts" / "program-status-report.sh"
+        env = {**os.environ, "WORKSPACE_ROOT": str(self.root)}
+        result = subprocess.run(
+            [str(script), self.parent, "--reviews-json", str(reviews_path)],
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        status_path = self.root / "sessions" / self.parent / "artifacts" / "program-status.md"
+        self.assertTrue(status_path.is_file(), result.stdout)
+        body = status_path.read_text(encoding="utf-8")
+        self.assertIn("Aligned with decomposition scope.", body)
+        self.assertIn("**Cross-child check**", body)
+        self.assertIn("Accept brief or send corrections", body)
 
     def test_program_status_report_gate_review_section(self) -> None:
         child_dir = self.root / "sessions" / self.child
@@ -368,6 +409,145 @@ none
             (self.root / "sessions" / self.child / "workflow.json").read_text()
         )
         self.assertEqual(workflow["phase"], "plan_loop")
+
+
+    def _add_second_child(self, codename: str = "oscar") -> None:
+        child_dir = self.root / "sessions" / codename
+        child_dir.mkdir(parents=True)
+        (child_dir / "artifacts").mkdir()
+        (child_dir / "workflow.json").write_text(
+            json.dumps(
+                {
+                    "version": 2,
+                    "phase": "implementation",
+                    "gates": {"brief_accepted": True, "plan_user_accepted": True},
+                    "loops": {},
+                    "artifacts": {},
+                },
+                indent=2,
+            )
+            + "\n"
+        )
+        (child_dir / "session.json").write_text(
+            json.dumps({"codename": codename, "title": f"{codename} title", "tasks": []})
+            + "\n"
+        )
+        (child_dir / "TASKS.md").write_text(f"# Tasks\n\n## Goal\n\n{codename} goal\n")
+        parent_dir = self.root / "sessions" / self.parent
+        program = default_program(self.parent)
+        program["proposed_children"] = [
+            {
+                "id": "c1",
+                "suggested_codename": self.child,
+                "title": "Child scope title",
+                "goal": "Deliver child feature X",
+                "repo": "template",
+                "depends_on": [],
+            },
+            {
+                "id": "c2",
+                "suggested_codename": codename,
+                "title": "Second child title",
+                "goal": "Deliver second feature Y",
+                "repo": "template",
+                "depends_on": [],
+            },
+        ]
+        program["active_children"] = [
+            {"codename": self.child, "status": "running"},
+            {"codename": codename, "status": "running"},
+        ]
+        save_program(parent_dir, program)
+
+    def test_sibling_program_context_excludes_self(self) -> None:
+        self._add_second_child("oscar")
+        parent_dir = self.root / "sessions" / self.parent
+        program = default_program(self.parent)
+        from program_state import load_program
+
+        program = load_program(parent_dir)
+        siblings = sibling_program_context(
+            self.root, program, self.child, pending_gate="brief_review"
+        )
+        self.assertEqual(len(siblings), 1)
+        self.assertEqual(siblings[0]["codename"], "oscar")
+        self.assertEqual(siblings[0]["decomposition_scope"]["goal"], "Deliver second feature Y")
+
+    def test_monitor_gate_review_includes_sibling_context(self) -> None:
+        self._add_second_child("oscar")
+        child_dir = self.root / "sessions" / self.child
+        (child_dir / "artifacts" / "problem-brief.md").write_text("# Brief\n")
+        report = monitor_program(self.root, self.parent)
+        child = next(c for c in report["children"] if c["codename"] == self.child)
+        review = child["gate_review"]
+        self.assertIn("sibling_program_context", review)
+        siblings = review["sibling_program_context"]
+        self.assertEqual(len(siblings), 1)
+        self.assertEqual(siblings[0]["codename"], "oscar")
+
+    def test_sibling_plan_summary_at_plan_gate(self) -> None:
+        self._add_second_child("oscar")
+        oscar_dir = self.root / "sessions" / "oscar"
+        (oscar_dir / "artifacts" / "action-plan.md").write_text(
+            """# Plan
+
+## Tasks
+
+| ID | Repo | Summary | Acceptance | Depends |
+|----|------|---------|------------|---------|
+| t1 | template | Edit monitor | Done when shipped | — |
+
+## Files / areas
+
+- `scripts/lib/program_monitor.py`
+"""
+        )
+        child_dir = self.root / "sessions" / self.child
+        (child_dir / "artifacts" / "action-plan.md").write_text("# Plan\n")
+        (child_dir / "workflow.json").write_text(
+            json.dumps(
+                {
+                    "version": 2,
+                    "phase": "plan_user_review",
+                    "gates": {"brief_accepted": True, "plan_user_accepted": False},
+                    "loops": {},
+                    "artifacts": {},
+                },
+                indent=2,
+            )
+            + "\n"
+        )
+        report = monitor_program(self.root, self.parent)
+        child = next(c for c in report["children"] if c["codename"] == self.child)
+        review = child["gate_review"]
+        oscar_entry = next(
+            s for s in review["sibling_program_context"] if s["codename"] == "oscar"
+        )
+        self.assertIn("plan_summary", oscar_entry)
+        self.assertEqual(oscar_entry["plan_summary"]["tasks"][0]["id"], "t1")
+        self.assertIn("program_monitor.py", oscar_entry["plan_summary"]["files_areas"][0])
+
+    def test_render_program_status_with_child_reviews(self) -> None:
+        self._add_second_child("oscar")
+        child_dir = self.root / "sessions" / self.child
+        (child_dir / "artifacts" / "problem-brief.md").write_text("# Brief\n")
+        report = monitor_program(self.root, self.parent)
+        body = render_program_status_markdown(
+            report,
+            child_reviews={
+                self.child: {
+                    "next": "Accept brief or send corrections",
+                    "parent_assessment": "Aligned with pc6 scope.",
+                    "cross_child_check": "No overlap with oscar.",
+                    "child_agent_action": "Wait for accept brief.",
+                }
+            },
+        )
+        self.assertIn("Sibling context", body)
+        self.assertIn("**Parent assessment**", body)
+        self.assertIn("Aligned with pc6 scope.", body)
+        self.assertIn("**Cross-child check**", body)
+        self.assertIn("Accept brief or send corrections", body)
 
 
 if __name__ == "__main__":

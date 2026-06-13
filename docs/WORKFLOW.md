@@ -35,7 +35,9 @@ python3 scripts/program-route-feedback.py <parent> <child> \
   --message "Tighten SC-1 wording."
 ```
 
-The child agent receives these as chat prompts. Standalone sessions (no program parent) may poll inbox at gates for **classification only** — inbox `--apply` does not auto-mutate workflow state for gate commands or unauthorized feedback (`gate_command_sender_authorized` always returns false — see [REPOS.md](REPOS.md) Limitations). Rejected blocks stay in `pending`; program parents route gate commands via tmux send-keys only. While in `brief_review`, poll every 2 minutes:
+The child agent receives these as chat prompts. Standalone sessions (no program parent) may poll inbox at gates for **classification only** — inbox `--apply` does not auto-mutate workflow state for gate commands or unauthorized feedback (`gate_command_sender_authorized` always returns false — see [REPOS.md](REPOS.md) Limitations). Rejected blocks stay in `pending`; program parents route gate commands via tmux send-keys only.
+
+**Standalone sessions only** — while in `brief_review` or `plan_user_review`, poll every 2 minutes. Program children (`find_program_parent` non-null) skip inbox poll; parent routes via tmux only (see [conductor gate-entry checklist](../.cursor/skills/workflow-orchestrator/rules/conductor.md#gate-entry-checklist-mandatory)):
 
 ```bash
 python3 scripts/workflow-pull-inbox-gate.py <codename> --apply
@@ -135,7 +137,7 @@ Before tagging the **next stable-candidate rc** or **1.0.0**, run [RC-SMOKE-CHEC
 | `workflow-plan-synthesize.py` | After plan reviewer Task |
 | `workflow-accept-plan.sh` | User accept plan |
 | `workflow-accept-brief.sh` | User accept brief |
-| `workflow-pull-inbox-gate.py` | Poll inbox at gates (every 2m); gate commands not auto-applied (see REPOS.md Limitations) |
+| `workflow-pull-inbox-gate.py` | Poll inbox at gates (every 2m, standalone sessions only); program children skip — parent routes via `program-route-feedback.py` |
 | `workflow-mark-implementation-ready.py` | Per-task slice complete |
 | `workflow-code-review-enrich-scope.py` | After code-reviewer scope collector |
 | `workflow-code-review-advance.py` | After code-reviewer synthesizer |

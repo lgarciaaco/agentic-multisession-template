@@ -84,6 +84,18 @@ class GateCommandRegistryTests(unittest.TestCase):
     def test_normalize_route_message(self) -> None:
         self.assertEqual(normalize_route_message("  Accept Plan  "), "accept plan")
 
+    def test_normalize_route_message_collapses_whitespace(self) -> None:
+        self.assertEqual(
+            normalize_route_message("  accept   brief  ", gate_command=True),
+            "accept brief",
+        )
+
+    def test_normalize_route_message_preserves_correction_case(self) -> None:
+        self.assertEqual(
+            normalize_route_message("  Fix   SC-1  ", gate_command=False),
+            "Fix SC-1",
+        )
+
     def test_phase_command_actions_unknown_phase(self) -> None:
         self.assertEqual(phase_command_actions("implementation"), ())
 

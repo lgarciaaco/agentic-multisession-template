@@ -1236,7 +1236,9 @@ def format_workflow_section(root: Path, codename: str) -> str:
             lines.append(f"  - {entry}")
 
     lines.append("- **Commands:** `/workflow-orchestrator`, `/workflow-orchestrator status`")
-    if phase in ("brief_review", "plan_user_review"):
+    from program_state import GATE_PHASES
+
+    if phase in GATE_PHASES:
         try:
             from workflow_inbox_gate import INBOX_POLL_SECONDS, pull_inbox_gate
 

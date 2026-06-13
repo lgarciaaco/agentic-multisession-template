@@ -16,6 +16,7 @@ from gate_command_registry import (
     classify_gate_command,
     is_gate_command_action,
 )
+from gate_metadata_registry import gate_artifact_path, gate_feedback_kind, gate_feedback_kinds
 from hub_paths import resolve_session_artifact
 from program_state import GATE_PHASES, find_program_parent
 from inbox_provenance import inbox_block_marker
@@ -34,11 +35,6 @@ _INBOX_BLOCK_RE = re.compile(
     r"^\*\*From `(?P<from>[^`]+)`\*\* \((?P<date>[^)]+)\)\s*\n+(?P<body>.*?)(?=^\*\*From `|\Z)",
     re.MULTILINE | re.DOTALL,
 )
-
-_PHASE_FEEDBACK: dict[str, str] = {
-    "brief_review": "brief_correction",
-    "plan_user_review": "plan_feedback",
-}
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -86,7 +82,7 @@ def classify_gate_message(phase: str, body: str) -> str | None:
     action = classify_gate_command(phase, first_line)
     if action is not None:
         return action
-    return _PHASE_FEEDBACK[phase]
+    return gate_feedback_kind(phase)
 
 
 def gate_command_sender_authorized(
@@ -184,7 +180,7 @@ def accept_brief(root: Path, codename: str, *, source: str = "user") -> dict[str
         raise ValueError("brief already accepted")
 
     artifacts = workflow.get("artifacts") or {}
-    brief_rel = artifacts.get("brief", "artifacts/problem-brief.md")
+    brief_rel = artifacts.get("brief", gate_artifact_path("brief_review"))
     set_problem_brief_accepted(session_dir, brief_rel)
 
     gates["brief_accepted"] = True
@@ -208,7 +204,7 @@ def apply_brief_correction(
         raise ValueError(f"cannot apply brief correction in phase '{phase}'")
 
     artifacts = workflow.get("artifacts") or {}
-    brief_rel = artifacts.get("brief", "artifacts/problem-brief.md")
+    brief_rel = artifacts.get("brief", gate_artifact_path("brief_review"))
     brief_path = resolve_session_artifact(session_dir, brief_rel)
     brief_path.parent.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -332,7 +328,7 @@ def pull_inbox_gate(
             )
             continue
 
-        if action in ("brief_correction", "plan_feedback") and not feedback_sender_authorized(
+        if action in gate_feedback_kinds() and not feedback_sender_authorized(
             root, codename, from_session
         ):
             applied_markers.append(marker)

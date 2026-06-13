@@ -158,7 +158,7 @@ Canonical status lives in `session.json`. Run `sync-session.sh` if local `index.
 | `./scripts/sync-session.sh [name]` | Sync index/context from `session.json`; for non-workflow sessions, refresh `TASKS.md` ## Tasks from `session.json` tasks (empty `tasks: []` → header rows + empty-state note, no data rows) |
 | `python3 scripts/workflow-plan-synthesize.py <name> <workspace>` | Synthesize plan review iteration |
 | `./scripts/workflow-accept-brief.sh <name>` | User accept brief; freeze problem brief; phase → plan_loop |
-| `python3 scripts/workflow-pull-inbox-gate.py <name> [--apply]` | Poll inbox at brief/plan gates (every 2m); `--apply` when correlated |
+| `python3 scripts/workflow-pull-inbox-gate.py <name> [--apply]` | Poll inbox at brief/plan gates (every 2m, standalone sessions only); program children use `program-route-feedback.py` parent routing |
 | `./scripts/workflow-accept-plan.sh <name>` | Accept action plan; sync tasks + worktrees |
 | `python3 scripts/workflow-mark-implementation-ready.py <name> <task-id>` | Mark slice ready and enter code review (no commit gate) |
 | `python3 scripts/workflow-begin-code-review.py <name>` | Legacy: begin when all tasks done |

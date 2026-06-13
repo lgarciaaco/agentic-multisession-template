@@ -9,7 +9,7 @@ description: >-
 
 # Workflow orchestrator
 
-One chat, one conductor. Linear pipeline with autonomous plan and code loops between user gates. **Inbox feedback** from monitoring sessions counts at gates when correlated; poll every 2 minutes while awaiting a gate.
+One chat, one conductor. Linear pipeline with autonomous plan and code loops between user gates. **Standalone sessions** poll inbox every 2 minutes at gates; program children use parent tmux routing.
 
 ## Target
 
@@ -26,7 +26,7 @@ One chat, one conductor. Linear pipeline with autonomous plan and code loops bet
 | `/workflow-orchestrator status` | One-screen status from `workflow.json` |
 | `accept brief` / `accept` | Gate 1 (phase `brief_review`) |
 | `accept plan` | Gate 2 → `./scripts/workflow-accept-plan.sh <codename>` |
-| Inbox at gate | `./scripts/workflow-pull-inbox-gate.py <codename> [--apply]` — correlated messages count as gate feedback |
+| Inbox at gate | `./scripts/workflow-pull-inbox-gate.py <codename> [--apply]` — standalone sessions only; program children skip (parent tmux routing) |
 | `reopen brief` | `python3 scripts/workflow-reopen-brief.py <codename>` |
 | `reopen plan` | `python3 scripts/workflow-reopen-plan.py <codename>` |
 

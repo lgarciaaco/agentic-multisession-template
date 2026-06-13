@@ -50,7 +50,7 @@ Single-session **Problem → Plan → Code → Review → PR → CI → Delivery
 | `/pr-review` | Code review → `.cursor/skills/code-reviewer/SKILL.md` |
 | `accept brief` / `accept` | Gate 1 |
 | `accept plan` | Gate 2 → `./scripts/workflow-accept-plan.sh <codename>` |
-| Inbox at gate | `python3 scripts/workflow-pull-inbox-gate.py <codename> [--apply]` every 2m while at brief/plan gate |
+| Inbox at gate | `python3 scripts/workflow-pull-inbox-gate.py <codename> [--apply]` every 2m at brief/plan gates (standalone sessions only); program children use `program-route-feedback.py` |
 | `reopen brief` / `reopen plan` | `python3 scripts/workflow-reopen-brief.py <codename>` / `python3 scripts/workflow-reopen-plan.py <codename>` |
 
 Workflow phase scripts and CLI commands: [SESSIONS.md#commands](SESSIONS.md#commands).

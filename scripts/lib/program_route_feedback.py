@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,6 +13,7 @@ from gate_command_registry import (
     allowed_route_messages,
     classify_gate_command,
     is_allowed_route_message,
+    normalize_route_message,
 )
 from program_child_tabs import in_tmux, resolve_child_pane, send_to_child_pane
 from program_state import GATE_PHASES, load_program, save_program
@@ -29,14 +29,6 @@ class RouteResult:
     sent: bool
     payload: str
     skip_reason: str | None = None
-
-
-def normalize_route_message_text(message: str, *, gate_command: bool = False) -> str:
-    """Strip/collapse whitespace; gate commands compared case-insensitively."""
-    text = re.sub(r"\s+", " ", message.strip())
-    if gate_command:
-        return text.casefold()
-    return text
 
 
 def _parse_iso_timestamp(value: str | None) -> datetime | None:
@@ -68,7 +60,7 @@ def _dedupe_skip_reason(
     if not isinstance(last_at, str) or not isinstance(last_msg, str):
         return None
     if (
-        normalize_route_message_text(last_msg, gate_command=gate_command)
+        normalize_route_message(last_msg, gate_command=gate_command)
         != normalized_message
     ):
         return None
@@ -98,6 +90,46 @@ def _gate_already_accepted_skip(
 def _correction_phase_skip(phase: str | None) -> str | None:
     if phase not in CORRECTION_PHASES:
         return f"child phase is {phase!r}, not brief_review or plan_user_review"
+    return None
+
+
+def _gate_feedback_skip_reason(
+    workflow: dict[str, Any],
+    entry: dict[str, Any],
+    gate: str,
+    message: str,
+    *,
+    force: bool = False,
+) -> str | None:
+    """Return skip reason when gate feedback is not routable; None when guards pass."""
+    if not force:
+        accepted_skip = _gate_already_accepted_skip(workflow, gate, message)
+        if accepted_skip:
+            return accepted_skip
+        normalized = normalize_route_message(message.strip(), gate_command=True)
+        dedupe = _dedupe_skip_reason(entry, normalized, gate_command=True)
+        if dedupe:
+            return dedupe
+    return None
+
+
+def _correction_skip_reason(
+    workflow: dict[str, Any],
+    entry: dict[str, Any],
+    message: str,
+    *,
+    force: bool = False,
+) -> str | None:
+    """Return skip reason when correction is not routable; None when guards pass."""
+    phase = str(workflow.get("phase") or "unknown")
+    if not force:
+        phase_skip = _correction_phase_skip(phase)
+        if phase_skip:
+            return phase_skip
+        normalized = normalize_route_message(message, gate_command=False)
+        dedupe = _dedupe_skip_reason(entry, normalized, gate_command=False)
+        if dedupe:
+            return dedupe
     return None
 
 
@@ -200,15 +232,9 @@ def evaluate_route_feedback(
             "routable": False,
             "skip_reason": f"child {child_name!r} workflow phase is {phase!r}, not {gate!r}",
         }
-    command = message.strip()
-    normalized = normalize_route_message_text(command, gate_command=True)
-    if not force:
-        accepted_skip = _gate_already_accepted_skip(workflow, gate, message)
-        if accepted_skip:
-            return {"routable": False, "skip_reason": accepted_skip}
-        dedupe = _dedupe_skip_reason(entry, normalized, gate_command=True)
-        if dedupe:
-            return {"routable": False, "skip_reason": dedupe}
+    skip = _gate_feedback_skip_reason(workflow, entry, gate, message, force=force)
+    if skip:
+        return {"routable": False, "skip_reason": skip}
     return {"routable": True, "skip_reason": None}
 
 
@@ -235,24 +261,36 @@ def evaluate_route_correction(
         workflow = _load_child_workflow(root, child_name)
     except ValueError as exc:
         return {"routable": False, "skip_reason": str(exc)}
-    phase = str(workflow.get("phase") or "unknown")
-    normalized = normalize_route_message_text(body, gate_command=False)
-    if not force:
-        phase_skip = _correction_phase_skip(phase)
-        if phase_skip:
-            return {"routable": False, "skip_reason": phase_skip}
-        dedupe = _dedupe_skip_reason(entry, normalized, gate_command=False)
-        if dedupe:
-            return {"routable": False, "skip_reason": dedupe}
+    skip = _correction_skip_reason(workflow, entry, body, force=force)
+    if skip:
+        return {"routable": False, "skip_reason": skip}
     return {"routable": True, "skip_reason": None}
 
 
-def _default_accept_probe_message(gate: str) -> str:
-    target = ACCEPT_BRIEF if gate == "brief_review" else ACCEPT_PLAN
+def _first_routable_gate_feedback(
+    root: Path,
+    *,
+    parent: str,
+    child: str,
+    gate: str,
+) -> dict[str, Any]:
+    """Probe all allowed gate messages; routable if any action passes guards."""
+    evaluation: dict[str, Any] = {
+        "routable": False,
+        "skip_reason": "no routable gate action",
+    }
     for msg in sorted(allowed_route_messages(gate)):
-        if classify_gate_command(gate, msg) == target:
-            return msg
-    raise RuntimeError(f"no accept probe message for gate {gate!r}")
+        candidate = evaluate_route_feedback(
+            root,
+            parent=parent,
+            child=child,
+            gate=gate,
+            message=msg,
+        )
+        if candidate.get("routable"):
+            return candidate
+        evaluation = candidate
+    return evaluation
 
 
 def child_route_snapshot_fields(
@@ -271,20 +309,18 @@ def child_route_snapshot_fields(
         "route_skip_reason": None,
     }
     if pending_gate == "brief_review":
-        evaluation = evaluate_route_feedback(
+        evaluation = _first_routable_gate_feedback(
             root,
             parent=parent,
             child=child_name,
             gate="brief_review",
-            message=_default_accept_probe_message("brief_review"),
         )
     elif pending_gate == "plan_user_review":
-        evaluation = evaluate_route_feedback(
+        evaluation = _first_routable_gate_feedback(
             root,
             parent=parent,
             child=child_name,
             gate="plan_user_review",
-            message=_default_accept_probe_message("plan_user_review"),
         )
     else:
         evaluation = evaluate_route_correction(
@@ -327,15 +363,10 @@ def route_feedback(
 
     command = message.strip()
     _require_child_gate_phase(workflow, child_name, gate)
-    normalized = normalize_route_message_text(command, gate_command=True)
 
-    if not force:
-        accepted_skip = _gate_already_accepted_skip(workflow, gate, message)
-        if accepted_skip:
-            return RouteResult(sent=False, payload=command, skip_reason=accepted_skip)
-        dedupe = _dedupe_skip_reason(entry, normalized, gate_command=True)
-        if dedupe:
-            return RouteResult(sent=False, payload=command, skip_reason=dedupe)
+    skip = _gate_feedback_skip_reason(workflow, entry, gate, message, force=force)
+    if skip:
+        return RouteResult(sent=False, payload=command, skip_reason=skip)
 
     if dry_run:
         return RouteResult(sent=False, payload=command)
@@ -367,16 +398,10 @@ def route_correction(
     program = load_program(root / "sessions" / parent_name)
     entry = _active_child_entry(program, child_name)
     workflow = _load_child_workflow(root, child_name)
-    phase = str(workflow.get("phase") or "unknown")
-    normalized = normalize_route_message_text(body, gate_command=False)
 
-    if not force:
-        phase_skip = _correction_phase_skip(phase)
-        if phase_skip:
-            return RouteResult(sent=False, payload=body, skip_reason=phase_skip)
-        dedupe = _dedupe_skip_reason(entry, normalized, gate_command=False)
-        if dedupe:
-            return RouteResult(sent=False, payload=body, skip_reason=dedupe)
+    skip = _correction_skip_reason(workflow, entry, body, force=force)
+    if skip:
+        return RouteResult(sent=False, payload=body, skip_reason=skip)
 
     if dry_run:
         return RouteResult(sent=False, payload=body)

@@ -24,7 +24,6 @@ from program_monitor import (  # noqa: E402
 )
 from program_route_feedback import (  # noqa: E402
     RouteResult,
-    normalize_route_message_text,
     route_correction,
     route_feedback,
 )
@@ -289,14 +288,21 @@ class ProgramOrchestratorTests(unittest.TestCase):
         forced = self._route_correction("Tighten SC-1 wording.", force=True)
         self.assertTrue(forced.sent)
 
-    def test_normalize_route_message_text_collapses_whitespace_for_gates(self) -> None:
-        a = normalize_route_message_text("  accept   brief  ", gate_command=True)
-        b = normalize_route_message_text("accept brief", gate_command=True)
-        self.assertEqual(a, b)
-
     def test_route_feedback_dedupe_case_insensitive_gate_message(self) -> None:
         self._route_feedback(gate="brief_review", message="accept brief")
         result = self._route_feedback(gate="brief_review", message="Accept Brief")
+        self.assertFalse(result.sent)
+        self.assertIn("cooldown", result.skip_reason or "")
+
+    def test_route_feedback_dedupe_collapses_internal_whitespace(self) -> None:
+        self._route_feedback(gate="brief_review", message="accept brief")
+        result = self._route_feedback(gate="brief_review", message="accept   brief")
+        self.assertFalse(result.sent)
+        self.assertIn("cooldown", result.skip_reason or "")
+
+    def test_route_correction_dedupe_collapses_internal_whitespace(self) -> None:
+        self._route_correction("Tighten SC-1 wording.")
+        result = self._route_correction("Tighten   SC-1   wording.")
         self.assertFalse(result.sent)
         self.assertIn("cooldown", result.skip_reason or "")
 
@@ -319,6 +325,36 @@ class ProgramOrchestratorTests(unittest.TestCase):
         self.assertTrue(child["routable"])
         self.assertIsNone(child["route_skip_reason"])
         self.assertIn("last_routed_message", child)
+
+    def test_monitor_routable_via_reopen_when_brief_already_accepted(self) -> None:
+        self._set_child_workflow(
+            {
+                "version": 2,
+                "phase": "brief_review",
+                "gates": {"brief_accepted": True, "plan_user_accepted": False},
+                "loops": {},
+                "artifacts": {},
+            }
+        )
+        report = monitor_program(self.root, self.parent)
+        child = report["children"][0]
+        self.assertTrue(child["routable"])
+        self.assertIsNone(child["route_skip_reason"])
+
+    def test_monitor_routable_via_reopen_when_plan_already_accepted(self) -> None:
+        self._set_child_workflow(
+            {
+                "version": 2,
+                "phase": "plan_user_review",
+                "gates": {"brief_accepted": True, "plan_user_accepted": True},
+                "loops": {},
+                "artifacts": {},
+            }
+        )
+        report = monitor_program(self.root, self.parent)
+        child = report["children"][0]
+        self.assertTrue(child["routable"])
+        self.assertIsNone(child["route_skip_reason"])
 
     def test_monitor_reports_child_gate(self) -> None:
         report = monitor_program(self.root, self.parent)

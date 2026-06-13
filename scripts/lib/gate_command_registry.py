@@ -84,8 +84,12 @@ def allowed_route_messages(phase: str) -> frozenset[str]:
     return frozenset(parts)
 
 
-def normalize_route_message(message: str) -> str:
-    return message.strip().lower()
+def normalize_route_message(message: str, *, gate_command: bool = True) -> str:
+    """Collapse internal whitespace; lowercase gate commands for dedupe/classification."""
+    text = re.sub(r"\s+", " ", message.strip())
+    if gate_command:
+        return text.casefold()
+    return text
 
 
 def is_allowed_route_message(phase: str, message: str) -> bool:
@@ -94,7 +98,7 @@ def is_allowed_route_message(phase: str, message: str) -> bool:
 
 def classify_gate_command(phase: str, first_line: str) -> str | None:
     """Return normalized action when first line matches a gate command at phase."""
-    line = first_line.strip()
+    line = normalize_route_message(first_line, gate_command=True)
     for action in phase_command_actions(phase):
         pattern = command_pattern(action)
         if pattern and pattern.match(line):

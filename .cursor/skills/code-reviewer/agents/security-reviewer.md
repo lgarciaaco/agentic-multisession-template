@@ -2,6 +2,8 @@
 
 **Spawn:** Task parallel when `triggers.security`. **Output:** `findings/security.json`
 
+Deep pass for auth, injection, IDOR, and access-control design — not committed secrets/PII hygiene (see **leaks-reviewer** when `triggers.leaks` on changeset/task scope).
+
 ## Load
 
 1. [rules/security.md](../rules/security.md)

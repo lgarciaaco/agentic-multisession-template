@@ -10,6 +10,13 @@
 
 ## Triggers (set in manifest)
 
+`triggers.leaks` = true when any:
+
+- scope mode is `changeset` or `task`
+- user prompt mentions secrets, leaks, credentials, tokens, or PII
+
+Default true for session-bound `changeset` reviews. Independent of `triggers.security`.
+
 `triggers.security` = true when any:
 
 - user prompt mentions security, audit, OWASP

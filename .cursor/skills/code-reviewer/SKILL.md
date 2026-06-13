@@ -45,7 +45,7 @@ mkdir -p "<workspace>/findings"
 
 | Role | Runner |
 |------|--------|
-| Code (per language), docs, test, intent, structure, security, performance, infra YAML | **Task subagent** — orchestrator spawns parallel |
+| Code (per language), docs, test, intent, structure, leaks, security, performance, infra YAML | **Task subagent** — orchestrator spawns parallel |
 | Scope collector | Orchestrator inline → `scope_manifest.json` |
 | Synthesizer | Orchestrator inline → `report.md` + persistence |
 
@@ -73,6 +73,7 @@ Wait for all. Skip agents whose scope is empty — except Docs (always runs; fal
 | Test | `changeset` or `task` | [agents/test-reviewer.md](agents/test-reviewer.md) |
 | Intent | session acceptance/goal or user intent | [agents/intent-reviewer.md](agents/intent-reviewer.md) |
 | Structure | `triggers.structure` (code in manifest) | [agents/structure-reviewer.md](agents/structure-reviewer.md) |
+| Leaks | `triggers.leaks` | [agents/leaks-reviewer.md](agents/leaks-reviewer.md) |
 | Security | `triggers.security` | [agents/security-reviewer.md](agents/security-reviewer.md) |
 | Performance | `triggers.performance` | [agents/performance-reviewer.md](agents/performance-reviewer.md) |
 | Infra YAML | `triggers.infra` | [agents/infra-yaml-reviewer.md](agents/infra-yaml-reviewer.md) |
@@ -89,7 +90,7 @@ Readability stays in code agents.
 
 | Verdict | When |
 |---------|------|
-| FAIL | Any BLOCKER (code, security, or infra-yaml) |
+| FAIL | Any BLOCKER (code, leaks, security, or infra-yaml) |
 | INCOMPLETE | Any REQUIRED; any open SUGGESTION/NIT in findings; unmet intent criteria |
 | PASS | Clean findings (validated refusals in disposition artifact only) |
 
@@ -99,12 +100,12 @@ Docs: REQUIRED max (no BLOCKER). [rules/documentation.md](rules/documentation.md
 
 ## Report sections
 
-Summary, Scope, Verdict, Code, Structure, Documentation, Tests, Intent, Security (if ran), Performance (if ran), Infra (if ran), Positive notes, Deferred to CI.
+Summary, Scope, Verdict, Code, Structure, Documentation, Tests, Intent, Leaks (if ran), Security (if ran), Performance (if ran), Infra (if ran), Positive notes, Deferred to CI.
 
 ## Pre-delivery
 
 - [ ] All spawned agents wrote findings JSON or explicit empty findings
-- [ ] Dedupe; BLOCKER only from code, security, or infra-yaml agents
+- [ ] Dedupe; BLOCKER only from code, leaks, security, or infra-yaml agents
 - [ ] Session: `reviews/r-NNN.json`, `progress.last_review`
 - [ ] `./scripts/sync-session.sh <codename>` when bound
 
@@ -120,10 +121,15 @@ Summary, Scope, Verdict, Code, Structure, Documentation, Tests, Intent, Security
 | Docs | [rules/documentation.md](rules/documentation.md) → [rules/agents/docs-reviewer.md](rules/agents/docs-reviewer.md) |
 | Tests | universal → [rules/agents/test-reviewer.md](rules/agents/test-reviewer.md) |
 | Structure | [rules/structure.md](rules/structure.md) → [rules/agents/structure-reviewer.md](rules/agents/structure-reviewer.md) |
+| Leaks | [rules/leaks.md](rules/leaks.md) → [rules/agents/leaks-reviewer.md](rules/agents/leaks-reviewer.md) |
 | Security | [rules/security.md](rules/security.md) → [rules/agents/security-reviewer.md](rules/agents/security-reviewer.md) |
 | Performance | [rules/performance.md](rules/performance.md) → [rules/agents/performance-reviewer.md](rules/agents/performance-reviewer.md) |
 | Infra YAML | [rules/infra-yaml.md](rules/infra-yaml.md) → [rules/agents/infra-yaml-reviewer.md](rules/agents/infra-yaml-reviewer.md) |
 
 ## Hub skills
 
+See [AGENTS.md § Skill streamline](../../../AGENTS.md#skill-streamline) for when to load skill-optimizer. **Integration example:** the specialist table above lists spawn triggers per agent (`triggers.leaks` vs `triggers.security`) instead of prose paragraphs — format agents expect for parallel Task dispatch.
+
 Improve skill copy with [skill-optimizer](../skill-optimizer/SKILL.md). Human-facing report tone: [write-like-a-human](../write-like-a-human/SKILL.md).
+
+**Security vs leaks:** `leaks-reviewer` runs on most changeset/task reviews for committed secrets and PII hygiene. `security-reviewer` runs when `triggers.security` is true for auth, injection, and access-control design. Do not merge or remove either agent.

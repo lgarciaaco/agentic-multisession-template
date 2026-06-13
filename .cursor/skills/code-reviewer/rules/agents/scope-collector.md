@@ -10,7 +10,7 @@
    - **Product repos (always)**: scan repo root and `docs/` for tracking files — `CURRENT.md`, `CHANGELOG.md`, `ROADMAP.md`, `docs/**/*.md`; include all found even when not in the changeset delta
    - **Changeset mode**: also include any `*.md` / doc files present in the git delta (these are explicitly changed and must be reviewed)
    - **Fallback**: if no docs found, set `doc_corpus: []` — Docs agent will scan repo root itself (never omit the field)
-7. Set `triggers.security`, `triggers.performance`, `triggers.structure` (true when any manifest file has `kind: code`), and `triggers.infra` (true when any path matches `deploy/**`, `.github/workflows/**`, or `**/ansible/**`, or user prompt mentions Ansible, GitHub Actions, GHA, deploy pipeline, or infrastructure) per orchestrator rules
+7. Set `triggers.leaks` (true when scope is `changeset` or `task`, or user prompt mentions secrets, leaks, credentials, tokens, or PII), `triggers.security`, `triggers.performance`, `triggers.structure` (true when any manifest file has `kind: code`), and `triggers.infra` (true when any path matches `deploy/**`, `.github/workflows/**`, or `**/ansible/**`, or user prompt mentions Ansible, GitHub Actions, GHA, deploy pipeline, or infrastructure) per orchestrator rules
 8. Classify YAML/shell under those trees as `kind: config` even when not code
 9. Write `scope_manifest.json` to workspace root — no findings
 10. **Workflow session:** when `sessions/<codename>/workflow.json` exists and `gates.plan_user_accepted` is true:

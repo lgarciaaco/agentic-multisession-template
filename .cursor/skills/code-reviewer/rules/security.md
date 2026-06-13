@@ -16,7 +16,7 @@ For optional security agent. Code agents still apply light security checks from 
 
 ## Secrets and crypto
 
-- BLOCKER: hardcoded credentials, tokens, private keys
+- BLOCKER: hardcoded credentials, tokens, private keys (committed credential hygiene — see [leaks.md](leaks.md) when `triggers.leaks`; this agent owns exploit path and access-control when `triggers.security`)
 - REQUIRED: secrets in logs or error messages
 - Flag weak crypto, disabled TLS verification on production paths
 

@@ -22,6 +22,7 @@ Transient handoff between agents. Synthesizer may prune after final report.
     docs.json
     intent.json
     tests.json
+    leaks.json             # optional (changeset/task hygiene)
     security.json          # optional
     performance.json       # optional
   report.md                # synthesizer output (copy to reviews/ when session-bound)

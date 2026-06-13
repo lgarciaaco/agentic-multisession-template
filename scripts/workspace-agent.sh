@@ -89,6 +89,8 @@ if [[ -n "$WT" ]]; then
 else
   echo "Session: $CODENAME (tmux: $WINDOW_LABEL)" >&2
 fi
+export GIT_EDITOR=true
+export EDITOR=true
 if [[ -z "${WORKSPACE_AGENT_NO_TTY:-}" && -r /dev/tty && -w /dev/tty ]]; then
   exec "$AGENT_BIN" "${AGENT_ARGS[@]}" </dev/tty >/dev/tty 2>&1
 fi

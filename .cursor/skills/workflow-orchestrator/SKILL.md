@@ -220,7 +220,7 @@ Each iteration:
 2. Poll CI: `gh pr checks <pr_number>` — classify pass/fail/pending.
 3. Classify combined result:
    - **GREEN** → advance to `delivery`
-   - **CONFLICT** → rebase onto `pr_target_branch`, force-push, re-poll
+   - **CONFLICT** → `./scripts/workflow-git-rebase.sh sessions/<codename>/worktrees/<repo> <pr_target_branch>`, force-push, re-poll
    - **TEST_FAILURE** → parent loads [rules/ci-fixer.md](rules/ci-fixer.md): fix, commit, force-push, re-poll
    - **TIMEOUT** / **FAIL** → escalate
 

@@ -1973,23 +1973,17 @@ class ChatBindingPersistTests(unittest.TestCase):
             json.dumps({"codename": "alpha", "tasks": []}) + "\n"
         )
         from program_state import default_program, save_program  # noqa: E402
-        from program_route_feedback import route_feedback  # noqa: E402
 
         program = default_program("alpha")
         program["active_children"] = [{"codename": self.codename, "status": "running"}]
         save_program(alpha_dir, program)
-        with patch(
-            "program_route_feedback.resolve_codename",
-            return_value=("alpha", "binding"),
-        ):
-            with patch("session_binding.resolve_inbox_caller", return_value="alpha"):
-                route_feedback(
-                self.root,
-                parent="alpha",
-                child=self.codename,
-                gate="brief_review",
-                message="accept brief",
-            )
+        write_inbox(
+            self.root,
+            "alpha",
+            self.codename,
+            "accept brief\n\n[program-orchestrator gate=brief_review]",
+            caller_codename="alpha",
+        )
 
         os.environ["WORKSPACE_ROOT"] = str(self.root)
         os.environ["HOOK_INPUT"] = json.dumps(
@@ -2000,8 +1994,8 @@ class ChatBindingPersistTests(unittest.TestCase):
         try:
             self.assertEqual(rc, 0)
             workflow = json.loads((session_dir / "workflow.json").read_text())
-            self.assertTrue(workflow["gates"]["brief_accepted"])
-            self.assertEqual(workflow["phase"], "plan_loop")
+            self.assertFalse(workflow["gates"]["brief_accepted"])
+            self.assertEqual(workflow["phase"], "brief_review")
         finally:
             os.environ.pop("WORKSPACE_ROOT", None)
             os.environ.pop("HOOK_INPUT", None)
@@ -2298,57 +2292,16 @@ class ProgramRouteInboxAuthTests(unittest.TestCase):
             f"Parent routed feedback."
         )
 
-    def test_write_inbox_program_route_rejects_non_registered_parent(self) -> None:
+    def test_write_inbox_program_route_is_removed(self) -> None:
         from session_binding import write_inbox_program_route
 
-        with patch(
-            "session_binding.resolve_inbox_caller",
-            return_value=self.other_parent,
-        ):
-            with self.assertRaisesRegex(
-                ValueError,
-                "requires registered program parent as from_codename",
-            ):
-                write_inbox_program_route(
-                    self.root,
-                    self.other_parent,
-                    self.child,
-                    self._gate_payload(),
-                )
-
-    def test_write_inbox_program_route_rejects_missing_gate_marker(self) -> None:
-        from session_binding import write_inbox_program_route
-
-        with patch(
-            "session_binding.resolve_inbox_caller",
-            return_value=self.parent,
-        ):
-            with self.assertRaisesRegex(
-                ValueError,
-                "requires program gate marker in message",
-            ):
-                write_inbox_program_route(
-                    self.root,
-                    self.parent,
-                    self.child,
-                    "accept brief",
-                )
-
-    def test_write_inbox_program_route_allows_registered_parent(self) -> None:
-        from session_binding import write_inbox_program_route
-
-        with patch(
-            "session_binding.resolve_inbox_caller",
-            return_value=self.parent,
-        ):
-            path = write_inbox_program_route(
+        with self.assertRaisesRegex(ValueError, "write_inbox_program_route is removed"):
+            write_inbox_program_route(
                 self.root,
                 self.parent,
                 self.child,
                 self._gate_payload(),
             )
-        self.assertTrue(path.exists())
-        self.assertIn("accept brief", path.read_text())
 
 
 class SessionEndHookPaneCleanupTests(unittest.TestCase):

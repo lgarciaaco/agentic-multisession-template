@@ -108,7 +108,7 @@ At every child gate the parent **always reviews** — never defer with "accept w
 1. Run monitor + status report with merged subagent reviews (or full **Check children** flow).
 2. Subagent reads `gate_review.artifact_path`, `gate_review.sibling_program_context`, and compares to full `program-plan.md`.
 3. Parent chat shows slim table only; user reads **Parent assessment** in program-status.md before routing.
-4. User routes the gate (exact commands below) or sends corrections via inbox — parent does not skip the review step.
+4. User routes the gate via **`program-route-feedback.py`** (tmux send-keys) or sends free-text corrections the same way — parent does not skip the review step.
 
 | Child phase | After review, user may say | Block / reopen |
 |-------------|---------------------------|----------------|
@@ -124,10 +124,10 @@ The parent **reviews** child gate artifacts — it does **not** implement child 
 | Allowed | Forbidden |
 |---------|-----------|
 | Read child `artifacts/problem-brief.md` and `artifacts/action-plan.md` (via monitor paths or child session folder) | Edit child `artifacts/`, `workflow.json`, or worktrees |
-| Route gate commands via `program-route-feedback.py` | Offer to patch, amend, or draft child briefs/plans yourself |
-| Route free-text review notes via `session-inbox.sh write <parent> <child> "…"` | Prose approval in inbox expecting auto-accept (use exact gate commands) |
+| Route gate commands via `program-route-feedback.py` (tmux send-keys) | Offer to patch, amend, or draft child briefs/plans yourself |
+| Route free-text corrections via `program-route-feedback.py` (no `--gate`) | Prose approval via inbox expecting auto-accept |
 
-**Gate commands** (exact first line required for auto-apply):
+**Gate commands** (exact strings; delivered to child pane via send-keys):
 
 ```bash
 python3 scripts/program-route-feedback.py <parent> <child> \
@@ -136,13 +136,14 @@ python3 scripts/program-route-feedback.py <parent> <child> \
   --gate plan_user_review --message "reopen plan"
 ```
 
-**Free-text corrections** (classified as `brief_correction` or `plan_feedback`, not gate accept):
+**Free-text corrections** (sent to child pane as chat input — child applies at gate):
 
 ```bash
-./scripts/session-inbox.sh write <parent> <child> "Tighten SC-2 wording — checklist count should be 13."
+python3 scripts/program-route-feedback.py <parent> <child> \
+  --message "Tighten SC-2 wording — checklist count should be 13."
 ```
 
-Child inbox + inbox gate correlation applies in the child chat. Re-run `program-monitor.py` after routing.
+Requires tmux with child tabs open. Re-run `program-monitor.py` after routing.
 
 ## Child completion → PR review
 

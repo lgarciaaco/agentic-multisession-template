@@ -55,7 +55,7 @@ Single-session **Problem → Plan → Code → Review → PR → CI → Delivery
 
 Workflow phase scripts and CLI commands: [SESSIONS.md#commands](SESSIONS.md#commands).
 
-User gates **only at brief and plan** (plus correlated inbox at those gates — poll every 2m via `workflow-pull-inbox-gate.py`). Inbox gate auto-apply for gate commands accepts only from the registered program parent with verified write provenance (`sessions/_inbox/.provenance/` via `program-route-feedback.py`); self-writes and sibling gate commands are rejected. Inbox CLI writes require bound caller to match `from`. Autonomous inner loops for plan, code review, PR creation, and CI observe — no commit/PR pause before review. Plan loop: author dispositions → reviewer validates. Code loop: fixer dispositions SUGGESTION/NIT → specialists validate → **PASS**. After PASS: auto commit + draft PR → CI observe (rebase on conflict, fix on failure, 5-iteration cap) → delivery. Delivery report is inform only. Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
+User gates **only at brief and plan**. Program parent→child gate routing uses **`program-route-feedback.py`** (tmux send-keys to child panes — not inbox). Standalone workflow sessions may still poll inbox at gates via `workflow-pull-inbox-gate.py`; program gate commands no longer auto-apply from inbox. Inbox CLI writes require bound caller to match `from`. Autonomous inner loops for plan, code review, PR creation, and CI observe — no commit/PR pause before review. Plan loop: author dispositions → reviewer validates. Code loop: fixer dispositions SUGGESTION/NIT → specialists validate → **PASS**. After PASS: auto commit + draft PR → CI observe (rebase on conflict, fix on failure, 5-iteration cap) → delivery. Delivery report is inform only. Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
 
 ## End
 
@@ -138,7 +138,7 @@ python3 scripts/program-route-feedback.py <parent> <child> \
   --gate plan_user_review --message "reopen plan"
 ```
 
-Free-text corrections: `./scripts/session-inbox.sh write` (not gate accept). See [sessions/_inbox/README.md](sessions/_inbox/README.md) and [docs/PROGRAM_ORCHESTRATOR.md](docs/PROGRAM_ORCHESTRATOR.md) § Parent routing at child gates.
+Free-text corrections: `program-route-feedback.py <parent> <child> --message "…"` (no `--gate`). See [sessions/_inbox/README.md](sessions/_inbox/README.md) and [docs/PROGRAM_ORCHESTRATOR.md](docs/PROGRAM_ORCHESTRATOR.md) § Parent routing at child gates.
 
 ## Git / PRs
 

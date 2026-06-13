@@ -107,20 +107,18 @@ class WorkflowInboxGateTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def _route_parent(self, gate: str, message: str) -> None:
-        from session_binding import write_inbox_program_route
-
         payload = (
             f"{message}\n\n"
             f"[program-orchestrator gate={gate}]\n"
             f"Parent `{self.parent}` routed feedback."
         )
-        with mock.patch("session_binding.resolve_inbox_caller", return_value=self.parent):
-            write_inbox_program_route(
-                self.root,
-                self.parent,
-                self.child,
-                payload,
-            )
+        write_inbox(
+            self.root,
+            self.parent,
+            self.child,
+            payload,
+            caller_codename=self.parent,
+        )
 
     def _route_parent_accept_brief(self) -> None:
         self._route_parent("brief_review", "accept brief")
@@ -203,7 +201,7 @@ none
         self.assertFalse(
             feedback_sender_authorized(self.root, self.child, self.sibling),
         )
-        self.assertTrue(
+        self.assertFalse(
             feedback_sender_authorized(self.root, self.child, self.parent),
         )
 
@@ -238,27 +236,13 @@ none
                 marker="missing:marker",
             ),
         )
-        self._route_parent_accept_brief()
-        content = (self.root / "sessions" / "_inbox" / f"{self.child}.md").read_text()
-        blocks = parse_inbox_blocks(content)
-        self.assertEqual(len(blocks), 1)
-        block = blocks[0]
-        self.assertTrue(
-            gate_command_sender_authorized(
-                self.root,
-                self.child,
-                self.parent,
-                block["body"],
-                marker=block["marker"],
-            ),
-        )
         self.assertFalse(
             gate_command_sender_authorized(
                 self.root,
                 self.child,
-                "bad name",
+                self.parent,
                 routed_body,
-                marker=block["marker"],
+                marker="any:marker",
             ),
         )
 
@@ -326,7 +310,7 @@ none
                     message="accept brief",
                 )
 
-    def test_write_inbox_program_route_rejects_sibling_caller(self) -> None:
+    def test_write_inbox_program_route_is_removed(self) -> None:
         from session_binding import write_inbox_program_route
 
         payload = (
@@ -334,37 +318,13 @@ none
             "[program-orchestrator gate=brief_review]\n"
             f"Parent `{self.parent}` routed feedback."
         )
-        with mock.patch(
-            "session_binding.resolve_inbox_caller",
-            return_value=self.sibling,
-        ):
-            with self.assertRaisesRegex(ValueError, "requires caller"):
-                write_inbox_program_route(
-                    self.root,
-                    self.parent,
-                    self.child,
-                    payload,
-                )
-
-    def test_write_inbox_program_route_rejects_unbound_caller(self) -> None:
-        from session_binding import write_inbox_program_route
-
-        payload = (
-            "accept brief\n\n"
-            "[program-orchestrator gate=brief_review]\n"
-            f"Parent `{self.parent}` routed feedback."
-        )
-        with mock.patch("session_binding.resolve_inbox_caller", return_value=None):
-            with self.assertRaisesRegex(
-                ValueError,
-                "requires bound session caller equal to registered parent",
-            ):
-                write_inbox_program_route(
-                    self.root,
-                    self.parent,
-                    self.child,
-                    payload,
-                )
+        with self.assertRaisesRegex(ValueError, "write_inbox_program_route is removed"):
+            write_inbox_program_route(
+                self.root,
+                self.parent,
+                self.child,
+                payload,
+            )
 
     def test_parse_inbox_blocks(self) -> None:
         write_inbox(
@@ -397,12 +357,12 @@ none
     def test_pull_inbox_gate_apply_accept_brief_from_parent(self) -> None:
         self._route_parent_accept_brief()
         result = pull_inbox_gate(self.root, self.codename, apply=True)
-        self.assertEqual(result["applied"][0]["action"], "accept_brief")
+        self.assertEqual(result["applied"], [])
+        self.assertEqual(result["rejected"][0]["action"], "accept_brief")
+        self.assertEqual(result["rejected"][0]["reason"], "unauthorized_gate_sender")
         workflow = json.loads((self.session_dir / "workflow.json").read_text())
-        self.assertTrue(workflow["gates"]["brief_accepted"])
-        self.assertEqual(workflow["phase"], "plan_loop")
-        brief = (self.session_dir / "artifacts" / "problem-brief.md").read_text()
-        self.assertIn("**Status:** accepted", brief)
+        self.assertFalse(workflow["gates"]["brief_accepted"])
+        self.assertEqual(workflow["phase"], "brief_review")
 
         second = pull_inbox_gate(self.root, self.codename, apply=True)
         self.assertEqual(second["pending"], [])
@@ -419,15 +379,11 @@ none
         self._write_minimal_action_plan()
         self._route_parent("plan_user_review", "accept plan")
         result = pull_inbox_gate(self.root, self.codename, apply=True)
-        self.assertEqual(result["applied"][0]["action"], "accept_plan")
+        self.assertEqual(result["applied"], [])
+        self.assertEqual(result["rejected"][0]["action"], "accept_plan")
         workflow = json.loads((self.session_dir / "workflow.json").read_text())
-        self.assertTrue(workflow["gates"]["plan_user_accepted"])
-        self.assertEqual(workflow["phase"], "implementation")
-        plan = (self.session_dir / "artifacts" / "action-plan.md").read_text()
-        self.assertIn("**Status:** user_approved", plan)
-        session = json.loads((self.session_dir / "session.json").read_text())
-        self.assertEqual(len(session["tasks"]), 1)
-        self.assertEqual(session["tasks"][0]["id"], "t1")
+        self.assertFalse(workflow["gates"]["plan_user_accepted"])
+        self.assertEqual(workflow["phase"], "plan_user_review")
 
     def test_pull_inbox_gate_apply_reopen_brief_from_parent(self) -> None:
         self._write_workflow(
@@ -440,10 +396,10 @@ none
         )
         self._route_parent("brief_review", "reopen brief")
         result = pull_inbox_gate(self.root, self.codename, apply=True)
-        self.assertEqual(result["applied"][0]["action"], "reopen_brief")
+        self.assertEqual(result["applied"], [])
+        self.assertEqual(result["rejected"][0]["action"], "reopen_brief")
         workflow = json.loads((self.session_dir / "workflow.json").read_text())
-        self.assertFalse(workflow["gates"]["brief_accepted"])
-        self.assertEqual(workflow["phase"], "intake")
+        self.assertEqual(workflow["phase"], "brief_review")
 
     def test_pull_inbox_gate_apply_reopen_plan_from_parent(self) -> None:
         self._write_workflow(
@@ -457,10 +413,10 @@ none
         self._write_minimal_action_plan()
         self._route_parent("plan_user_review", "reopen plan")
         result = pull_inbox_gate(self.root, self.codename, apply=True)
-        self.assertEqual(result["applied"][0]["action"], "reopen_plan")
+        self.assertEqual(result["applied"], [])
+        self.assertEqual(result["rejected"][0]["action"], "reopen_plan")
         workflow = json.loads((self.session_dir / "workflow.json").read_text())
-        self.assertFalse(workflow["gates"]["plan_user_accepted"])
-        self.assertEqual(workflow["phase"], "plan_loop")
+        self.assertEqual(workflow["phase"], "plan_user_review")
 
     def test_pull_inbox_gate_rejects_self_write(self) -> None:
         write_inbox(
@@ -534,12 +490,6 @@ none
         self.assertIn(marker, workflow["gates"]["inbox"]["processed_markers"])
         second = pull_inbox_gate(self.root, self.codename, apply=False)
         self.assertEqual(second["pending"], [])
-
-        self._route_parent_accept_brief()
-        accepted = pull_inbox_gate(self.root, self.codename, apply=True)
-        self.assertEqual(accepted["applied"][0]["action"], "accept_brief")
-        workflow = json.loads((self.session_dir / "workflow.json").read_text())
-        self.assertTrue(workflow["gates"]["brief_accepted"])
 
     def test_pull_inbox_gate_rejects_invalid_from_codename(self) -> None:
         inbox_path = self.root / "sessions" / "_inbox" / f"{self.child}.md"
@@ -631,12 +581,12 @@ none
             caller_codename=self.parent,
         )
         result = pull_inbox_gate(self.root, self.codename, apply=True)
-        self.assertEqual(result["applied"][0]["action"], "brief_correction")
+        self.assertEqual(result["applied"], [])
+        self.assertEqual(result["rejected"][0]["action"], "brief_correction")
         workflow = json.loads((self.session_dir / "workflow.json").read_text())
         self.assertEqual(workflow["phase"], "brief_review")
         brief = (self.session_dir / "artifacts" / "problem-brief.md").read_text()
-        self.assertIn(f"Inbox correction from `{self.parent}`", brief)
-        self.assertIn("Tighten SC-1 wording", brief)
+        self.assertNotIn("Tighten SC-1 wording", brief)
 
     def test_pull_inbox_gate_rejects_sibling_plan_feedback(self) -> None:
         self._write_workflow(phase="plan_user_review")
@@ -666,11 +616,12 @@ none
             caller_codename=self.parent,
         )
         result = pull_inbox_gate(self.root, self.codename, apply=True)
-        self.assertEqual(result["applied"][0]["action"], "plan_feedback")
+        self.assertEqual(result["applied"], [])
+        self.assertEqual(result["rejected"][0]["action"], "plan_feedback")
         workflow = json.loads((self.session_dir / "workflow.json").read_text())
-        self.assertEqual(workflow["phase"], "plan_loop")
-        feedback = (self.session_dir / "artifacts" / "plan-feedback.md").read_text()
-        self.assertIn(f"Inbox feedback from `{self.parent}`", feedback)
+        self.assertEqual(workflow["phase"], "plan_user_review")
+        feedback_path = self.session_dir / "artifacts" / "plan-feedback.md"
+        self.assertFalse(feedback_path.exists())
 
     def test_pull_inbox_gate_rejects_feedback_when_no_program_parent(self) -> None:
         standalone = "delta"
@@ -716,21 +667,15 @@ none
         parsed = json.loads(payload)
         self.assertEqual(parsed["codename"], self.codename)
 
-    def test_sync_session_auto_applies_accept_brief_from_parent(self) -> None:
+    def test_sync_session_does_not_auto_apply_parent_inbox_gate(self) -> None:
         self._route_parent_accept_brief()
         sync_session_from_canonical(self.root, self.codename, refresh_context=False)
         workflow = json.loads((self.session_dir / "workflow.json").read_text())
-        self.assertTrue(workflow["gates"]["brief_accepted"])
-        self.assertEqual(workflow["phase"], "plan_loop")
+        self.assertFalse(workflow["gates"]["brief_accepted"])
+        self.assertEqual(workflow["phase"], "brief_review")
 
-    def test_cli_sync_failure_after_apply_exits_nonzero(self) -> None:
+    def test_cli_pull_with_rejected_parent_gate_returns_zero(self) -> None:
         self._route_parent_accept_brief()
-        scripts = self.root / "scripts"
-        scripts.mkdir()
-        sync = scripts / "sync-session.sh"
-        sync.write_text("#!/usr/bin/env bash\nexit 1\n")
-        sync.chmod(0o755)
-
         script = Path(__file__).resolve().parent / "workflow-pull-inbox-gate.py"
         env = {**os.environ, "WORKSPACE_ROOT": str(self.root)}
         result = subprocess.run(
@@ -740,10 +685,10 @@ none
             env=env,
             check=False,
         )
-        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.returncode, 0, result.stderr)
         workflow = json.loads((self.session_dir / "workflow.json").read_text())
-        self.assertTrue(workflow["gates"]["brief_accepted"])
-        self.assertEqual(workflow["phase"], "plan_loop")
+        self.assertFalse(workflow["gates"]["brief_accepted"])
+        self.assertEqual(workflow["phase"], "brief_review")
 
 
 if __name__ == "__main__":

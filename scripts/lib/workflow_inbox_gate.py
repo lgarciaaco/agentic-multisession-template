@@ -11,7 +11,6 @@ from typing import Any
 from gate_command_registry import (
     ACCEPT_BRIEF,
     ACCEPT_PLAN,
-    PROGRAM_GATE_MARKER,
     REOPEN_BRIEF,
     REOPEN_PLAN,
     classify_gate_command,
@@ -19,7 +18,7 @@ from gate_command_registry import (
 )
 from hub_paths import resolve_session_artifact
 from program_state import GATE_PHASES, find_program_parent
-from inbox_provenance import get_inbox_block_provenance, inbox_block_marker
+from inbox_provenance import inbox_block_marker
 from session_binding import read_inbox, sanitize_goal_text, validate_codename
 from workflow_plan import (
     INBOX_GATE_POLL_SECONDS,
@@ -100,34 +99,12 @@ def gate_command_sender_authorized(
 ) -> bool:
     """Return True when from_session may apply inbox gate commands to target.
 
-    Gate commands require registered program parent, program-route marker in body,
-    and verified write provenance from program-route-feedback (not forgeable metadata).
-    Feedback actions (brief_correction, plan_feedback) are not checked here.
+    Program parent gate routing uses tmux send-keys — inbox gate auto-apply is
+    disabled for gate commands. Chat gate commands and workflow-accept-*.sh remain
+    authorized user paths.
     """
-    try:
-        target = validate_codename(target_codename)
-        sender = validate_codename(from_session)
-    except ValueError:
-        return False
-    if sender == target:
-        return False
-    parent = find_program_parent(root, target)
-    if parent is None or sender != parent:
-        return False
-    if PROGRAM_GATE_MARKER not in body:
-        return False
-    if not marker:
-        return False
-    provenance = get_inbox_block_provenance(root, target, marker)
-    if not provenance:
-        return False
-    if provenance.get("kind") != "program_route":
-        return False
-    if provenance.get("verified_from") != parent:
-        return False
-    if provenance.get("caller") != "program-route-feedback":
-        return False
-    return True
+    _ = (root, target_codename, from_session, body, marker)
+    return False
 
 
 def feedback_sender_authorized(
@@ -137,8 +114,8 @@ def feedback_sender_authorized(
 ) -> bool:
     """Return True when from_session may auto-apply brief_correction or plan_feedback.
 
-    Mirrors gate_command_sender_authorized parent/self checks via find_program_parent;
-    does not require program-route marker or provenance sidecar.
+    Program parent→child corrections use tmux send-keys — registered program children
+    never auto-apply parent inbox feedback. No other senders are authorized today.
     """
     try:
         target = validate_codename(target_codename)
@@ -147,10 +124,9 @@ def feedback_sender_authorized(
         return False
     if sender == target:
         return False
-    parent = find_program_parent(root, target)
-    if parent is None or sender != parent:
+    if find_program_parent(root, target) is not None:
         return False
-    return True
+    return False
 
 
 def unprocessed_inbox_blocks(

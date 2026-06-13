@@ -1,6 +1,6 @@
 # Workflow orchestrator walkthrough
 
-Single-session pipeline: **Problem → Plan → Code → Review → PR → CI → Delivery**. One Cursor chat, **two user gates** (brief and plan). Correlated **inbox feedback** from the registered program parent counts at gates (via `program-route-feedback.py`); poll every 2 minutes while awaiting a gate.
+Single-session pipeline: **Problem → Plan → Code → Review → PR → CI → Delivery**. One Cursor chat, **two user gates** (brief and plan). Program parents route gate commands and corrections via **`program-route-feedback.py`** (tmux send-keys to the child pane). Standalone sessions may poll inbox at gates; program children do not advance gates from inbox auto-apply.
 
 ## Prerequisites
 
@@ -26,14 +26,16 @@ Conductor bootstraps `workflow.json` + `artifacts/` from `sessions/_template/` i
 
 Reopen: `python3 scripts/workflow-reopen-brief.py <codename>`
 
-**Inbox at gate:** Program parents route gate commands with:
+**Program parent routing (tmux):** Gate commands and corrections go to the child pane via send-keys — not inbox:
 
 ```bash
 python3 scripts/program-route-feedback.py <parent> <child> \
   --gate brief_review --message "accept brief"
+python3 scripts/program-route-feedback.py <parent> <child> \
+  --message "Tighten SC-1 wording."
 ```
 
-Use `--gate plan_user_review --message "accept plan"` (or `reopen brief` / `reopen plan`) at the plan gate. Raw `session-inbox.sh write` gate commands are rejected unless they include the program-route marker. **Brief corrections** auto-apply only from the registered program parent; sibling, self, or standalone-session corrections are rejected with `unauthorized_feedback_sender`, marked processed, and do not mutate the brief. While in `brief_review`, poll every 2 minutes:
+The child agent receives these as chat prompts. Standalone sessions (no program parent) may still poll inbox at gates; program parent inbox gate auto-apply is disabled. While in `brief_review`, poll every 2 minutes (standalone monitoring inbox only):
 
 ```bash
 python3 scripts/workflow-pull-inbox-gate.py <codename> --apply
@@ -60,7 +62,7 @@ Syncs tasks → `session.json`, creates worktrees, `phase: implementation`.
 
 Reopen: `python3 scripts/workflow-reopen-plan.py <codename>`
 
-**Inbox at gate:** Gate commands (`accept plan`, `reopen plan`) require parent routing via `program-route-feedback.py` (marker + provenance). Plan revision free-text auto-applies only from the registered program parent — same 2-minute pull as brief gate. Unauthorized gate commands are rejected with `unauthorized_gate_sender`; unauthorized plan feedback (sibling, self, or standalone session) with `unauthorized_feedback_sender`.
+**Program parent routing (tmux):** Use `program-route-feedback.py` with `--gate plan_user_review` and exact `--message` (`accept plan`, `reopen plan`), or free-text `--message` for plan revisions. Messages arrive in the child chat — not via inbox auto-apply.
 
 ## 5. Implementation → code review (automatic)
 

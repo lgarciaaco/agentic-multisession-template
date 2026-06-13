@@ -22,7 +22,7 @@ Any bound session may send messages here via `./scripts/session-inbox.sh write <
 
 When session B runs `/workflow-orchestrator` and is waiting at a user gate, correlated inbox messages count as user feedback. Other sessions (monitoring agents) can approve or revise without switching chats.
 
-**Authorization:** Inbox auto-apply for gate commands (`accept brief`, `accept plan`, `reopen brief`, `reopen plan`) accepts only from the target session's registered program parent when the message includes the `[program-orchestrator gate=…]` marker from `program-route-feedback.py` **and** verified write provenance (sidecar under `sessions/_inbox/.provenance/` — trust-on-write via the program-route API, not HMAC-signed; cryptographic signing is out of scope pending write-path hardening in sibling work). Self-writes and sibling gate commands are rejected, marked processed, and do not advance workflow. Inbox `From` headers are not cryptographically bound — use `program-route-feedback.py` for cross-session gate auto-apply. **`session-inbox.sh write`** requires the bound caller to match `from` (or authenticated `--as <codename>`); sibling impersonation of parent is rejected at write time. Chat gate commands and `./scripts/workflow-accept-*.sh` remain authorized user paths. **Brief corrections and plan feedback** auto-apply only from the registered program parent (`feedback_sender_authorized` in `workflow_inbox_gate.py`); siblings, self-writes, and standalone sessions (no program parent) are rejected with `unauthorized_feedback_sender`, marked processed, and do not mutate brief or plan-feedback artifacts. Bound sessions cannot edit `sessions/_inbox/` directly — use the inbox write CLI.
+**Authorization:** Inbox gate auto-apply for gate commands (`accept brief`, `accept plan`, `reopen brief`, `reopen plan`) is **disabled** — use chat gate commands, `./scripts/workflow-accept-*.sh`, or (for program children) **`program-route-feedback.py`** (tmux send-keys). Self-writes and sibling gate commands are rejected if present in inbox. **`session-inbox.sh write`** requires the bound caller to match `from` (or authenticated `--as <codename>` when bound). Chat gate commands and `./scripts/workflow-accept-*.sh` remain authorized user paths. **Program parent→child** gate commands and corrections use tmux send-keys — not inbox files. Bound and unbound sessions cannot edit `sessions/_inbox/` directly — use the inbox write CLI.
 
 | Target phase | First line of message | Effect |
 |--------------|----------------------|--------|
@@ -47,8 +47,8 @@ Processed inbox blocks are tracked in `workflow.json` → `gates.inbox.processed
 
 | Sender | Tool | Message type |
 |--------|------|--------------|
-| Parent → child gate accept/reopen | `python3 scripts/program-route-feedback.py` | Required `--gate` (`brief_review` or `plan_user_review`) and `--message` (e.g. `"accept brief"`, `"accept plan"`, `"reopen brief"`, `"reopen plan"`). Routed inbox body uses the gate string on the first line for child `workflow-pull-inbox-gate.py` correlation. |
-| Parent → child review note | `./scripts/session-inbox.sh write <parent> <child> "…"` | Free-text → `brief_correction` or `plan_feedback` |
+| Parent → child gate accept/reopen | `python3 scripts/program-route-feedback.py` | `--gate` + exact `--message`; sends to child tmux pane via send-keys |
+| Parent → child review note | `python3 scripts/program-route-feedback.py` (omit `--gate`) | Free-text correction sent to child pane as chat input |
 | Child → parent blocker | `./scripts/session-inbox.sh write <child> <parent> "…"` | Escalation at user gates; also persisted in child gate artifact **Open questions** |
 
 Prose approval (e.g. "brief looks good — proceed") is **not** `accept brief`. Parents must use `program-route-feedback.py` with the exact command to cross a gate.

@@ -15,8 +15,12 @@ from session_binding import (
     tmux_window_label,
     validate_codename,
 )
+from git_noninteractive import NONINTERACTIVE_EDITOR_ENV
 
 DEFAULT_WORKFLOW_PROMPT = "/workflow-orchestrator"
+NONINTERACTIVE_EDITOR_EXPORTS = " ".join(
+    f"{k}={v}" for k, v in NONINTERACTIVE_EDITOR_ENV.items()
+)
 
 
 @dataclass(frozen=True)
@@ -100,6 +104,19 @@ def open_child_windows(root: Path, codenames: list[str]) -> list[ChildWindow]:
     return records
 
 
+def _child_agent_launch_cmd(hub: str, launcher: str, *, prompt: str) -> str:
+    """Shell command for starting a child agent with non-interactive editor env."""
+    if prompt and prompt != DEFAULT_WORKFLOW_PROMPT:
+        agent = f"{shlex.quote(launcher)} --reuse {shlex.quote(prompt)}"
+    else:
+        agent = f"{shlex.quote(launcher)} --reuse --workflow"
+    return (
+        f"cd {shlex.quote(hub)} && "
+        f"{NONINTERACTIVE_EDITOR_EXPORTS} "
+        f"{agent}"
+    )
+
+
 def launch_child_agents(
     root: Path,
     windows: list[ChildWindow],
@@ -110,15 +127,7 @@ def launch_child_agents(
     launcher = agent_launcher_name()
     hub = str(root)
     for window in windows:
-        cmd = (
-            f"cd {shlex.quote(hub)} && "
-            f"{shlex.quote(launcher)} --reuse --workflow"
-        )
-        if prompt and prompt != DEFAULT_WORKFLOW_PROMPT:
-            cmd = (
-                f"cd {shlex.quote(hub)} && "
-                f"{shlex.quote(launcher)} --reuse {shlex.quote(prompt)}"
-            )
+        cmd = _child_agent_launch_cmd(hub, launcher, prompt=prompt)
         _run_tmux("send-keys", "-t", window.pane_id, cmd, "C-m")
 
 
@@ -148,7 +157,10 @@ def format_manual_child_steps(
         codename = child.get("codename", "")
         title = child.get("title") or codename
         lines.append(f"## {codename} — {title}")
-        lines.append(f"# New tmux tab: {cmd} --reuse --workflow")
+        lines.append(
+            f"# New tmux tab: {NONINTERACTIVE_EDITOR_EXPORTS} "
+            f"{cmd} --reuse --workflow"
+        )
         lines.append(f"# Or bind first: ./scripts/bind-session.sh {codename}")
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"

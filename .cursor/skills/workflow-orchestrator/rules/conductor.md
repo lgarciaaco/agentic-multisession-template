@@ -205,7 +205,7 @@ loop while iteration < loops.ci_observe.max:
 
   # Step 3: act on verdict
   if GREEN: phase → delivery; break
-  if CONFLICT: rebase onto pr_target_branch, force-push, re-poll
+  if CONFLICT: ./scripts/workflow-git-rebase.sh sessions/<codename>/worktrees/<repo> <pr_target_branch>, force-push, re-poll
   if TEST_FAILURE: load ci-fixer.md, fix, commit, force-push, re-poll
   workflow-ci-observe-advance.py <codename> <verdict>
   iteration++

@@ -11,7 +11,7 @@ Fix CI failures or merge conflicts so the PR goes green without user interventio
 Detected via `gh pr view <number> --json mergeStateStatus` → `CONFLICTING`. This check runs BEFORE CI polling — `gh pr checks` does not surface merge conflicts.
 
 1. Identify target branch from `repos.yaml` `pr_target_branch` (fallback `default_branch`).
-2. Run `git fetch origin <target> && git rebase origin/<target>`.
+2. From hub root, run `./scripts/workflow-git-rebase.sh sessions/<codename>/worktrees/<repo> <target>` (sets `GIT_EDITOR=true` and `EDITOR=true`, then fetch + rebase). When cwd is already the session worktree in a self-hosted hub worktree, `./scripts/workflow-git-rebase.sh . <target>` is equivalent.
 3. If rebase succeeds: `git push --force-with-lease`.
 4. If rebase has conflicts: attempt resolution; if unresolvable, escalate.
 

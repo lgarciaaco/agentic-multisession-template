@@ -15,7 +15,7 @@ pr_creation SUCCESS → phase: ci_observe
        → pending/timeout? verdict = TIMEOUT
     classify: GREEN | CONFLICT | TEST_FAILURE | TIMEOUT | FAIL
     GREEN → phase: delivery; break
-    CONFLICT → rebase onto pr_target_branch, force-push, re-poll
+    CONFLICT → ./scripts/workflow-git-rebase.sh sessions/<codename>/worktrees/<repo> <pr_target_branch>, force-push, re-poll
     TEST_FAILURE → ci-fixer (parent), commit, force-push, re-poll
     TIMEOUT/FAIL → escalate
     workflow-ci-observe-advance.py <codename> <verdict>
@@ -29,6 +29,7 @@ pr_creation SUCCESS → phase: ci_observe
 | Script | Purpose |
 |--------|---------|
 | `scripts/workflow-ci-observe-advance.py` | Advance loop with verdict |
+| `scripts/workflow-git-rebase.sh` | Non-interactive fetch + rebase for CONFLICT handling |
 
 ## Lib
 
@@ -39,7 +40,7 @@ pr_creation SUCCESS → phase: ci_observe
 | Verdict | Conductor action | Next |
 |---------|-----------------|------|
 | `GREEN` | Report success | `delivery` |
-| `CONFLICT` | Rebase + force-push | stay `ci_observe` |
+| `CONFLICT` | Run `workflow-git-rebase.sh` + force-push | stay `ci_observe` |
 | `TEST_FAILURE` | Load `rules/ci-fixer.md`, fix, commit, force-push | stay `ci_observe` |
 | `TIMEOUT` | Escalate | stay (user intervention) |
 | `FAIL` | Escalate immediately | stay (user intervention) |

@@ -104,6 +104,8 @@ class ProgramChildTabsTests(unittest.TestCase):
         self.assertIn("test-agent", send_calls[0][3])
         self.assertIn("--reuse", send_calls[0][3])
         self.assertIn("--workflow", send_calls[0][3])
+        self.assertIn("GIT_EDITOR=true", send_calls[0][3])
+        self.assertIn("EDITOR=true", send_calls[0][3])
 
     def test_format_manual_child_steps(self) -> None:
         text = format_manual_child_steps(
@@ -111,6 +113,7 @@ class ProgramChildTabsTests(unittest.TestCase):
             launcher="test-agent",
         )
         self.assertIn("child sessions were created", text)
+        self.assertIn("GIT_EDITOR=true EDITOR=true", text)
         self.assertIn("test-agent --reuse --workflow", text)
         self.assertNotIn("new-session.sh", text)
 
@@ -206,6 +209,24 @@ class ProgramChildTabsTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("--reuse", ensure_log.read_text())
             self.assertIn("/workflow-orchestrator", args_file.read_text())
+
+    def test_workspace_agent_exports_noninteractive_editors(self) -> None:
+        hub = Path(__file__).resolve().parent.parent
+        script = (hub / "scripts/workspace-agent.sh").read_text()
+        exec_idx = script.rfind("exec ")
+        export_block = script[:exec_idx]
+        self.assertRegex(export_block, r"export GIT_EDITOR=true")
+        self.assertRegex(export_block, r"export EDITOR=true")
+
+    @patch("program_child_tabs._run_tmux")
+    def test_child_agent_launch_cmd_custom_prompt_includes_editors(self, _run_tmux) -> None:
+        from program_child_tabs import _child_agent_launch_cmd
+
+        cmd = _child_agent_launch_cmd("/hub", "test-agent", prompt="/custom")
+        self.assertIn("GIT_EDITOR=true", cmd)
+        self.assertIn("EDITOR=true", cmd)
+        self.assertIn("/custom", cmd)
+        self.assertLess(cmd.index("GIT_EDITOR=true"), cmd.index("test-agent"))
 
     def _install_bootstrap_cli(self) -> Path:
         hub = Path(__file__).resolve().parent.parent

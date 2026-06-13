@@ -248,7 +248,7 @@ Child tabs resolve via `@workspace-codename` (same binding model as [Resolution 
 
 **Parent gate routing:** gate commands and free-text corrections via [`program-route-feedback.py`](scripts/program-route-feedback.py) (tmux send-keys) — see [Parent gate review (mandatory)](docs/PROGRAM_ORCHESTRATOR.md#parent-gate-review-mandatory).
 
-**Tab cleanup:** tmux tab bootstrap and pane helpers — see [Program child tmux tabs](docs/PROGRAM_ORCHESTRATOR.md#program-child-tmux-tabs) (completed-child window cleanup documented separately in child-13).
+**Tab cleanup:** tmux tab bootstrap and pane helpers — see [Program child tmux tabs](docs/PROGRAM_ORCHESTRATOR.md#program-child-tmux-tabs); [Completed-child tab cleanup](docs/PROGRAM_ORCHESTRATOR.md#completed-child-tab-cleanup).
 
 Full walkthrough: [docs/PROGRAM_ORCHESTRATOR.md](docs/PROGRAM_ORCHESTRATOR.md).
 

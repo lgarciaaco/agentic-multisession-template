@@ -23,8 +23,10 @@ def _hint_intake(_workflow: dict[str, Any]) -> str:
 
 def _hint_brief_review(_workflow: dict[str, Any]) -> str:
     return (
-        "Inbox gate auto-applied on sync-session; if still brief_review, present brief "
-        f"or poll every {INBOX_GATE_POLL_SECONDS // 60}m: workflow-pull-inbox-gate.py --apply"
+        "Present brief for gate 1: accept via chat (accept brief / accept), "
+        "./scripts/workflow-accept-brief.sh, or program-route-feedback.py for program children; "
+        f"optional classify-only poll every {INBOX_GATE_POLL_SECONDS // 60}m: "
+        "workflow-pull-inbox-gate.py --apply"
     )
 
 
@@ -41,8 +43,10 @@ def _hint_plan_loop(workflow: dict[str, Any]) -> str:
 
 def _hint_plan_user_review(_workflow: dict[str, Any]) -> str:
     return (
-        "Inbox gate auto-applied on sync-session; if still plan_user_review, present plan "
-        f"or poll every {INBOX_GATE_POLL_SECONDS // 60}m: workflow-pull-inbox-gate.py --apply"
+        "Present plan for gate 2: accept via chat (accept plan), "
+        "./scripts/workflow-accept-plan.sh, or program-route-feedback.py for program children; "
+        f"optional classify-only poll every {INBOX_GATE_POLL_SECONDS // 60}m: "
+        "workflow-pull-inbox-gate.py --apply"
     )
 
 

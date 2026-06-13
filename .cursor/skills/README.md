@@ -10,12 +10,12 @@
 | [session-end](session-end/SKILL.md) | end session, `/end-session` | `end-session.sh` |
 | [hub-upgrade](hub-upgrade/SKILL.md) | template version, upgrade hub | `hub-status.sh`, `hub-upgrade.sh` |
 | [write-like-a-human](write-like-a-human/SKILL.md) | human-facing brief/report/PR text | — |
-| [skill-optimizer](skill-optimizer/SKILL.md) | streamline hub skills | — |
+| [skill-optimizer](skill-optimizer/SKILL.md) | streamline hub skills | — (see [AGENTS.md § Skill streamline](../../AGENTS.md#skill-streamline)) |
 | [loop](loop/SKILL.md) | `/loop [interval] <prompt>`, inbox gate polling | background shell + sentinel |
 
 Tmux: `$(cat .hub-launcher)` — not bare `agent`.
 
-Agent entry: [AGENTS.md](../../AGENTS.md)
+Agent entry: [AGENTS.md](../../AGENTS.md) — hub skill edits: [AGENTS.md § Skill streamline](../../AGENTS.md#skill-streamline) and [skill-optimizer](skill-optimizer/SKILL.md).
 
 ## Subagent isolation
 

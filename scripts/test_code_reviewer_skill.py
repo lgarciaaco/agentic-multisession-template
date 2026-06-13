@@ -68,18 +68,56 @@ class CodeReviewerSkillSmokeTests(unittest.TestCase):
             rubric_sections=("Ansible", "GitHub Actions", "BLOCKER allowed"),
         )
 
+    def test_leaks_reviewer_skill_present(self) -> None:
+        _assert_code_reviewer_agent(
+            self,
+            rel_paths=(
+                "agents/leaks-reviewer.md",
+                "rules/leaks.md",
+                "rules/agents/leaks-reviewer.md",
+            ),
+            schema_token="leaks",
+            skill_phrases=("leaks-reviewer", "triggers.leaks"),
+            rubric_path="rules/leaks.md",
+            rubric_sections=("Secrets and credentials", "Split from security-reviewer", "BLOCKER allowed"),
+        )
+        agent_spec = (CODE_REVIEWER / "agents/leaks-reviewer.md").read_text()
+        self.assertIn("findings/leaks.json", agent_spec)
+        self.assertIn("triggers.leaks must be true", agent_spec)
+
     def test_code_reviewer_mandates_task_specialists(self) -> None:
         text = SKILL.read_text()
         self.assertIn("Subagent isolation", text)
         self.assertIn("must **not**", text)
         self.assertIn("structure-reviewer", text)
+        self.assertIn("leaks-reviewer", text)
         self.assertIn("infra-yaml-reviewer", text)
+        self.assertIn("security-reviewer", text)
 
-    def test_synthesizer_documents_infra_yaml_blocker_fail(self) -> None:
+        scope_collector = (CODE_REVIEWER / "agents/scope-collector.md").read_text()
+        self.assertIn("triggers.leaks", scope_collector)
+        self.assertIn("triggers.security", scope_collector)
+
+    def test_synthesizer_documents_blocker_fail_agents(self) -> None:
         text = SYNTHESIZER_RULES.read_text()
         self.assertIn("infra-yaml", text)
+        self.assertIn("leaks", text)
         self.assertIn("BLOCKER", text)
         self.assertIn("FAIL", text)
+
+    def test_synthesize_fail_on_leaks_blocker(self) -> None:
+        docs = [
+            {
+                "agent": "leaks",
+                "findings": [
+                    {
+                        "severity": "BLOCKER",
+                        "issue": "committed API key in test fixture",
+                    }
+                ],
+            }
+        ]
+        self.assertEqual(synthesize_code_review_verdict(docs), "FAIL")
 
     def test_synthesize_fail_on_infra_yaml_blocker(self) -> None:
         docs = [

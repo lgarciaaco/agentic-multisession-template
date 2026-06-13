@@ -28,7 +28,7 @@ User-interaction steps → direct agent commands. Explanations → concise specs
 
 ## Validate
 
-Same behavior; 40–60% shorter when possible; agent command structure; essential errors retained.
+Same behavior; shorter and more scannable when possible (quality target — no mandated percent line-reduction); agent command structure; essential errors retained.
 
 For tone-heavy artifacts (delivery reports, PR text), run [write-like-a-human](../write-like-a-human/SKILL.md) after structural edits.
 

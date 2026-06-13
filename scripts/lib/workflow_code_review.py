@@ -23,7 +23,10 @@ CODE_REVIEW_ESCALATE_VERDICTS = frozenset({"FAIL"})
 def synthesize_code_review_verdict(
     findings_docs: list[dict[str, Any]],
 ) -> str:
-    """Compute PASS | INCOMPLETE | FAIL from merged specialist findings."""
+    """Compute PASS | INCOMPLETE | FAIL from merged specialist findings.
+
+    Any BLOCKER severity maps to FAIL regardless of agent token (including leaks, security, infra-yaml).
+    """
     raw_findings: list[dict[str, Any]] = []
     for doc in findings_docs:
         raw_findings.extend(doc.get("findings") or [])

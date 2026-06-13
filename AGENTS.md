@@ -109,6 +109,18 @@ Session context lists which guideline files exist on bind. Optional `guidelines:
 | Skill streamline | `.cursor/skills/skill-optimizer` |
 | Loop | `.cursor/skills/loop` — `/loop [interval] <prompt>`, inbox gate polling |
 
+## Skill streamline
+
+Load [`.cursor/skills/skill-optimizer/SKILL.md`](.cursor/skills/skill-optimizer/SKILL.md) when creating, reviewing, or improving any skill under `.cursor/skills/` — especially before opening a hub PR that touches skill copy.
+
+**When to load:** hub skill edits, workflow skill additions, or when a skill grows verbose agent-unfriendly prose (duplicate error blocks, user-facing narration, decorative formatting).
+
+**Must preserve:** all commands, paths, gates, script and API calls, essential error handling, activation print lines, and behavioral semantics — streamlining is structural, not functional.
+
+**Quality targets:** concise agent-command specs; user-interaction steps converted to direct commands; redundant examples trimmed to format definitions where needed. Aim for shorter, scannable skills — no mandated percent line-reduction rule.
+
+After structural edits on human-facing artifacts (briefs, delivery reports, PR text), run [write-like-a-human](.cursor/skills/write-like-a-human/SKILL.md) as a final tone pass.
+
 ## Cross-session inbox
 
 `./scripts/session-inbox.sh write <from> <to> "message"` · read on bind or `./scripts/session-inbox.sh read <codename>`

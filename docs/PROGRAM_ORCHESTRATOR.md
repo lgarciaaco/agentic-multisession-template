@@ -94,9 +94,10 @@ Cleanup is best-effort: a failed close leaves the window open; the next monitor 
 
 Program parent routing uses **local-trust** delivery paths on the machine where tmux runs:
 
-- **`program-route-feedback.py`** validates the caller is bound to the parent session (`resolve_codename`) and that the child's `workflow.json` phase matches the requested `--gate` before `send-keys`. It does **not** cryptographically authenticate the target pane — trust is local to the tmux server and hub filesystem layout.
+- **`program-route-feedback.py`** validates the caller is bound to the parent session (`resolve_codename`) and that the child's `workflow.json` phase matches the requested `--gate` before `send-keys`. It skips when an **accept** gate command targets an already-accepted gate, when an identical message was sent within the 5-minute cooldown, or (for free-text corrections) when the child is not at `brief_review` / `plan_user_review`. CLI prints `skipped: <reason>` or `sent: <message>`. `--force` overrides already-accepted and dedupe skips for gate routes; wrong-phase gate routes still fail. For corrections (no `--gate`), `--force` also overrides the phase guard. It does **not** cryptographically authenticate the target pane — trust is local to the tmux server and hub filesystem layout.
 - **`resolve_child_pane`** reuses a stored `pane_id` only when `_pane_matches_child` passes (live pane, matching `@workspace-codename`, cwd under hub root). Otherwise it scans hub panes or fails clearly.
-- **`route_correction`** (free-text) skips gate-phase checks but still requires the caller bound to the parent session; corrections are chat input, not gate commands.
+- **`route_correction`** (free-text) requires the caller bound to the parent session; skips outside gate phases unless `--force`. Corrections are chat input, not gate commands — do not use them as progress nudges during inner-loop phases.
+- **`program-monitor.py`** exposes per-child `routable`, `route_skip_reason`, `last_routed_at`, and `last_routed_message` so autonomous monitor loops can avoid duplicate sends.
 - **`workflow-accept-brief.sh`** and **`workflow-accept-plan.sh`** are local-trust CLIs: they take an explicit `<codename>` argument (no `resolve_codename` caller check). Run only from the child chat or a trusted shell on the hub machine.
 
 Standalone workflow sessions may still poll inbox at gates; program children rely on tmux routing above.
@@ -134,7 +135,7 @@ Parent sessions coordinate; they do not edit child sessions.
 | Accept / reopen gate | `python3 scripts/program-route-feedback.py` | Sends exact gate command to child tmux pane via send-keys |
 | Brief or plan correction | `python3 scripts/program-route-feedback.py` (no `--gate`) or `--correction` | Free-text sent to child pane as chat input |
 
-**Read-only review (mandatory at gates):** inspect child gate artifacts via monitor `gate_review`; compare to decomposition scope and `sibling_program_context`; read full assessments in `artifacts/program-status.md` before routing. Never patch child artifacts or worktrees from the parent chat. Monitor JSON includes `gate_review` paths, `sibling_program_context`, and `parent_next_action`.
+**Read-only review (mandatory at gates):** inspect child gate artifacts via monitor `gate_review`; compare to decomposition scope and `sibling_program_context`; read full assessments in `artifacts/program-status.md` before routing. Never patch child artifacts or worktrees from the parent chat. Monitor JSON includes `gate_review` paths, `sibling_program_context`, and `parent_next_action`. Route each gate command **once per gate** — check `routable` and `route_skip_reason` before re-sending; do not use free-text corrections during inner-loop phases (see [Local-trust boundaries](#local-trust-boundaries)).
 
 **Gate commands must be exact.** Prose such as "brief looks good — proceed" classifies as `brief_correction`, not `accept brief`. Use full CLI invocations when approving a gate:
 

@@ -73,7 +73,7 @@ Read `workflow.json` and artifact paths; print:
 - **Brief:** sessions/<codename>/<brief path> (present|missing)
 - **Plan:** sessions/<codename>/<plan path> (present|missing)
 - **Next command:** <suggested user or agent action>
-- **Inbox gate poll:** every 2m while phase is `brief_review` or `plan_user_review`
+- **Inbox gate poll:** every 2m at `brief_review` / `plan_user_review` for **standalone** sessions only; **disabled** for program children (`find_program_parent` non-null)
 ```
 
 Do not ask the user to relay messages between agents or sessions.
@@ -87,7 +87,7 @@ intake → brief_review → [accept brief | inbox at gate]
   → [auto] pr_creation → [auto] ci_observe → delivery → completed
 ```
 
-At `brief_review` and `plan_user_review`, follow [rules/conductor.md](rules/conductor.md) **Gate-entry checklist**: immediate `workflow-pull-inbox-gate.py --apply`, then arm `/loop 120s` for recurring pull. `beforeSubmitPrompt` hook auto-pull is a safety net only. Program children dual-write gate blockers to parent inbox before presenting the gate.
+At `brief_review` and `plan_user_review`, follow [rules/conductor.md](rules/conductor.md) **Gate-entry checklist**. **Standalone** sessions: immediate classify-only `workflow-pull-inbox-gate.py --apply`, then arm `/loop 120s`. **Program children** (`find_program_parent` non-null): skip inbox poll and loop — parent routes via `program-route-feedback.py` only. Program children dual-write gate blockers to parent inbox before presenting the gate.
 
 Autonomous loops — conductor runs without user between gates.
 

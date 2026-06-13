@@ -104,6 +104,31 @@ def _validate_active_child(entry: Any, index: int) -> dict[str, Any]:
     window_label = entry.get("window_label")
     if window_label is not None and not isinstance(window_label, str):
         raise ValueError(f"active_children[{index}].window_label must be a string when set")
+    last_routed_at = entry.get("last_routed_at")
+    if last_routed_at is not None:
+        if not isinstance(last_routed_at, str) or not last_routed_at.strip():
+            raise ValueError(
+                f"active_children[{index}].last_routed_at must be a non-empty string when set"
+            )
+    last_routed_message = entry.get("last_routed_message")
+    if last_routed_message is not None:
+        if not isinstance(last_routed_message, str):
+            raise ValueError(
+                f"active_children[{index}].last_routed_message must be a string when set"
+            )
+    unknown = set(entry) - {
+        "codename",
+        "status",
+        "started",
+        "pane_id",
+        "window_label",
+        "last_routed_at",
+        "last_routed_message",
+    }
+    if unknown:
+        raise ValueError(
+            f"active_children[{index}] has unknown keys: {', '.join(sorted(unknown))}"
+        )
     out: dict[str, Any] = {
         "codename": codename,
         "status": status.strip(),
@@ -114,6 +139,10 @@ def _validate_active_child(entry: Any, index: int) -> dict[str, Any]:
         out["pane_id"] = pane_id.strip()
     if window_label is not None and window_label.strip():
         out["window_label"] = window_label.strip()
+    if last_routed_at is not None and last_routed_at.strip():
+        out["last_routed_at"] = last_routed_at.strip()
+    if last_routed_message is not None:
+        out["last_routed_message"] = last_routed_message
     return out
 
 

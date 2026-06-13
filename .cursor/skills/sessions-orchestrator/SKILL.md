@@ -146,6 +146,18 @@ python3 scripts/program-route-feedback.py <parent> <child> \
 
 Requires tmux with child tabs open. Re-run `program-monitor.py` after routing.
 
+### Idempotent routing (autonomous monitor)
+
+Route each gate command **once per gate** — do not re-send `accept brief` / `accept plan` after the child gate clears. During inner-loop phases (`plan_loop`, `code_review_loop`, `ci_observe`, `implementation`, `pr_creation`, `delivery`), do **not** send free-text corrections (`program-route-feedback.py` without `--gate`) as progress nudges.
+
+Before routing in an autonomous loop, read `program-monitor.py` child fields:
+
+- `routable` — whether the route would send now
+- `route_skip_reason` — why a skip would occur (already accepted, wrong phase, dedupe cooldown)
+- `last_routed_at` / `last_routed_message` — last successful send per child
+
+`program-route-feedback.py` skips duplicate routes by default (5-minute cooldown on identical normalized message). Use `--force` only when intentionally overriding a skip.
+
 ## Child completion → PR review
 
 When a child reaches workflow phase `completed`:

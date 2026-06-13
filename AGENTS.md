@@ -140,6 +140,8 @@ python3 scripts/program-route-feedback.py <parent> <child> \
 
 Free-text corrections: `program-route-feedback.py <parent> <child> --message "…"` (no `--gate`). See [sessions/_inbox/README.md](sessions/_inbox/README.md) and [docs/PROGRAM_ORCHESTRATOR.md](docs/PROGRAM_ORCHESTRATOR.md) § Parent gate review (mandatory).
 
+**Idempotent routing:** Route each gate command once per gate. Before autonomous re-sends, check `program-monitor.py` child fields `routable` and `route_skip_reason`. `program-route-feedback.py` skips already-accepted accepts, duplicate messages within 5 minutes, and corrections outside gate phases; use `--force` to override those skips (wrong-phase gate routes still fail). Details: [docs/PROGRAM_ORCHESTRATOR.md](docs/PROGRAM_ORCHESTRATOR.md) Local-trust boundaries.
+
 ## Git / PRs
 
 - **Never** `gh pr merge --auto` or auto-merge

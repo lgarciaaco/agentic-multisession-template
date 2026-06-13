@@ -18,6 +18,7 @@ from gate_metadata_registry import (
     gate_artifact_path,
     gate_column_short_label,
 )
+from program_route_feedback import child_route_snapshot_fields
 from program_state import GATE_PHASES, load_program, save_program
 from session_binding import validate_codename
 from workflow_plan import load_workflow, parse_action_plan_tasks
@@ -220,6 +221,8 @@ def child_snapshot(
     codename: str,
     *,
     program: dict[str, Any] | None = None,
+    parent_codename: str | None = None,
+    child_entry: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     session_dir = root / "sessions" / codename
     workflow_path = session_dir / "workflow.json"
@@ -267,6 +270,15 @@ def child_snapshot(
                         "status": task.get("status"),
                     }
                 )
+    if parent_codename and child_entry is not None:
+        snapshot.update(
+            child_route_snapshot_fields(
+                root,
+                parent=parent_codename,
+                child_entry=child_entry,
+                pending_gate=snapshot.get("pending_gate"),
+            )
+        )
     return snapshot
 
 
@@ -351,8 +363,11 @@ def program_monitor_snapshot(
             root,
             validate_codename(str(entry.get("codename", ""))),
             program=program,
+            parent_codename=parent,
+            child_entry=entry,
         )
         for entry in program.get("active_children") or []
+        if isinstance(entry, dict)
     ]
     report: dict[str, Any] = {
         "parent": parent,

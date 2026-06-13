@@ -22,7 +22,12 @@ from program_monitor import (  # noqa: E402
     render_program_status_markdown,
     sibling_program_context,
 )
-from program_route_feedback import route_correction, route_feedback  # noqa: E402
+from program_route_feedback import (  # noqa: E402
+    RouteResult,
+    normalize_route_message_text,
+    route_correction,
+    route_feedback,
+)
 from program_state import default_program, load_program, save_program  # noqa: E402
 from workflow_inbox_gate import pull_inbox_gate  # noqa: E402
 
@@ -145,6 +150,175 @@ class ProgramOrchestratorTests(unittest.TestCase):
                         )
         self._last_sent = sent
         return result
+
+    def _set_child_workflow(self, workflow: dict) -> None:
+        child_dir = self.root / "sessions" / self.child
+        (child_dir / "workflow.json").write_text(json.dumps(workflow, indent=2) + "\n")
+
+    def _child_program_entry(self) -> dict:
+        return load_program(self.root / "sessions" / self.parent)["active_children"][0]
+
+    def test_route_feedback_skips_when_brief_already_accepted(self) -> None:
+        self._set_child_workflow(
+            {
+                "version": 2,
+                "phase": "brief_review",
+                "gates": {"brief_accepted": True, "plan_user_accepted": False},
+                "loops": {},
+                "artifacts": {},
+            }
+        )
+        result = self._route_feedback(gate="brief_review", message="accept brief")
+        self.assertFalse(result.sent)
+        self.assertEqual(result.skip_reason, "brief gate already accepted")
+        self.assertEqual(getattr(self, "_last_sent", []), [])
+
+    def test_route_feedback_skips_when_plan_already_accepted(self) -> None:
+        self._write_child_plan_gate_workflow()
+        self._set_child_workflow(
+            {
+                "version": 2,
+                "phase": "plan_user_review",
+                "gates": {"brief_accepted": True, "plan_user_accepted": True},
+                "loops": {},
+                "artifacts": {},
+            }
+        )
+        result = self._route_feedback(gate="plan_user_review", message="accept plan")
+        self.assertFalse(result.sent)
+        self.assertEqual(result.skip_reason, "plan gate already accepted")
+
+    def test_route_feedback_force_overrides_gate_accepted_skip(self) -> None:
+        self._set_child_workflow(
+            {
+                "version": 2,
+                "phase": "brief_review",
+                "gates": {"brief_accepted": True, "plan_user_accepted": False},
+                "loops": {},
+                "artifacts": {},
+            }
+        )
+        result = self._route_feedback(
+            gate="brief_review",
+            message="accept brief",
+            force=True,
+        )
+        self.assertTrue(result.sent)
+        self.assertEqual(self._last_sent, [("%1", "accept brief")])
+
+    def test_route_feedback_dedupe_skips_identical_gate_message_within_cooldown(
+        self,
+    ) -> None:
+        self._route_feedback(gate="brief_review", message="accept brief")
+        result = self._route_feedback(gate="brief_review", message="accept brief")
+        self.assertFalse(result.sent)
+        self.assertIn("cooldown", result.skip_reason or "")
+
+    def test_route_correction_skips_during_inner_loop_phases(self) -> None:
+        for phase in ("plan_loop", "code_review_loop", "ci_observe"):
+            with self.subTest(phase=phase):
+                self._set_child_workflow(
+                    {
+                        "version": 2,
+                        "phase": phase,
+                        "gates": {"brief_accepted": True, "plan_user_accepted": False},
+                        "loops": {},
+                        "artifacts": {},
+                    }
+                )
+                result = self._route_correction("Continue implementation.")
+                self.assertFalse(result.sent)
+                self.assertIn(phase, result.skip_reason or "")
+
+    def test_route_correction_force_overrides_phase_guard(self) -> None:
+        self._set_child_workflow(
+            {
+                "version": 2,
+                "phase": "plan_loop",
+                "gates": {"brief_accepted": True, "plan_user_accepted": False},
+                "loops": {},
+                "artifacts": {},
+            }
+        )
+        result = self._route_correction("Continue implementation.", force=True)
+        self.assertTrue(result.sent)
+
+    def test_route_dedupe_skips_identical_message_within_cooldown(self) -> None:
+        self._route_correction("Tighten SC-1 wording.")
+        result = self._route_correction("Tighten SC-1 wording.")
+        self.assertFalse(result.sent)
+        self.assertIn("cooldown", result.skip_reason or "")
+
+    def test_route_success_persists_last_routed_metadata(self) -> None:
+        self._route_feedback(gate="brief_review", message="accept brief")
+        entry = self._child_program_entry()
+        self.assertIsInstance(entry.get("last_routed_at"), str)
+        self.assertEqual(entry.get("last_routed_message"), "accept brief")
+
+    def test_monitor_exposes_routable_and_skip_reason(self) -> None:
+        self._set_child_workflow(
+            {
+                "version": 2,
+                "phase": "plan_loop",
+                "gates": {"brief_accepted": True, "plan_user_accepted": False},
+                "loops": {},
+                "artifacts": {},
+            }
+        )
+        report = monitor_program(self.root, self.parent)
+        child = report["children"][0]
+        self.assertFalse(child["routable"])
+        self.assertIn("plan_loop", child["route_skip_reason"])
+        self.assertIn("last_routed_at", child)
+
+    def test_route_feedback_force_overrides_dedupe_cooldown(self) -> None:
+        self._route_feedback(gate="brief_review", message="accept brief")
+        skipped = self._route_feedback(gate="brief_review", message="accept brief")
+        self.assertFalse(skipped.sent)
+        forced = self._route_feedback(
+            gate="brief_review",
+            message="accept brief",
+            force=True,
+        )
+        self.assertTrue(forced.sent)
+
+    def test_route_correction_force_overrides_dedupe_cooldown(self) -> None:
+        self._route_correction("Tighten SC-1 wording.")
+        skipped = self._route_correction("Tighten SC-1 wording.")
+        self.assertFalse(skipped.sent)
+        forced = self._route_correction("Tighten SC-1 wording.", force=True)
+        self.assertTrue(forced.sent)
+
+    def test_normalize_route_message_text_collapses_whitespace_for_gates(self) -> None:
+        a = normalize_route_message_text("  accept   brief  ", gate_command=True)
+        b = normalize_route_message_text("accept brief", gate_command=True)
+        self.assertEqual(a, b)
+
+    def test_route_feedback_dedupe_case_insensitive_gate_message(self) -> None:
+        self._route_feedback(gate="brief_review", message="accept brief")
+        result = self._route_feedback(gate="brief_review", message="Accept Brief")
+        self.assertFalse(result.sent)
+        self.assertIn("cooldown", result.skip_reason or "")
+
+    def test_reopen_brief_routes_when_brief_already_accepted(self) -> None:
+        self._set_child_workflow(
+            {
+                "version": 2,
+                "phase": "brief_review",
+                "gates": {"brief_accepted": True, "plan_user_accepted": False},
+                "loops": {},
+                "artifacts": {},
+            }
+        )
+        result = self._route_feedback(gate="brief_review", message="reopen brief")
+        self.assertTrue(result.sent)
+
+    def test_monitor_gate_child_is_routable_at_brief_review(self) -> None:
+        report = monitor_program(self.root, self.parent)
+        child = report["children"][0]
+        self.assertTrue(child["routable"])
+        self.assertIsNone(child["route_skip_reason"])
+        self.assertIn("last_routed_message", child)
 
     def test_monitor_reports_child_gate(self) -> None:
         report = monitor_program(self.root, self.parent)
@@ -396,22 +570,24 @@ print(status_path)
 
 
     def test_route_feedback_sends_keys(self) -> None:
-        payload = self._route_feedback(
+        result = self._route_feedback(
             gate="brief_review",
             message="accept brief",
         )
-        self.assertEqual(payload, "accept brief")
+        self.assertTrue(result.sent)
+        self.assertEqual(result.payload, "accept brief")
         self.assertEqual(self._last_sent, [("%1", "accept brief")])
         inbox = self.root / "sessions" / "_inbox" / f"{self.child}.md"
         self.assertFalse(inbox.exists())
 
     def test_route_feedback_dry_run_returns_command(self) -> None:
-        payload = self._route_feedback(
+        result = self._route_feedback(
             gate="brief_review",
             message="accept brief",
             dry_run=True,
         )
-        self.assertEqual(payload, "accept brief")
+        self.assertFalse(result.sent)
+        self.assertEqual(result.payload, "accept brief")
         self.assertEqual(getattr(self, "_last_sent", []), [])
 
     def test_route_feedback_requires_tmux(self) -> None:
@@ -428,8 +604,9 @@ print(status_path)
 
     def test_route_correction_sends_keys(self) -> None:
         body = "Tighten SC-1 wording for clarity."
-        payload = self._route_correction(body)
-        self.assertEqual(payload, body)
+        result = self._route_correction(body)
+        self.assertTrue(result.sent)
+        self.assertEqual(result.payload, body)
         self.assertEqual(self._last_sent, [("%1", body)])
 
     def test_route_feedback_does_not_apply_via_inbox_pull(self) -> None:

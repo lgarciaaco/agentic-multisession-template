@@ -8,6 +8,7 @@ from gate_command_registry import allowed_route_messages, is_allowed_route_messa
 from program_child_tabs import in_tmux, resolve_child_pane, send_to_child_pane
 from program_state import GATE_PHASES, load_program
 from session_binding import resolve_codename, sanitize_goal_text, validate_codename
+from workflow_plan import load_workflow
 
 
 def _require_bound_parent(root: Path, parent_name: str) -> None:
@@ -45,6 +46,20 @@ def _child_pane_id(root: Path, program: dict, child_name: str) -> str:
     return resolve_child_pane(root, child_name, stored_id)
 
 
+def _require_child_gate_phase(root: Path, child_name: str, gate: str) -> None:
+    session_dir = root / "sessions" / child_name
+    workflow_path = session_dir / "workflow.json"
+    if not workflow_path.is_file():
+        raise ValueError(
+            f"child {child_name!r} has no workflow.json; cannot route gate {gate!r}"
+        )
+    phase = load_workflow(session_dir).get("phase")
+    if phase != gate:
+        raise ValueError(
+            f"child {child_name!r} workflow phase is {phase!r}, not {gate!r}"
+        )
+
+
 def route_feedback(
     root: Path,
     *,
@@ -71,6 +86,7 @@ def route_feedback(
 
     command = message.strip()
     _require_bound_parent(root, parent_name)
+    _require_child_gate_phase(root, child_name, gate)
     if dry_run:
         return command
 

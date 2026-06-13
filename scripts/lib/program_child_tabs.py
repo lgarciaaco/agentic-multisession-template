@@ -290,21 +290,6 @@ def list_hub_panes(root: Path) -> list[dict[str, str]]:
         panes.append({"pane_id": pane_id, "codename": codename, "path": pane_path})
     return panes
 
-
-def _pane_alive(pane_id: str) -> bool:
-    result = _run_tmux("display-message", "-p", "-t", pane_id, "#{pane_id}")
-    return result is not None and bool(result.stdout.strip())
-
-
-def _pane_codename(pane_id: str) -> str | None:
-    opt = tmux_pane_option()
-    result = _run_tmux("display-message", "-p", "-t", pane_id, f"#{{@{opt}}}")
-    if not result:
-        return None
-    value = result.stdout.strip()
-    return value or None
-
-
 def resolve_child_pane(
     root: Path,
     codename: str,
@@ -312,10 +297,8 @@ def resolve_child_pane(
 ) -> str:
     """Return a live pane id for codename; prefer stored id when still valid."""
     name = validate_codename(codename)
-    if stored_pane_id and _pane_alive(stored_pane_id):
-        bound = _pane_codename(stored_pane_id)
-        if bound == name:
-            return stored_pane_id
+    if stored_pane_id and _pane_matches_child(root, stored_pane_id, name):
+        return stored_pane_id
     for pane in list_hub_panes(root):
         if pane["codename"] == name:
             return pane["pane_id"]

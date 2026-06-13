@@ -68,7 +68,7 @@ The parent window stays selected. Bootstrap persists each child's `pane_id` on `
 
 Program routing and completed-child tab cleanup share:
 
-- `resolve_child_pane(root, codename, stored_pane_id=None)` — live pane id from stored value or `@workspace-codename` scan
+- `resolve_child_pane(root, codename, stored_pane_id=None)` — live pane id from stored value (hub cwd validated) or `@workspace-codename` scan
 - `resolve_child_window(root, codename, pane_id=..., window_label=...)` — resolve pane for routing or cleanup
 - `send_to_child_pane(pane_id, text)` — `tmux send-keys` with trailing Enter
 - `persist_child_panes(program, windows)` — merge bootstrap window records into `program.json`
@@ -89,6 +89,17 @@ On each `program-monitor.py` pass, `monitor_program` calls `cleanup_completed_ch
    - target window must not be the parent's current tmux window
 
 Cleanup is best-effort: a failed close leaves the window open; the next monitor pass retries while phase stays `completed`.
+
+### Local-trust boundaries
+
+Program parent routing uses **local-trust** delivery paths on the machine where tmux runs:
+
+- **`program-route-feedback.py`** validates the caller is bound to the parent session (`resolve_codename`) and that the child's `workflow.json` phase matches the requested `--gate` before `send-keys`. It does **not** cryptographically authenticate the target pane — trust is local to the tmux server and hub filesystem layout.
+- **`resolve_child_pane`** reuses a stored `pane_id` only when `_pane_matches_child` passes (live pane, matching `@workspace-codename`, cwd under hub root). Otherwise it scans hub panes or fails clearly.
+- **`route_correction`** (free-text) skips gate-phase checks but still requires the caller bound to the parent session; corrections are chat input, not gate commands.
+- **`workflow-accept-brief.sh`** and **`workflow-accept-plan.sh`** are local-trust CLIs: they take an explicit `<codename>` argument (no `resolve_codename` caller check). Run only from the child chat or a trusted shell on the hub machine.
+
+Standalone workflow sessions may still poll inbox at gates; program children rely on tmux routing above.
 
 ## Check children / status (one screen)
 

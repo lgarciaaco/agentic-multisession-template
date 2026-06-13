@@ -138,7 +138,7 @@ python3 scripts/program-route-feedback.py <parent> <child> \
   --gate plan_user_review --message "reopen plan"
 ```
 
-Free-text corrections: `program-route-feedback.py <parent> <child> --message "…"` (no `--gate`). See [sessions/_inbox/README.md](sessions/_inbox/README.md) and [docs/PROGRAM_ORCHESTRATOR.md](docs/PROGRAM_ORCHESTRATOR.md) § Parent routing at child gates.
+Free-text corrections: `program-route-feedback.py <parent> <child> --message "…"` (no `--gate`). See [sessions/_inbox/README.md](sessions/_inbox/README.md) and [docs/PROGRAM_ORCHESTRATOR.md](docs/PROGRAM_ORCHESTRATOR.md) § Parent gate review (mandatory).
 
 ## Git / PRs
 

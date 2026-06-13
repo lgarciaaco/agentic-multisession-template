@@ -18,9 +18,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from program_bootstrap import bootstrap_children  # noqa: E402
 from program_child_tabs import (  # noqa: E402
     ChildWindow,
+    close_child_window,
     format_manual_child_steps,
+    is_safe_child_close_target,
     launch_child_agents,
     open_child_windows,
+    resolve_child_window,
 )
 from program_state import default_program, save_program  # noqa: E402
 
@@ -262,6 +265,112 @@ class ProgramChildTabsTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("child sessions were created", result.stdout)
+
+    @patch("program_child_tabs._run_tmux")
+    @patch.dict(os.environ, {"TMUX": "/tmp/tmux"}, clear=False)
+    def test_resolve_child_window_prefers_live_pane_id(self, run_tmux) -> None:
+        def fake_tmux(*args: str):
+            self.tmux_calls.append(list(args))
+            if args[:4] == ("display-message", "-p", "-t", "%9"):
+                if args[4] == "#{pane_id}":
+                    return subprocess.CompletedProcess(args, 0, "%9", "")
+                if "workspace-codename" in args[4]:
+                    body = "november\t" + str(self.root)
+                    return subprocess.CompletedProcess(args, 0, body, "")
+            return self._fake_run_tmux(*args)
+
+        run_tmux.side_effect = fake_tmux
+        with patch("program_child_tabs.tmux_pane_option", return_value="workspace-codename"):
+            target = resolve_child_window(self.root, "november", pane_id="%9")
+
+        self.assertEqual(target, "%9")
+
+    @patch("program_child_tabs._run_tmux")
+    @patch.dict(os.environ, {"TMUX": "/tmp/tmux"}, clear=False)
+    def test_resolve_child_window_rejects_stale_pane_id(self, run_tmux) -> None:
+        def fake_tmux(*args: str):
+            self.tmux_calls.append(list(args))
+            if args[:4] == ("display-message", "-p", "-t", "%dead"):
+                return subprocess.CompletedProcess(args, 0, "", "")
+            if args[:3] == ("list-panes", "-s", "-F"):
+                body = "%2\toscar\t" + str(self.root) + "\thub-oscar\t1\n"
+                return subprocess.CompletedProcess(args, 0, body, "")
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        run_tmux.side_effect = fake_tmux
+        with patch("program_child_tabs.tmux_pane_option", return_value="workspace-codename"):
+            target = resolve_child_window(self.root, "oscar", pane_id="%dead")
+
+        self.assertEqual(target, "%2")
+
+    @patch("program_child_tabs._run_tmux")
+    @patch.dict(os.environ, {"TMUX": "/tmp/tmux"}, clear=False)
+    def test_resolve_child_window_ignores_panes_outside_hub(self, run_tmux) -> None:
+        def fake_tmux(*args: str):
+            self.tmux_calls.append(list(args))
+            if args[:3] == ("list-panes", "-s", "-F"):
+                body = "%3\toscar\t/tmp/other-hub\thub-oscar\t1\n"
+                return subprocess.CompletedProcess(args, 0, body, "")
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        run_tmux.side_effect = fake_tmux
+        with patch("program_child_tabs.tmux_pane_option", return_value="workspace-codename"):
+            target = resolve_child_window(self.root, "oscar")
+
+        self.assertIsNone(target)
+
+    @patch("program_child_tabs._run_tmux")
+    @patch.dict(os.environ, {"TMUX": "/tmp/tmux"}, clear=False)
+    def test_resolve_child_window_scans_codename_and_label(self, run_tmux) -> None:
+        def fake_tmux(*args: str):
+            self.tmux_calls.append(list(args))
+            if args[:3] == ("display-message", "-p", "#{window_index}"):
+                return subprocess.CompletedProcess(args, 0, "0", "")
+            if args[:3] == ("list-panes", "-s", "-F"):
+                body = "%2\toscar\t" + str(self.root) + "\thub-oscar\t1\n"
+                return subprocess.CompletedProcess(args, 0, body, "")
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        run_tmux.side_effect = fake_tmux
+        with patch("program_child_tabs.tmux_pane_option", return_value="workspace-codename"):
+            with patch("program_child_tabs.tmux_window_label", return_value="hub-oscar"):
+                by_codename = resolve_child_window(self.root, "oscar")
+                by_label = resolve_child_window(self.root, "oscar", pane_id="%dead")
+
+        self.assertEqual(by_codename, "%2")
+        self.assertEqual(by_label, "%2")
+
+    @patch("program_child_tabs._run_tmux")
+    @patch.dict(os.environ, {"TMUX": "/tmp/tmux"}, clear=False)
+    def test_close_child_window_and_parent_guard(self, run_tmux) -> None:
+        def fake_tmux(*args: str):
+            self.tmux_calls.append(list(args))
+            if args[:4] == ("display-message", "-p", "-t", "%1"):
+                if args[4] == "#{pane_id}":
+                    return subprocess.CompletedProcess(args, 0, "%1", "")
+                if args[4] == "#{window_index}":
+                    return subprocess.CompletedProcess(args, 0, "0", "")
+            if args[:3] == ("display-message", "-p", "#{window_index}"):
+                return subprocess.CompletedProcess(args, 0, "0", "")
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        run_tmux.side_effect = fake_tmux
+        self.assertFalse(is_safe_child_close_target("mike", "mike", "%1", root=self.root))
+        self.assertFalse(is_safe_child_close_target("mike", "november", "%1", root=self.root))
+        self.assertFalse(close_child_window(""))
+        self.assertFalse(close_child_window("%dead"))
+        with patch("program_child_tabs._pane_live", return_value=True):
+            with patch("program_child_tabs._pane_matches_child", return_value=True):
+                with patch("program_child_tabs._pane_window_index", return_value="2"):
+                    with patch("program_child_tabs._current_window_index", return_value="0"):
+                        self.assertTrue(
+                            is_safe_child_close_target(
+                                "mike", "november", "%2", root=self.root
+                            )
+                        )
+            self.assertTrue(close_child_window("%2"))
+        kill_calls = [c for c in self.tmux_calls if c[:2] == ["kill-window", "-t"]]
+        self.assertEqual(kill_calls, [["kill-window", "-t", "%2"]])
 
 
 if __name__ == "__main__":

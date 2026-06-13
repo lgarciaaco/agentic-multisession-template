@@ -11,10 +11,12 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from program_monitor import (  # noqa: E402
     child_gate_review,
+    cleanup_completed_children,
     monitor_program,
     program_parent_next_action,
     render_program_status_markdown,
@@ -409,6 +411,172 @@ none
             (self.root / "sessions" / self.child / "workflow.json").read_text()
         )
         self.assertEqual(workflow["phase"], "plan_loop")
+
+    def _write_completed_child_workflow(self) -> None:
+        child_dir = self.root / "sessions" / self.child
+        workflow = {
+            "version": 2,
+            "phase": "completed",
+            "gates": {"brief_accepted": True, "plan_user_accepted": True},
+            "loops": {},
+            "artifacts": {},
+        }
+        (child_dir / "workflow.json").write_text(json.dumps(workflow, indent=2) + "\n")
+
+    @patch("program_monitor.close_child_window", return_value=True)
+    @patch("program_monitor.resolve_child_window", return_value="%9")
+    @patch("program_monitor.is_safe_child_close_target", return_value=True)
+    @patch("program_monitor.in_tmux", return_value=True)
+    def test_cleanup_completed_children_updates_status_and_closes_tab(
+        self,
+        _in_tmux,
+        _safe,
+        resolve,
+        close,
+    ) -> None:
+        self._write_completed_child_workflow()
+        parent_dir = self.root / "sessions" / self.parent
+        program = json.loads((parent_dir / "program.json").read_text())
+        cleanup_completed_children(self.root, self.parent, program)
+        program = json.loads((parent_dir / "program.json").read_text())
+        self.assertEqual(program["active_children"][0]["status"], "completed")
+        resolve.assert_called_once()
+        close.assert_called_once_with("%9")
+
+    @patch("program_monitor.close_child_window", return_value=False)
+    @patch("program_monitor.resolve_child_window", return_value="%9")
+    @patch("program_monitor.is_safe_child_close_target", return_value=True)
+    @patch("program_monitor.in_tmux", return_value=True)
+    def test_cleanup_persists_status_when_kill_fails(
+        self,
+        _in_tmux,
+        _safe,
+        _resolve,
+        _close,
+    ) -> None:
+        self._write_completed_child_workflow()
+        parent_dir = self.root / "sessions" / self.parent
+        program = json.loads((parent_dir / "program.json").read_text())
+        cleanup_completed_children(self.root, self.parent, program)
+        program = json.loads((parent_dir / "program.json").read_text())
+        self.assertEqual(program["active_children"][0]["status"], "completed")
+
+    @patch("program_monitor.close_child_window")
+    @patch("program_monitor.resolve_child_window", return_value=None)
+    @patch("program_monitor.in_tmux", return_value=True)
+    def test_cleanup_idempotent_when_window_absent(
+        self,
+        _in_tmux,
+        _resolve,
+        close,
+    ) -> None:
+        self._write_completed_child_workflow()
+        parent_dir = self.root / "sessions" / self.parent
+        program = json.loads((parent_dir / "program.json").read_text())
+        cleanup_completed_children(self.root, self.parent, program)
+        cleanup_completed_children(self.root, self.parent, program)
+        program = json.loads((parent_dir / "program.json").read_text())
+        self.assertEqual(program["active_children"][0]["status"], "completed")
+        close.assert_not_called()
+
+    @patch("program_monitor.close_child_window")
+    @patch("program_monitor.resolve_child_window", return_value="%9")
+    @patch("program_monitor.is_safe_child_close_target", return_value=False)
+    @patch("program_monitor.in_tmux", return_value=True)
+    def test_cleanup_skips_parent_window_target(
+        self,
+        _in_tmux,
+        _safe,
+        _resolve,
+        close,
+    ) -> None:
+        self._write_completed_child_workflow()
+        parent_dir = self.root / "sessions" / self.parent
+        program = json.loads((parent_dir / "program.json").read_text())
+        cleanup_completed_children(self.root, self.parent, program)
+        close.assert_not_called()
+        program = json.loads((parent_dir / "program.json").read_text())
+        self.assertEqual(program["active_children"][0]["status"], "completed")
+
+    @patch("program_monitor.close_child_window", return_value=True)
+    @patch("program_monitor.resolve_child_window", return_value="%9")
+    @patch("program_monitor.is_safe_child_close_target", return_value=True)
+    @patch("program_monitor.in_tmux", return_value=True)
+    def test_cleanup_passes_window_label_for_label_only_resolution(
+        self,
+        _in_tmux,
+        _safe,
+        resolve,
+        _close,
+    ) -> None:
+        self._write_completed_child_workflow()
+        parent_dir = self.root / "sessions" / self.parent
+        program = json.loads((parent_dir / "program.json").read_text())
+        program["active_children"][0]["window_label"] = "hub-november"
+        save_program(parent_dir, program)
+        program = json.loads((parent_dir / "program.json").read_text())
+        cleanup_completed_children(self.root, self.parent, program)
+        resolve.assert_called_once_with(
+            self.root,
+            self.child,
+            pane_id=None,
+            window_label="hub-november",
+        )
+
+    @patch("program_monitor.close_child_window")
+    @patch("program_monitor.resolve_child_window")
+    @patch("program_monitor.in_tmux", return_value=True)
+    def test_cleanup_skips_non_completed_workflow_phase(
+        self,
+        _in_tmux,
+        resolve,
+        close,
+    ) -> None:
+        parent_dir = self.root / "sessions" / self.parent
+        program = json.loads((parent_dir / "program.json").read_text())
+        cleanup_completed_children(self.root, self.parent, program)
+        resolve.assert_not_called()
+        close.assert_not_called()
+        program = json.loads((parent_dir / "program.json").read_text())
+        self.assertEqual(program["active_children"][0]["status"], "running")
+
+    @patch("program_monitor.close_child_window")
+    @patch("program_monitor.resolve_child_window")
+    @patch.dict(os.environ, {}, clear=True)
+    def test_cleanup_without_tmux_updates_status_only(
+        self,
+        resolve,
+        close,
+    ) -> None:
+        os.environ.pop("TMUX", None)
+        self._write_completed_child_workflow()
+        parent_dir = self.root / "sessions" / self.parent
+        program = json.loads((parent_dir / "program.json").read_text())
+        cleanup_completed_children(self.root, self.parent, program)
+        program = json.loads((parent_dir / "program.json").read_text())
+        self.assertEqual(program["active_children"][0]["status"], "completed")
+        resolve.assert_not_called()
+        close.assert_not_called()
+
+    @patch("program_monitor.close_child_window", return_value=True)
+    @patch("program_monitor.resolve_child_window", return_value="%9")
+    @patch("program_monitor.is_safe_child_close_target", return_value=True)
+    @patch("program_monitor.in_tmux", return_value=True)
+    def test_monitor_program_runs_cleanup(
+        self,
+        _in_tmux,
+        _safe,
+        resolve,
+        close,
+    ) -> None:
+        self._write_completed_child_workflow()
+        monitor_program(self.root, self.parent)
+        resolve.assert_called()
+        close.assert_called()
+        program = json.loads(
+            (self.root / "sessions" / self.parent / "program.json").read_text()
+        )
+        self.assertEqual(program["active_children"][0]["status"], "completed")
 
 
     def _add_second_child(self, codename: str = "oscar") -> None:

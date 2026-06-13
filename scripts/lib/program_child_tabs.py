@@ -42,6 +42,145 @@ def _current_window_index() -> str | None:
     return value or None
 
 
+def _pane_live(pane_id: str) -> bool:
+    result = _run_tmux("display-message", "-p", "-t", pane_id, "#{pane_id}")
+    if not result:
+        return False
+    return bool(result.stdout.strip())
+
+
+def _pane_window_index(pane_id: str) -> str | None:
+    result = _run_tmux("display-message", "-p", "-t", pane_id, "#{window_index}")
+    if not result:
+        return None
+    value = result.stdout.strip()
+    return value or None
+
+
+def _path_under_hub(root: Path, pane_path: str) -> bool:
+    if not pane_path or not pane_path.strip():
+        return False
+    try:
+        resolved = Path(pane_path).expanduser().resolve()
+        return resolved == root.resolve() or root.resolve() in resolved.parents
+    except OSError:
+        return False
+
+
+def _list_session_panes(root: Path) -> list[dict[str, str]]:
+    if not in_tmux():
+        return []
+    opt = tmux_pane_option()
+    result = _run_tmux(
+        "list-panes",
+        "-s",
+        "-F",
+        f"#{{pane_id}}\t#{{@{opt}}}\t#{{pane_current_path}}\t#{{window_name}}\t#{{window_index}}",
+    )
+    if not result:
+        return []
+    hub = root.resolve()
+    panes: list[dict[str, str]] = []
+    for line in result.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 5:
+            continue
+        pane_id, codename, pane_path, window_name, window_index = parts[:5]
+        if not _path_under_hub(hub, pane_path):
+            continue
+        panes.append(
+            {
+                "pane_id": pane_id.strip(),
+                "codename": codename.strip(),
+                "window_name": window_name.strip(),
+                "window_index": window_index.strip(),
+            }
+        )
+    return panes
+
+
+def _pane_codename_and_path(pane_id: str) -> tuple[str, str]:
+    opt = tmux_pane_option()
+    result = _run_tmux(
+        "display-message",
+        "-p",
+        "-t",
+        pane_id,
+        f"#{{@{opt}}}\t#{{pane_current_path}}",
+    )
+    if not result:
+        return "", ""
+    parts = result.stdout.split("\t", 1)
+    codename = parts[0].strip() if parts else ""
+    pane_path = parts[1].strip() if len(parts) > 1 else ""
+    return codename, pane_path
+
+
+def _pane_matches_child(
+    root: Path,
+    pane_id: str,
+    codename: str,
+) -> bool:
+    if not _pane_live(pane_id):
+        return False
+    pane_codename, pane_path = _pane_codename_and_path(pane_id)
+    return pane_codename == codename and _path_under_hub(root, pane_path)
+
+
+def resolve_child_window(
+    root: Path,
+    codename: str,
+    *,
+    pane_id: str | None = None,
+    window_label: str | None = None,
+) -> str | None:
+    """Resolve a child tmux window target for kill-window."""
+    name = validate_codename(codename)
+    if pane_id and _pane_matches_child(root, pane_id, name):
+        return pane_id
+
+    label = (window_label or tmux_window_label(name) or "").strip()
+    panes = _list_session_panes(root)
+    for pane in panes:
+        if pane["codename"] == name:
+            return pane["pane_id"]
+    if label:
+        for pane in panes:
+            if pane["window_name"] == label:
+                return pane["pane_id"]
+    return None
+
+
+def is_safe_child_close_target(
+    parent_codename: str,
+    child_codename: str,
+    pane_id: str,
+    *,
+    root: Path | None = None,
+) -> bool:
+    """Reject parent codename and the parent's current tmux window."""
+    parent = validate_codename(parent_codename)
+    child = validate_codename(child_codename)
+    if child == parent:
+        return False
+    if not _pane_live(pane_id):
+        return False
+    if root is not None and not _pane_matches_child(root, pane_id, child):
+        return False
+    parent_window = _current_window_index()
+    target_window = _pane_window_index(pane_id)
+    if parent_window is not None and target_window == parent_window:
+        return False
+    return True
+
+
+def close_child_window(pane_id: str) -> bool:
+    """Kill the tmux window containing pane_id. Returns False when absent or tmux fails."""
+    if not pane_id or not _pane_live(pane_id):
+        return False
+    return _run_tmux("kill-window", "-t", pane_id) is not None
+
+
 def _select_window(index: str) -> None:
     _run_tmux("select-window", "-t", index)
 

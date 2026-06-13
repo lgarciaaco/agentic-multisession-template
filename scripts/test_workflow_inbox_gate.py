@@ -13,11 +13,11 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from program_route_feedback import route_feedback  # noqa: E402
+from program_route_feedback import route_correction, route_feedback  # noqa: E402
 from program_state import default_program, save_program  # noqa: E402
 from session_binding import sync_session_from_canonical, write_inbox  # noqa: E402
 from workflow_inbox_gate import (  # noqa: E402
-    INBOX_POLL_SECONDS,
+    INBOX_GATE_POLL_SECONDS,
     accept_brief,
     apply_brief_correction,
     apply_plan_feedback,
@@ -297,28 +297,47 @@ none
             "program_route_feedback.resolve_codename",
             return_value=(self.sibling, "binding"),
         ):
-            with self.assertRaisesRegex(ValueError, f"not {self.sibling!r}"):
-                route_feedback(
-                    self.root,
-                    parent=self.parent,
-                    child=self.child,
-                    gate="brief_review",
-                    message="accept brief",
-                )
+            with mock.patch("program_route_feedback.load_program") as load_program:
+                with self.assertRaisesRegex(ValueError, f"not {self.sibling!r}"):
+                    route_feedback(
+                        self.root,
+                        parent=self.parent,
+                        child=self.child,
+                        gate="brief_review",
+                        message="accept brief",
+                    )
+                load_program.assert_not_called()
 
     def test_route_feedback_rejects_unbound_caller(self) -> None:
         with mock.patch(
             "program_route_feedback.resolve_codename",
             return_value=(None, ""),
         ):
-            with self.assertRaisesRegex(ValueError, "not unbound caller"):
-                route_feedback(
-                    self.root,
-                    parent=self.parent,
-                    child=self.child,
-                    gate="brief_review",
-                    message="accept brief",
-                )
+            with mock.patch("program_route_feedback.load_program") as load_program:
+                with self.assertRaisesRegex(ValueError, "not unbound caller"):
+                    route_feedback(
+                        self.root,
+                        parent=self.parent,
+                        child=self.child,
+                        gate="brief_review",
+                        message="accept brief",
+                    )
+                load_program.assert_not_called()
+
+    def test_route_correction_rejects_unbound_caller(self) -> None:
+        with mock.patch(
+            "program_route_feedback.resolve_codename",
+            return_value=(None, ""),
+        ):
+            with mock.patch("program_route_feedback.load_program") as load_program:
+                with self.assertRaisesRegex(ValueError, "not unbound caller"):
+                    route_correction(
+                        self.root,
+                        parent=self.parent,
+                        child=self.child,
+                        message="fix the brief scope",
+                    )
+                load_program.assert_not_called()
 
     def test_write_inbox_program_route_is_removed(self) -> None:
         from session_binding import write_inbox_program_route
@@ -360,7 +379,7 @@ none
         )
         result = pull_inbox_gate(self.root, self.codename, apply=False)
         self.assertTrue(result["gate_phase"])
-        self.assertEqual(result["poll_seconds"], INBOX_POLL_SECONDS)
+        self.assertEqual(result["poll_seconds"], INBOX_GATE_POLL_SECONDS)
         self.assertEqual(len(result["pending"]), 1)
         self.assertEqual(result["pending"][0]["action"], "accept_brief")
 

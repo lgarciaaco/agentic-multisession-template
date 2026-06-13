@@ -12,6 +12,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 from hub_paths import hub_root
+from time_utils import utc_now_iso
 from inbox_provenance import inbox_block_marker, record_inbox_block_provenance
 
 CLOSED_STATUSES = frozenset({"completed", "closed", "cancelled"})
@@ -25,10 +26,6 @@ RESOLVE_SOURCE_LABELS = {
 }
 # Cursor chats auto-persist bindings from these tmux sources (not sibling inherit).
 AUTO_PERSIST_BINDING_SOURCES = frozenset({"tmux-pane", "tmux"})
-
-
-def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
 def validate_codename(codename: str) -> str:
@@ -763,7 +760,7 @@ def resume_session_on_bind(root: Path, codename: str) -> None:
         return
 
     today = date.today().isoformat()
-    now = _utc_now_iso()
+    now = utc_now_iso()
     changed = False
     if session.get("status") != "active":
         session["status"] = "active"
@@ -891,7 +888,7 @@ def _append_inbox_message(
 ) -> Path:
     path = inbox_path(root, to_name)
     path.parent.mkdir(parents=True, exist_ok=True)
-    stamp = _utc_now_iso()[:10]
+    stamp = utc_now_iso()[:10]
     marker = inbox_block_marker(from_name, stamp, message)
     record_inbox_block_provenance(
         root,
@@ -1254,7 +1251,8 @@ def format_workflow_section(root: Path, codename: str) -> str:
 
     if phase in GATE_PHASES:
         try:
-            from workflow_inbox_gate import INBOX_POLL_SECONDS, pull_inbox_gate
+            from workflow_plan import INBOX_GATE_POLL_SECONDS
+            from workflow_inbox_gate import pull_inbox_gate
 
             gate_pull = pull_inbox_gate(root, codename, apply=False)
             pending = gate_pull.get("pending") or []
@@ -1268,7 +1266,7 @@ def format_workflow_section(root: Path, codename: str) -> str:
                 )
             else:
                 lines.append(
-                    f"- **Inbox gate:** poll every {INBOX_POLL_SECONDS // 60}m; "
+                    f"- **Inbox gate:** poll every {INBOX_GATE_POLL_SECONDS // 60}m; "
                     "auto-applied on `./scripts/sync-session.sh`"
                 )
         except (ImportError, ValueError):
@@ -1630,7 +1628,7 @@ def write_binding(
     auto_bound: bool | None = None,
 ) -> dict:
     bindings_dir(root).mkdir(parents=True, exist_ok=True)
-    now = _utc_now_iso()
+    now = utc_now_iso()
     existing = read_binding(root, conversation_id, active_only=False)
     data = {
         "conversation_id": conversation_id,
@@ -1655,7 +1653,7 @@ def touch_binding_active(root: Path, conversation_id: str) -> None:
     data = read_binding(root, conversation_id, active_only=False)
     if not data:
         return
-    data["last_active_at"] = _utc_now_iso()
+    data["last_active_at"] = utc_now_iso()
     binding_path(root, conversation_id).write_text(json.dumps(data, indent=2) + "\n")
 
 
@@ -2206,7 +2204,7 @@ def close_session_work(root: Path, codename: str, note: str = "") -> None:
     name = validate_codename(codename)
     session_dir = root / "sessions" / name
     today = date.today().isoformat()
-    ended_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    ended_at = utc_now_iso()
 
     session_json_path = session_dir / "session.json"
     if not session_json_path.exists():

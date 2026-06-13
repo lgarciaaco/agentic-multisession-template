@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +20,7 @@ from hub_paths import resolve_session_artifact
 from program_state import GATE_PHASES, find_program_parent
 from inbox_provenance import inbox_block_marker
 from session_binding import read_inbox, sanitize_goal_text, validate_codename
+from time_utils import utc_now_iso
 from workflow_plan import (
     INBOX_GATE_POLL_SECONDS,
     accept_action_plan,
@@ -31,16 +31,10 @@ from workflow_plan import (
 )
 from workflow_resume import reopen_brief, reopen_plan
 
-INBOX_POLL_SECONDS = INBOX_GATE_POLL_SECONDS
-
 _INBOX_BLOCK_RE = re.compile(
     r"^\*\*From `(?P<from>[^`]+)`\*\* \((?P<date>[^)]+)\)\s*\n+(?P<body>.*?)(?=^\*\*From `|\Z)",
     re.MULTILINE | re.DOTALL,
 )
-
-def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
 
 def inbox_gate_state(workflow: dict[str, Any]) -> dict[str, Any]:
     gates = workflow.setdefault("gates", {})
@@ -144,7 +138,7 @@ def set_problem_brief_accepted(session_dir: Path, brief_rel: str) -> None:
     brief_path = resolve_session_artifact(session_dir, brief_rel)
     if not brief_path.exists():
         raise ValueError(f"missing brief artifact: {brief_rel}")
-    accepted = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    accepted = utc_now_iso()[:10]
     text = brief_path.read_text()
     text = re.sub(
         r"^\*\*Status:\*\*.*$",
@@ -207,7 +201,7 @@ def apply_brief_correction(
     brief_rel = artifact_rel(workflow, "brief")
     brief_path = resolve_artifact(session_dir, workflow, "brief")
     brief_path.parent.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    stamp = utc_now_iso()[:10]
     safe_body = sanitize_goal_text(message.strip())
     block = f"\n\n## Inbox correction from `{from_session}` ({stamp})\n\n{safe_body}\n"
     if brief_path.exists():
@@ -234,7 +228,7 @@ def apply_plan_feedback(
     feedback_rel = artifact_rel(workflow, "plan_feedback")
     feedback_path = resolve_artifact(session_dir, workflow, "plan_feedback")
     feedback_path.parent.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    stamp = utc_now_iso()[:10]
     safe_body = sanitize_goal_text(message.strip())
     block = f"\n\n## Inbox feedback from `{from_session}` ({stamp})\n\n{safe_body}\n"
     if feedback_path.exists():
@@ -254,7 +248,7 @@ def mark_inbox_processed(workflow: dict[str, Any], markers: list[str]) -> None:
         if marker not in processed:
             processed.append(marker)
     inbox["processed_markers"] = processed
-    inbox["last_pull_at"] = _utc_now_iso()
+    inbox["last_pull_at"] = utc_now_iso()
 
 
 def pull_inbox_gate(
@@ -292,7 +286,7 @@ def pull_inbox_gate(
         "codename": codename,
         "phase": phase,
         "gate_phase": phase in GATE_PHASES,
-        "poll_seconds": INBOX_POLL_SECONDS,
+        "poll_seconds": INBOX_GATE_POLL_SECONDS,
         "last_pull_at": inbox.get("last_pull_at"),
         "pending": pending,
         "applied": [],
@@ -301,7 +295,7 @@ def pull_inbox_gate(
 
     if not apply or not pending:
         if phase in GATE_PHASES:
-            inbox["last_pull_at"] = _utc_now_iso()
+            inbox["last_pull_at"] = utc_now_iso()
             save_workflow(session_dir, workflow)
         return result
 

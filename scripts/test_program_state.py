@@ -77,6 +77,21 @@ class ProgramStateTests(unittest.TestCase):
         save_program(parent_dir, default_program("alpha"))
         self.assertIsNone(find_program_parent(self.root, "charlie"))
 
+    def test_find_program_parent_cache_avoids_rescan(self) -> None:
+        parent_dir = self.root / "sessions" / "alpha"
+        child_dir = self.root / "sessions" / "charlie"
+        parent_dir.mkdir(parents=True)
+        child_dir.mkdir(parents=True)
+        (parent_dir / "artifacts").mkdir()
+        program = default_program("alpha")
+        program["active_children"] = [{"codename": "charlie", "status": "running"}]
+        save_program(parent_dir, program)
+        with mock.patch("program_state.load_program", wraps=load_program) as load_program_mock:
+            self.assertEqual(find_program_parent(self.root, "charlie"), "alpha")
+            first_calls = load_program_mock.call_count
+            self.assertEqual(find_program_parent(self.root, "charlie"), "alpha")
+            self.assertEqual(load_program_mock.call_count, first_calls)
+
     def test_template_file_parses(self) -> None:
         hub_root = Path(__file__).resolve().parent.parent
         template_path = hub_root / "sessions" / "_template" / "program.json"

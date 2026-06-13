@@ -77,6 +77,30 @@ class ProgramStateTests(unittest.TestCase):
         save_program(parent_dir, default_program("alpha"))
         self.assertIsNone(find_program_parent(self.root, "charlie"))
 
+    def test_active_child_last_routed_metadata_round_trip(self) -> None:
+        program = default_program("mike")
+        program["active_children"] = [
+            {
+                "codename": "november",
+                "status": "running",
+                "last_routed_at": "2026-06-13T10:00:00Z",
+                "last_routed_message": "accept brief",
+            }
+        ]
+        save_program(self.session_dir, program)
+        loaded = load_program(self.session_dir)
+        entry = loaded["active_children"][0]
+        self.assertEqual(entry["last_routed_at"], "2026-06-13T10:00:00Z")
+        self.assertEqual(entry["last_routed_message"], "accept brief")
+
+    def test_active_child_rejects_unknown_keys(self) -> None:
+        program = default_program("mike")
+        program["active_children"] = [
+            {"codename": "november", "status": "running", "extra": "nope"}
+        ]
+        with self.assertRaisesRegex(ValueError, "unknown keys"):
+            save_program(self.session_dir, program)
+
     def test_find_program_parent_cache_avoids_rescan(self) -> None:
         parent_dir = self.root / "sessions" / "alpha"
         child_dir = self.root / "sessions" / "charlie"

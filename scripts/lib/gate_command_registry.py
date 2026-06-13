@@ -89,7 +89,7 @@ def normalize_route_message(message: str) -> str:
 
 
 def is_allowed_route_message(phase: str, message: str) -> bool:
-    return normalize_route_message(message) in allowed_route_messages(phase)
+    return classify_gate_command(phase, message) is not None
 
 
 def classify_gate_command(phase: str, first_line: str) -> str | None:

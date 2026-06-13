@@ -32,6 +32,11 @@ def main() -> int:
         action="store_true",
         help="Send free-text brief/plan correction (omit --gate)",
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Bypass skip guards (already-accepted gate, phase guard, dedupe cooldown)",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Print message only")
     args = parser.parse_args()
 
@@ -41,13 +46,14 @@ def main() -> int:
 
     try:
         if args.gate:
-            payload = route_feedback(
+            result = route_feedback(
                 hub_root(),
                 parent=args.parent,
                 child=args.child,
                 gate=args.gate,
                 message=args.message,
                 dry_run=args.dry_run,
+                force=args.force,
             )
         else:
             normalized = normalize_route_message(args.message)
@@ -58,23 +64,28 @@ def main() -> int:
                         file=sys.stderr,
                     )
                     return 1
-            payload = route_correction(
+            result = route_correction(
                 hub_root(),
                 parent=args.parent,
                 child=args.child,
                 message=args.message,
                 dry_run=args.dry_run,
+                force=args.force,
             )
     except (ValueError, RuntimeError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
 
-    child = validate_codename(args.child)
     if args.dry_run:
-        print(payload)
+        print(result.payload)
         print("dry-run ok")
-    else:
-        print(f"sent to tmux pane for {child}: {payload}")
+        return 0
+
+    if result.skip_reason:
+        print(f"skipped: {result.skip_reason}")
+        return 0
+
+    print(f"sent: {result.payload}")
     return 0
 
 

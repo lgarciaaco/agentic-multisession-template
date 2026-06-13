@@ -1,3 +1,3 @@
-Load `.cursor/skills/session-orchestrator/SKILL.md`.
+Load `.cursor/skills/session-start/SKILL.md`.
 
 Task: $ARGUMENTS

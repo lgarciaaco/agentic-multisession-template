@@ -49,7 +49,7 @@ One chat, one conductor. Linear pipeline with autonomous plan and code loops bet
 | `brief_review` | problem-analyst.md | accept brief (chat or correlated inbox) |
 | `plan_loop` | plan-author + plan-reviewer (Task) | — |
 | `plan_user_review` | conductor presents plan + refused dispositions | accept plan (chat or correlated inbox) |
-| `implementation` | session-orchestrator + conductor developer section | — |
+| `implementation` | session-start + conductor developer section | — |
 | `code_review_loop` | code-reviewer + code-fixer (parent) | — |
 | `pr_creation` | git-commit + pr-create skills (parent) | — |
 | `ci_observe` | CI poll + ci-fixer (parent) | — |
@@ -139,7 +139,7 @@ Syncs `action-plan.md` tasks → `session.json` + `TASKS.md`, sets `plan_user_ac
 
 ### Implementation phase
 
-Load [session-orchestrator/SKILL.md](../session-orchestrator/SKILL.md) + [rules/conductor.md](rules/conductor.md) developer section. Edit worktrees only after accept plan.
+Load [session-start/SKILL.md](../session-start/SKILL.md) + [rules/conductor.md](rules/conductor.md) developer section. Edit worktrees only after accept plan.
 
 ### Code review loop
 

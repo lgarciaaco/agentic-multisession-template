@@ -16,7 +16,7 @@ Single-chat orchestrator for Problem → Plan → Code → Review → PR → CI 
 | `brief_review` | problem-analyst.md | user `accept brief` |
 | `plan_loop` | plan-author + plan-reviewer (Task) | synthesizer APPROVE |
 | `plan_user_review` | conductor presents plan + **refused dispositions only** | user `accept plan` |
-| `implementation` | session-orchestrator + developer section | slice ready → **auto** code review |
+| `implementation` | session-start + developer section | slice ready → **auto** code review |
 | `code_review_loop` | code-reviewer + code-fixer (parent) | synthesizer PASS |
 | `pr_creation` | git-commit + pr-create skills (parent) | SUCCESS → ci_observe |
 | `ci_observe` | CI poll + [ci-fixer.md](ci-fixer.md) (parent) | GREEN → delivery |
@@ -242,7 +242,7 @@ Present stuck summary with phase, iteration, verdict, artifact paths. Suggested:
 | code_review_loop | code-reviewer SKILL + [code-fixer.md](code-fixer.md) |
 | pr_creation | `.cursor/skills/git-commit/SKILL.md` + `.cursor/skills/pr-create/SKILL.md` |
 | ci_observe | CI poll + [ci-fixer.md](ci-fixer.md) |
-| implementation | [session-orchestrator/SKILL.md](../../session-orchestrator/SKILL.md) |
+| implementation | [session-start/SKILL.md](../../session-start/SKILL.md) |
 
 ## Writable (conductor)
 

@@ -195,7 +195,7 @@ Tab 3: my-agent → pick bravo  →  separate branch + worktree
 
 ## Cursor chat workflow
 
-1. **start work** / `/start-work` — orchestrator lists sessions, you pick codename or **new**
+1. **start work** / `/start-work` — session-start skill runs the session picker; you pick codename or **new**
 2. Hooks may have **auto-persisted** the binding from tmux pane/window — run `./scripts/session-audit.sh` to verify. Use `./scripts/bind-session.sh <codename>` when unbound or after sibling inherit (`tmux-session`) only
 3. When work intent is clear: `./scripts/set-session-scope.sh <codename> --title "…" --goal "…"` before product edits
 4. `./scripts/ensure-worktrees.sh <codename>` when tasks have `repo` (required for self-hosted hubs — `repos-status` → `self_hosted: true`)

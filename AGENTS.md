@@ -18,7 +18,7 @@ Hub install if needed: `pip install -r scripts/requirements.txt` && `./scripts/i
 
 **Tmux:** `$(cat .hub-launcher)` — not bare `agent`.
 
-**Cursor:** **start work** / **`/start-work`** → `.cursor/skills/session-orchestrator/SKILL.md`
+**Cursor:** **start work** / **`/start-work`** → `.cursor/skills/session-start/SKILL.md`
 
 1. `./scripts/repos-status.sh` — if not `ready` and user wants **product** work, bootstrap repos first (ask if missing).
 2. `./scripts/resolve-session.sh` or picker → bind codename (hooks auto-persist from tmux pane/window, not sibling inherit; first-prompt fallback — see [SESSIONS.md](SESSIONS.md) Chat auto-bind; `./scripts/session-audit.sh` to verify)
@@ -97,7 +97,7 @@ Session context lists which guideline files exist on bind. Optional `guidelines:
 | | Path |
 |-|------|
 | Bootstrap | `.cursor/skills/bootstrap-hub` |
-| Start | `.cursor/skills/session-orchestrator` |
+| Start | `.cursor/skills/session-start` |
 | Program | `.cursor/skills/sessions-orchestrator` |
 | Workflow | `.cursor/skills/workflow-orchestrator` |
 | Code review (`/pr-review`) | `.cursor/skills/code-reviewer` |

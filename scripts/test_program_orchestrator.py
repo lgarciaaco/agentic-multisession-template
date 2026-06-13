@@ -445,14 +445,18 @@ print(status_path)
         self.assertFalse(workflow["gates"]["brief_accepted"])
 
     def test_route_feedback_unknown_child_raises(self) -> None:
-        with self.assertRaisesRegex(ValueError, "not registered"):
-            route_feedback(
-                self.root,
-                parent=self.parent,
-                child="oscar",
-                gate="brief_review",
-                message="accept brief",
-            )
+        with mock.patch(
+            "program_route_feedback.resolve_codename",
+            return_value=(self.parent, "binding"),
+        ):
+            with self.assertRaisesRegex(ValueError, "not registered"):
+                route_feedback(
+                    self.root,
+                    parent=self.parent,
+                    child="oscar",
+                    gate="brief_review",
+                    message="accept brief",
+                )
 
     def test_route_feedback_rejects_prose(self) -> None:
         with self.assertRaisesRegex(ValueError, "invalid message"):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import json
 from pathlib import Path
 from typing import Any
@@ -252,10 +253,20 @@ def save_program(session_dir: Path, program: dict[str, Any], *, codename: str | 
 def find_program_parent(root: Path, child: str) -> str | None:
     """Return parent codename when child is registered in a program's active_children.
 
+    Results are cached per process for repeated (root, child) lookups. Cache is not
+    invalidated when program.json changes — safe for CLI one-shot use; long-lived
+    callers should restart or accept stale reads until process exit.
+
     Raises:
         ValueError: when child is not a valid codename.
     """
     child_name = validate_codename(child)
+    return _find_program_parent_cached(str(root.resolve()), child_name)
+
+
+@functools.lru_cache(maxsize=256)
+def _find_program_parent_cached(root_str: str, child: str) -> str | None:
+    root = Path(root_str)
     sessions_dir = root / "sessions"
     if not sessions_dir.is_dir():
         return None
@@ -270,6 +281,6 @@ def find_program_parent(root: Path, child: str) -> str | None:
         except (ValueError, FileNotFoundError, OSError):
             continue
         active = {entry["codename"] for entry in program["active_children"]}
-        if child_name in active:
+        if child in active:
             return program["parent_codename"]
     return None

@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -20,10 +19,7 @@ from program_child_tabs import (
 )
 from program_state import load_program, save_program
 from session_binding import validate_codename
-
-
-def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+from time_utils import utc_now_iso
 
 
 def _run_script(root: Path, script: str, *args: str) -> str:
@@ -90,7 +86,7 @@ def bootstrap_children(
 
     bootstrapped: list[dict[str, Any]] = []
     program["decomposition_approved"] = True
-    started = _utc_now_iso()
+    started = utc_now_iso()
     existing_children = list(program.get("active_children") or [])
     existing_codenames = {
         str(item.get("codename"))

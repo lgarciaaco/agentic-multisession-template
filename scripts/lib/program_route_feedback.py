@@ -81,11 +81,11 @@ def route_feedback(
             f"invalid message for {gate}; expected one of: {', '.join(sorted(allowed_msgs))}"
         )
 
+    _require_bound_parent(root, parent_name)
     program = load_program(root / "sessions" / parent_name)
     _active_child_entry(program, child_name)
 
     command = message.strip()
-    _require_bound_parent(root, parent_name)
     _require_child_gate_phase(root, child_name, gate)
     if dry_run:
         return command
@@ -111,10 +111,10 @@ def route_correction(
     if not body:
         raise ValueError("correction message must not be empty")
 
+    _require_bound_parent(root, parent_name)
     program = load_program(root / "sessions" / parent_name)
     _active_child_entry(program, child_name)
 
-    _require_bound_parent(root, parent_name)
     if dry_run:
         return body
 

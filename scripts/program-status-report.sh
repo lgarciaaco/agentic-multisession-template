@@ -5,6 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 export WORKSPACE_ROOT="${WORKSPACE_ROOT:-$ROOT}"
+export HUB_SCRIPTS_LIB="$(cd "$(dirname "$0")/lib" && pwd)"
 
 CODENAME="${1:?usage: program-status-report.sh <parent-codename> [--reviews-json path]}"
 REVIEWS_JSON=""
@@ -30,7 +31,7 @@ from pathlib import Path
 import os
 
 root = Path(os.environ["WORKSPACE_ROOT"])
-sys.path.insert(0, str(root / "scripts" / "lib"))
+sys.path.insert(0, os.environ["HUB_SCRIPTS_LIB"])
 
 from hub_paths import resolve_session_artifact
 from program_monitor import monitor_program, render_program_status_markdown

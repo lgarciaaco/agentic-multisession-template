@@ -1252,24 +1252,30 @@ def format_workflow_section(root: Path, codename: str) -> str:
     if phase in GATE_PHASES:
         try:
             from workflow_plan import INBOX_GATE_POLL_SECONDS
-            from workflow_inbox_gate import pull_inbox_gate
+            from workflow_inbox_gate import inbox_gate_poll_enabled, pull_inbox_gate
 
-            gate_pull = pull_inbox_gate(root, codename, apply=False)
-            pending = gate_pull.get("pending") or []
-            if pending:
-                first = pending[0]
-                action = sanitize_context_text(str(first.get("action") or ""), max_len=40)
-                from_sess = sanitize_context_text(str(first.get("from") or ""), max_len=40)
+            if not inbox_gate_poll_enabled(root, codename):
                 lines.append(
-                    f"- **Inbox gate:** {len(pending)} pending; next `{action}` from `{from_sess}` "
-                    "(chat gate command, workflow-accept-*.sh, or program-route-feedback — not auto-applied)"
+                    "- **Inbox gate:** poll disabled — program child; parent routes via "
+                    "program-route-feedback.py (tmux send-keys)"
                 )
             else:
-                lines.append(
-                    f"- **Inbox gate:** poll every {INBOX_GATE_POLL_SECONDS // 60}m via "
-                    "workflow-pull-inbox-gate.py --apply (classify-only); cross gate via chat, "
-                    "workflow-accept-*.sh, or program-route-feedback"
-                )
+                gate_pull = pull_inbox_gate(root, codename, apply=False)
+                pending = gate_pull.get("pending") or []
+                if pending:
+                    first = pending[0]
+                    action = sanitize_context_text(str(first.get("action") or ""), max_len=40)
+                    from_sess = sanitize_context_text(str(first.get("from") or ""), max_len=40)
+                    lines.append(
+                        f"- **Inbox gate:** {len(pending)} pending; next `{action}` from `{from_sess}` "
+                        "(chat gate command, workflow-accept-*.sh — classify-only poll, not auto-applied)"
+                    )
+                else:
+                    lines.append(
+                        f"- **Inbox gate:** poll every {INBOX_GATE_POLL_SECONDS // 60}m via "
+                        "workflow-pull-inbox-gate.py --apply (classify-only); cross gate via chat "
+                        "or workflow-accept-*.sh"
+                    )
         except (ImportError, ValueError):
             pass
     try:
@@ -1431,9 +1437,11 @@ def _maybe_apply_inbox_gate_at_sync(root: Path, codename: str) -> None:
     phase = str(workflow.get("phase") or "")
     try:
         from program_state import GATE_PHASES
-        from workflow_inbox_gate import pull_inbox_gate
+        from workflow_inbox_gate import inbox_gate_poll_enabled, pull_inbox_gate
 
         if phase not in GATE_PHASES:
+            return
+        if not inbox_gate_poll_enabled(root, codename):
             return
         pull_inbox_gate(root, codename, apply=True)
     except (ImportError, ValueError):

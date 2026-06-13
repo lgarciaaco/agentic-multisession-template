@@ -25,8 +25,8 @@ def _hint_brief_review(_workflow: dict[str, Any]) -> str:
     return (
         "Present brief for gate 1: accept via chat (accept brief / accept), "
         "./scripts/workflow-accept-brief.sh, or program-route-feedback.py for program children; "
-        f"optional classify-only poll every {INBOX_GATE_POLL_SECONDS // 60}m: "
-        "workflow-pull-inbox-gate.py --apply"
+        "standalone only — optional classify-only poll every "
+        f"{INBOX_GATE_POLL_SECONDS // 60}m: workflow-pull-inbox-gate.py --apply"
     )
 
 
@@ -45,8 +45,8 @@ def _hint_plan_user_review(_workflow: dict[str, Any]) -> str:
     return (
         "Present plan for gate 2: accept via chat (accept plan), "
         "./scripts/workflow-accept-plan.sh, or program-route-feedback.py for program children; "
-        f"optional classify-only poll every {INBOX_GATE_POLL_SECONDS // 60}m: "
-        "workflow-pull-inbox-gate.py --apply"
+        "standalone only — optional classify-only poll every "
+        f"{INBOX_GATE_POLL_SECONDS // 60}m: workflow-pull-inbox-gate.py --apply"
     )
 
 

@@ -52,21 +52,31 @@ On guard violation: state current phase, missing gate, and required user command
 | `plan_user_review` | `reopen plan` | `python3 scripts/workflow-reopen-plan.py <codename>` |
 | `plan_user_review` | other non-empty text | Append `artifacts/plan-feedback.md`; `phase → plan_loop` |
 
-While phase is `brief_review` or `plan_user_review`, poll inbox every **2 minutes**:
+While phase is `brief_review` or `plan_user_review`, **standalone** sessions poll inbox every **2 minutes** (classify-only):
 
 ```bash
 python3 scripts/workflow-pull-inbox-gate.py <codename> --apply
 ```
 
-On loop tick or after presenting a gate artifact, run pull with `--apply`. For `brief_correction`, apply the message to the brief before marking processed. Arm the loop per `.cursor/skills/loop/SKILL.md` (fixed `120s` schedule); stop when phase leaves a gate.
+**Program children** (`find_program_parent` returns a parent): **do not** poll inbox or arm `/loop 120s` — parent routes gates via `program-route-feedback.py` (tmux send-keys) only.
+
+On loop tick or after presenting a gate artifact (standalone only), run pull with `--apply`. For `brief_correction`, apply the message to the brief before marking processed. Arm the loop per `.cursor/skills/loop/SKILL.md` (fixed `120s` schedule) for standalone sessions only; stop when phase leaves a gate.
 
 ### Gate-entry checklist (mandatory)
 
 When entering `brief_review` or `plan_user_review`:
 
-1. Run `python3 scripts/workflow-pull-inbox-gate.py <codename> --apply` immediately.
+**Program child** (`find_program_parent(hub_root, codename)` returns a parent):
+
+1. Do **not** run `workflow-pull-inbox-gate.py` or arm `/loop 120s` inbox polling.
+2. Dual-write gate blockers to parent inbox (see **Program child dual-write**).
+3. Wait for parent to route via `program-route-feedback.py` (tmux) or user chat gate commands in this pane.
+
+**Standalone session** (no registered program parent):
+
+1. Run `python3 scripts/workflow-pull-inbox-gate.py <codename> --apply` immediately (classify-only).
 2. Arm a fixed `120s` background loop per `.cursor/skills/loop/SKILL.md` with an inbox-pull prompt; stop the loop when phase leaves a gate.
-3. `beforeSubmitPrompt` hook auto-pull is a safety net only — do not skip steps 1–2.
+3. `beforeSubmitPrompt` hook auto-pull is a safety net only — do not skip steps 1–2 for standalone sessions.
 
 ### Program child dual-write (before presenting a gate)
 

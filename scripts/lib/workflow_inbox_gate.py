@@ -36,6 +36,20 @@ _INBOX_BLOCK_RE = re.compile(
     re.MULTILINE | re.DOTALL,
 )
 
+PROGRAM_CHILD_POLL_SKIP_REASON = (
+    "program child — parent routes gates via tmux (program-route-feedback.py)"
+)
+
+
+def inbox_gate_poll_enabled(root: Path, codename: str) -> bool:
+    """Standalone sessions poll inbox at gates; program children use tmux routing only."""
+    try:
+        name = validate_codename(codename)
+    except ValueError:
+        return False
+    return find_program_parent(root, name) is None
+
+
 def inbox_gate_state(workflow: dict[str, Any]) -> dict[str, Any]:
     gates = workflow.setdefault("gates", {})
     inbox = gates.setdefault("inbox", {})
@@ -265,6 +279,22 @@ def pull_inbox_gate(
     workflow = load_workflow(session_dir)
     phase = str(workflow.get("phase") or "")
     inbox = inbox_gate_state(workflow)
+    poll_enabled = inbox_gate_poll_enabled(root, codename)
+
+    if phase in GATE_PHASES and not poll_enabled:
+        return {
+            "codename": codename,
+            "phase": phase,
+            "gate_phase": True,
+            "poll_enabled": False,
+            "poll_skipped_reason": PROGRAM_CHILD_POLL_SKIP_REASON,
+            "poll_seconds": INBOX_GATE_POLL_SECONDS,
+            "last_pull_at": inbox.get("last_pull_at"),
+            "pending": [],
+            "applied": [],
+            "rejected": [],
+        }
+
     blocks = unprocessed_inbox_blocks(root, codename, workflow)
 
     pending: list[dict[str, Any]] = []
@@ -286,6 +316,7 @@ def pull_inbox_gate(
         "codename": codename,
         "phase": phase,
         "gate_phase": phase in GATE_PHASES,
+        "poll_enabled": poll_enabled,
         "poll_seconds": INBOX_GATE_POLL_SECONDS,
         "last_pull_at": inbox.get("last_pull_at"),
         "pending": pending,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,15 @@ def _pending_gate(phase: str) -> str | None:
     if phase in GATE_PHASES:
         return phase
     return None
+
+
+def gate_column_short(pending_gate: str | None) -> str:
+    """Map workflow gate phase to slim parent chat column."""
+    if pending_gate == "brief_review":
+        return "brief"
+    if pending_gate == "plan_user_review":
+        return "plan"
+    return "—"
 
 
 def _child_scope_from_session(root: Path, codename: str) -> dict[str, str | None]:
@@ -80,6 +90,84 @@ def _proposed_scope_for_child(program: dict[str, Any], codename: str) -> dict[st
     }
 
 
+def _parse_action_plan_summary(plan_path: Path) -> dict[str, Any] | None:
+    """Lightweight parse of sibling action-plan for plan-gate cross-child review."""
+    if not plan_path.is_file():
+        return None
+    text = plan_path.read_text(encoding="utf-8")
+    tasks: list[dict[str, str]] = []
+    in_tasks = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("## Tasks"):
+            in_tasks = True
+            continue
+        if in_tasks and stripped.startswith("## "):
+            break
+        if not in_tasks or not stripped.startswith("|"):
+            continue
+        if stripped.startswith("| ID") or stripped.startswith("|----"):
+            continue
+        parts = [part.strip() for part in stripped.strip("|").split("|")]
+        if not parts:
+            continue
+        task_id = parts[0]
+        if not re.match(r"t\d+", task_id):
+            continue
+        summary = parts[-3] if len(parts) >= 4 else (parts[2] if len(parts) >= 3 else parts[1])
+        tasks.append({"id": task_id, "summary": summary})
+
+    files_areas: list[str] = []
+    in_files = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("## Files"):
+            in_files = True
+            continue
+        if in_files and stripped.startswith("## "):
+            break
+        if not in_files:
+            continue
+        if stripped.startswith("**") and stripped.endswith(":**"):
+            files_areas.append(stripped.rstrip(":"))
+        elif stripped.startswith("- `"):
+            match = re.match(r"- `([^`]+)`", stripped)
+            if match:
+                files_areas.append(match.group(1))
+
+    if not tasks and not files_areas:
+        return None
+    return {"tasks": tasks, "files_areas": files_areas}
+
+
+def sibling_program_context(
+    root: Path,
+    program: dict[str, Any],
+    exclude_codename: str,
+    *,
+    pending_gate: str | None = None,
+) -> list[dict[str, Any]]:
+    """Read-only sibling scope for cross-child gate review (excludes reviewed child)."""
+    exclude = validate_codename(exclude_codename)
+    entries: list[dict[str, Any]] = []
+    for row in program.get("active_children") or []:
+        codename = validate_codename(str(row.get("codename", "")))
+        if codename == exclude:
+            continue
+        entry: dict[str, Any] = {
+            "codename": codename,
+            "decomposition_scope": _proposed_scope_for_child(program, codename),
+            "child_scope": _child_scope_from_session(root, codename),
+        }
+        if pending_gate == "plan_user_review":
+            plan_path = root / "sessions" / codename / "artifacts" / "action-plan.md"
+            summary = _parse_action_plan_summary(plan_path)
+            if summary:
+                entry["plan_summary"] = summary
+        entries.append(entry)
+    return entries
+
+
 def child_gate_review(
     root: Path,
     codename: str,
@@ -94,18 +182,27 @@ def child_gate_review(
     artifact_rel = GATE_ARTIFACT[gate]
     session_dir = root / "sessions" / name
     artifact_path = session_dir / artifact_rel
-    return {
+    review: dict[str, Any] = {
         "gate": gate,
         "artifact_path": f"sessions/{name}/{artifact_rel}",
         "artifact_present": artifact_path.is_file(),
         "decomposition_scope": _proposed_scope_for_child(program, name) if program else None,
         "child_scope": _child_scope_from_session(root, name),
     }
+    if program is not None:
+        review["sibling_program_context"] = sibling_program_context(
+            root, program, name, pending_gate=gate
+        )
+    return review
 
 
 def program_parent_next_action(report: dict[str, Any]) -> str:
     """Mandatory parent conductor action — always review at child gates."""
     pending = [child for child in report.get("children") or [] if child.get("pending_gate")]
+    cross_child = (
+        " Review cross-child overlap via gate_review.sibling_program_context; "
+        "full assessments in artifacts/program-status.md."
+    )
     if pending:
         if len(pending) == 1:
             child = pending[0]
@@ -115,12 +212,13 @@ def program_parent_next_action(report: dict[str, Any]) -> str:
             artifact = review.get("artifact_path") or GATE_ARTIFACT.get(gate, "gate artifact")
             return (
                 f"Review child `{codename}` `{artifact}` against decomposition scope; "
-                "present assessment, then route accept, reopen, or inbox correction"
+                "route accept, reopen, or inbox correction after reading program-status.md"
+                f"{cross_child}"
             )
         names = ", ".join(f"`{c['codename']}`" for c in pending)
         return (
             f"Review gate artifacts for {names} against decomposition scope; "
-            "present assessment per child before routing gate commands"
+            f"route per child after reading program-status.md{cross_child}"
         )
     if not report.get("decomposition_approved"):
         return "Ingest → decompose → present proposed_children; block until approve decomposition"
@@ -204,3 +302,141 @@ def monitor_program(root: Path, parent_codename: str) -> dict[str, Any]:
     }
     report["parent_next_action"] = program_parent_next_action(report)
     return report
+
+
+def _one_line_next(child: dict[str, Any], review_payload: dict[str, Any] | None) -> str:
+    if review_payload and review_payload.get("next"):
+        return str(review_payload["next"]).replace("|", "/").replace("\n", " ").strip()
+    if child.get("error"):
+        return f"error: {child['error']}"
+    hint = child.get("resume_hint") or "—"
+    return str(hint).replace("|", "/").replace("\n", " ").strip()
+
+
+def render_program_status_markdown(
+    report: dict[str, Any],
+    *,
+    child_reviews: dict[str, dict[str, str]] | None = None,
+) -> str:
+    """Render artifacts/program-status.md body from monitor report and optional Task reviews."""
+    reviews = child_reviews or {}
+    lines = [
+        f"# Program status — {report['parent']}",
+        "",
+        f"Generated: {report['generated_at']}",
+        f"Decomposition approved: {report.get('decomposition_approved')}",
+        "",
+        "## Children",
+        "",
+        "| Child | Phase | Pending gate | Updated | Resume |",
+        "|-------|-------|--------------|---------|--------|",
+    ]
+
+    for child in report.get("children") or []:
+        gate = child.get("pending_gate") or "—"
+        phase = child.get("phase") or "—"
+        updated = child.get("last_updated") or "—"
+        codename = str(child["codename"])
+        hint = _one_line_next(child, reviews.get(codename))
+        lines.append(f"| `{codename}` | {phase} | {gate} | {updated} | {hint} |")
+
+    lines.extend(["", "## Gate review (parent)", ""])
+    lines.append(f"**Next:** {report.get('parent_next_action') or '—'}")
+    lines.append("")
+    pending = [c for c in report.get("children") or [] if c.get("pending_gate")]
+    if not pending:
+        lines.append("_No child gates pending parent review._")
+    else:
+        for child in pending:
+            codename = str(child["codename"])
+            review = child.get("gate_review") or {}
+            artifact = review.get("artifact_path") or "—"
+            present = "present" if review.get("artifact_present") else "missing"
+            lines.append(f"### `{codename}` — `{child.get('pending_gate')}`")
+            lines.append(f"- **Artifact:** `{artifact}` ({present})")
+            decomp = review.get("decomposition_scope") or {}
+            if decomp.get("title") or decomp.get("goal"):
+                title = decomp.get("title") or "—"
+                goal = (decomp.get("goal") or "—").replace("\n", " ")
+                lines.append(f"- **Decomposition scope:** {title} — {goal}")
+            scope = review.get("child_scope") or {}
+            if scope.get("title") or scope.get("goal"):
+                title = scope.get("title") or "—"
+                goal = (scope.get("goal") or "—").replace("\n", " ")
+                lines.append(f"- **Child session scope:** {title} — {goal}")
+            siblings = review.get("sibling_program_context") or []
+            if siblings:
+                codes = ", ".join(f"`{s['codename']}`" for s in siblings)
+                lines.append(f"- **Sibling context:** {len(siblings)} active ({codes})")
+                for sibling in siblings:
+                    sib_code = sibling.get("codename") or "—"
+                    sib_decomp = sibling.get("decomposition_scope") or {}
+                    sib_title = sib_decomp.get("title") or "—"
+                    lines.append(f"  - `{sib_code}`: {sib_title}")
+                    plan_summary = sibling.get("plan_summary")
+                    if plan_summary:
+                        task_bits = [
+                            f"{t.get('id')}: {t.get('summary')}"
+                            for t in plan_summary.get("tasks") or []
+                        ]
+                        if task_bits:
+                            lines.append(f"    - tasks: {'; '.join(task_bits)}")
+                        areas = plan_summary.get("files_areas") or []
+                        if areas:
+                            lines.append(f"    - files/areas: {', '.join(areas[:5])}")
+
+            payload = reviews.get(codename) or {}
+            if payload.get("parent_assessment"):
+                lines.append("")
+                lines.append("**Parent assessment**")
+                lines.append("")
+                lines.append(str(payload["parent_assessment"]).strip())
+            if payload.get("cross_child_check"):
+                lines.append("")
+                lines.append("**Cross-child check**")
+                lines.append("")
+                lines.append(str(payload["cross_child_check"]).strip())
+            if payload.get("child_agent_action"):
+                lines.append("")
+                lines.append("**Child agent action**")
+                lines.append("")
+                lines.append(str(payload["child_agent_action"]).strip())
+
+    if reviews:
+        lines.extend(["", "## Child reviewer synthesis", ""])
+        for child in report.get("children") or []:
+            codename = str(child["codename"])
+            payload = reviews.get(codename)
+            if not payload:
+                continue
+            lines.append(f"### `{codename}`")
+            if payload.get("next"):
+                lines.append(f"- **Next:** {payload['next']}")
+            if payload.get("parent_assessment"):
+                lines.append("")
+                lines.append("**Parent assessment**")
+                lines.append("")
+                lines.append(str(payload["parent_assessment"]).strip())
+            if payload.get("cross_child_check"):
+                lines.append("")
+                lines.append("**Cross-child check**")
+                lines.append("")
+                lines.append(str(payload["cross_child_check"]).strip())
+            if payload.get("child_agent_action"):
+                lines.append("")
+                lines.append("**Child agent action**")
+                lines.append("")
+                lines.append(str(payload["child_agent_action"]).strip())
+            lines.append("")
+
+    lines.extend(["", "## Gate queue", ""])
+    queue = report.get("gate_queue") or []
+    if not queue:
+        lines.append("_No queued gate events._")
+    else:
+        for item in queue:
+            lines.append(
+                f"- `{item.get('child_codename')}` @ `{item.get('gate')}` handled={item.get('handled')}"
+            )
+
+    return "\n".join(lines).rstrip() + "\n"

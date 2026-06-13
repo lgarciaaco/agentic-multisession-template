@@ -6,9 +6,25 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 export WORKSPACE_ROOT="${WORKSPACE_ROOT:-$ROOT}"
 
-CODENAME="${1:?usage: program-status-report.sh <parent-codename>}"
+CODENAME="${1:?usage: program-status-report.sh <parent-codename> [--reviews-json path]}"
+REVIEWS_JSON=""
 
-python3 - "$CODENAME" <<'PY'
+shift || true
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --reviews-json)
+      REVIEWS_JSON="${2:?--reviews-json requires a path}"
+      shift 2
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      exit 1
+      ;;
+  esac
+done
+
+python3 - "$CODENAME" "$REVIEWS_JSON" <<'PY'
+import json
 import sys
 from pathlib import Path
 import os
@@ -17,72 +33,25 @@ root = Path(os.environ["WORKSPACE_ROOT"])
 sys.path.insert(0, str(root / "scripts" / "lib"))
 
 from hub_paths import resolve_session_artifact
-from program_monitor import monitor_program
+from program_monitor import monitor_program, render_program_status_markdown
 from program_state import load_program
 from session_binding import validate_codename
 
 codename = validate_codename(sys.argv[1])
+reviews_path = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] else ""
 session_dir = root / "sessions" / codename
 report = monitor_program(root, codename)
 program = load_program(session_dir)
 status_path = resolve_session_artifact(session_dir, program.get("status_path") or "artifacts/program-status.md")
 
-lines = [
-    f"# Program status — {codename}",
-    "",
-    f"Generated: {report['generated_at']}",
-    f"Decomposition approved: {report.get('decomposition_approved')}",
-    "",
-    "## Children",
-    "",
-    "| Child | Phase | Pending gate | Updated | Resume |",
-    "|-------|-------|--------------|---------|--------|",
-]
+child_reviews = None
+if reviews_path:
+    payload_path = Path(reviews_path)
+    if payload_path.is_file():
+        child_reviews = json.loads(payload_path.read_text(encoding="utf-8"))
 
-for child in report.get("children") or []:
-    gate = child.get("pending_gate") or "—"
-    phase = child.get("phase") or "—"
-    updated = child.get("last_updated") or "—"
-    hint = (child.get("resume_hint") or "—").replace("|", "/")
-    if child.get("error"):
-        hint = f"error: {child['error']}"
-    lines.append(f"| `{child['codename']}` | {phase} | {gate} | {updated} | {hint} |")
-
-lines.extend(["", "## Gate review (parent)", ""])
-lines.append(f"**Next:** {report.get('parent_next_action') or '—'}")
-lines.append("")
-pending = [c for c in report.get("children") or [] if c.get("pending_gate")]
-if not pending:
-    lines.append("_No child gates pending parent review._")
-else:
-    for child in pending:
-        review = child.get("gate_review") or {}
-        artifact = review.get("artifact_path") or "—"
-        present = "present" if review.get("artifact_present") else "missing"
-        lines.append(f"### `{child['codename']}` — `{child.get('pending_gate')}`")
-        lines.append(f"- **Artifact:** `{artifact}` ({present})")
-        decomp = review.get("decomposition_scope") or {}
-        if decomp.get("title") or decomp.get("goal"):
-            title = decomp.get("title") or "—"
-            goal = (decomp.get("goal") or "—").replace("\n", " ")
-            lines.append(f"- **Decomposition scope:** {title} — {goal}")
-        scope = review.get("child_scope") or {}
-        if scope.get("title") or scope.get("goal"):
-            title = scope.get("title") or "—"
-            goal = (scope.get("goal") or "—").replace("\n", " ")
-            lines.append(f"- **Child session scope:** {title} — {goal}")
-
-lines.extend(["", "## Gate queue", ""])
-queue = report.get("gate_queue") or []
-if not queue:
-    lines.append("_No queued gate events._")
-else:
-    for item in queue:
-        lines.append(
-            f"- `{item.get('child_codename')}` @ `{item.get('gate')}` handled={item.get('handled')}"
-        )
-
+body = render_program_status_markdown(report, child_reviews=child_reviews)
 status_path.parent.mkdir(parents=True, exist_ok=True)
-status_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+status_path.write_text(body, encoding="utf-8")
 print(status_path)
 PY

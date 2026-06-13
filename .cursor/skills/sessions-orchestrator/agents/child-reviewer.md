@@ -32,13 +32,13 @@ If gate_review.artifact_present, read sessions/<child>/<artifact> and assess aga
 Return exactly these sections (order matters):
 
 ## Next
-One short imperative line for parent chat table (child | phase | gate | one-line next). No pipes.
+One short imperative line for parent chat table slim columns (Child, Phase, Gate, Next). No pipes.
 
 ## Parent assessment
 Mandatory when artifact present OR pending_gate is brief_review / plan_user_review:
 - Alignment with decomposition scope (title + goal)
 - Gaps or drift from ingest
-- Recommended parent action: accept gate, reopen, or inbox correction (do not route — parent user decides)
+- Recommended parent action: accept gate, reopen, or free-text correction via `python3 scripts/program-route-feedback.py <parent> <child> --message "…"` (do not route — parent user decides)
 
 ## Cross-child check
 Mandatory when sibling_program_context is non-empty OR pending_gate is brief_review / plan_user_review:

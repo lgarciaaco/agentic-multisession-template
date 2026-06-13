@@ -244,7 +244,13 @@ python3 scripts/program-bootstrap-children.py <parent> --approve
 
 Child tabs resolve via `@workspace-codename` (same binding model as [Resolution order](#resolution-order)). The `--workflow` flag on the launcher passes `/workflow-orchestrator` as the agent's initial prompt.
 
-Details: [docs/PROGRAM_ORCHESTRATOR.md](docs/PROGRAM_ORCHESTRATOR.md).
+**Monitor and status:** [`program-monitor.py`](scripts/program-monitor.py) + [`program-status-report.sh`](scripts/program-status-report.sh) — see [Check children / status (one screen)](docs/PROGRAM_ORCHESTRATOR.md#check-children--status-one-screen).
+
+**Parent gate routing:** gate commands and free-text corrections via [`program-route-feedback.py`](scripts/program-route-feedback.py) (tmux send-keys) — see [Parent gate review (mandatory)](docs/PROGRAM_ORCHESTRATOR.md#parent-gate-review-mandatory).
+
+**Tab cleanup:** tmux tab bootstrap and pane helpers — see [Program child tmux tabs](docs/PROGRAM_ORCHESTRATOR.md#program-child-tmux-tabs) (completed-child window cleanup documented separately in child-13).
+
+Full walkthrough: [docs/PROGRAM_ORCHESTRATOR.md](docs/PROGRAM_ORCHESTRATOR.md).
 
 ---
 

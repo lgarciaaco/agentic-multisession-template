@@ -1262,12 +1262,13 @@ def format_workflow_section(root: Path, codename: str) -> str:
                 from_sess = sanitize_context_text(str(first.get("from") or ""), max_len=40)
                 lines.append(
                     f"- **Inbox gate:** {len(pending)} pending; next `{action}` from `{from_sess}` "
-                    f"(auto-applied on `./scripts/sync-session.sh`)"
+                    "(chat gate command, workflow-accept-*.sh, or program-route-feedback — not auto-applied)"
                 )
             else:
                 lines.append(
-                    f"- **Inbox gate:** poll every {INBOX_GATE_POLL_SECONDS // 60}m; "
-                    "auto-applied on `./scripts/sync-session.sh`"
+                    f"- **Inbox gate:** poll every {INBOX_GATE_POLL_SECONDS // 60}m via "
+                    "workflow-pull-inbox-gate.py --apply (classify-only); cross gate via chat, "
+                    "workflow-accept-*.sh, or program-route-feedback"
                 )
         except (ImportError, ValueError):
             pass

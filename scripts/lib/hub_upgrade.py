@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 from hub_git import _validate_branch
 from repos import workspace_root
 
-DEFAULT_UPSTREAM = "https://github.com/lgarciaaco/agentic-multisession-template.git"
+DEFAULT_UPSTREAM = "https://github.com/YOUR_ORG/agentic-multisession-template.git"
 DEFAULT_UPSTREAM_HOST = "github.com"
 DEFAULT_UPSTREAM_REPO_SUFFIX = "agentic-multisession-template"
 DEFAULT_UPSTREAM_REF = "main"

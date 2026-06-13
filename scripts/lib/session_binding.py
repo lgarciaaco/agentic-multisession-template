@@ -1236,7 +1236,9 @@ def format_workflow_section(root: Path, codename: str) -> str:
             lines.append(f"  - {entry}")
 
     lines.append("- **Commands:** `/workflow-orchestrator`, `/workflow-orchestrator status`")
-    if phase in ("brief_review", "plan_user_review"):
+    from program_state import GATE_PHASES
+
+    if phase in GATE_PHASES:
         try:
             from workflow_inbox_gate import INBOX_POLL_SECONDS, pull_inbox_gate
 
@@ -1277,9 +1279,9 @@ def format_program_section(root: Path, codename: str) -> str:
         return ""
 
     try:
-        from program_monitor import monitor_program
+        from program_monitor import program_monitor_snapshot
 
-        report = monitor_program(root, codename)
+        report = program_monitor_snapshot(root, codename)
     except (ImportError, ValueError, FileNotFoundError, OSError) as exc:
         hint = sanitize_context_text(str(exc), max_len=120)
         return f"\n## Program\n\n- **program.json:** unavailable ({hint})\n"

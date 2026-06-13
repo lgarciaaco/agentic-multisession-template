@@ -14,15 +14,14 @@ from program_child_tabs import (
     is_safe_child_close_target,
     resolve_child_window,
 )
+from gate_metadata_registry import (
+    gate_artifact_path,
+    gate_column_short_label,
+)
 from program_state import GATE_PHASES, load_program, save_program
 from session_binding import validate_codename
-from workflow_plan import load_workflow
+from workflow_plan import load_workflow, parse_action_plan_tasks
 from workflow_resume import workflow_next_action
-
-GATE_ARTIFACT = {
-    "brief_review": "artifacts/problem-brief.md",
-    "plan_user_review": "artifacts/action-plan.md",
-}
 
 
 def _mtime_iso(path: Path) -> str | None:
@@ -40,11 +39,7 @@ def _pending_gate(phase: str) -> str | None:
 
 def gate_column_short(pending_gate: str | None) -> str:
     """Map workflow gate phase to slim parent chat column."""
-    if pending_gate == "brief_review":
-        return "brief"
-    if pending_gate == "plan_user_review":
-        return "plan"
-    return "—"
+    return gate_column_short_label(pending_gate)
 
 
 def _child_scope_from_session(root: Path, codename: str) -> dict[str, str | None]:
@@ -96,36 +91,10 @@ def _proposed_scope_for_child(program: dict[str, Any], codename: str) -> dict[st
     }
 
 
-def _parse_action_plan_summary(plan_path: Path) -> dict[str, Any] | None:
-    """Lightweight parse of sibling action-plan for plan-gate cross-child review."""
-    if not plan_path.is_file():
-        return None
-    text = plan_path.read_text(encoding="utf-8")
-    tasks: list[dict[str, str]] = []
-    in_tasks = False
-    for line in text.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("## Tasks"):
-            in_tasks = True
-            continue
-        if in_tasks and stripped.startswith("## "):
-            break
-        if not in_tasks or not stripped.startswith("|"):
-            continue
-        if stripped.startswith("| ID") or stripped.startswith("|----"):
-            continue
-        parts = [part.strip() for part in stripped.strip("|").split("|")]
-        if not parts:
-            continue
-        task_id = parts[0]
-        if not re.match(r"t\d+", task_id):
-            continue
-        summary = parts[-3] if len(parts) >= 4 else (parts[2] if len(parts) >= 3 else parts[1])
-        tasks.append({"id": task_id, "summary": summary})
-
+def _parse_files_areas(plan_text: str) -> list[str]:
     files_areas: list[str] = []
     in_files = False
-    for line in text.splitlines():
+    for line in plan_text.splitlines():
         stripped = line.strip()
         if stripped.startswith("## Files"):
             in_files = True
@@ -140,7 +109,21 @@ def _parse_action_plan_summary(plan_path: Path) -> dict[str, Any] | None:
             match = re.match(r"- `([^`]+)`", stripped)
             if match:
                 files_areas.append(match.group(1))
+    return files_areas
 
+
+def _parse_action_plan_summary(plan_path: Path) -> dict[str, Any] | None:
+    """Build sibling plan-gate summary via shared action-plan task parser."""
+    if not plan_path.is_file():
+        return None
+    text = plan_path.read_text(encoding="utf-8")
+    tasks: list[dict[str, str]] = []
+    try:
+        parsed = parse_action_plan_tasks(text)
+        tasks = [{"id": row["id"], "summary": row["title"]} for row in parsed]
+    except ValueError:
+        pass
+    files_areas = _parse_files_areas(text)
     if not tasks and not files_areas:
         return None
     return {"tasks": tasks, "files_areas": files_areas}
@@ -166,7 +149,9 @@ def sibling_program_context(
             "child_scope": _child_scope_from_session(root, codename),
         }
         if pending_gate == "plan_user_review":
-            plan_path = root / "sessions" / codename / "artifacts" / "action-plan.md"
+            plan_path = (
+                root / "sessions" / codename / gate_artifact_path("plan_user_review")
+            )
             summary = _parse_action_plan_summary(plan_path)
             if summary:
                 entry["plan_summary"] = summary
@@ -182,10 +167,10 @@ def child_gate_review(
     program: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return read-only review context for a child at a parent gate."""
-    if gate not in GATE_ARTIFACT:
+    if gate not in GATE_PHASES:
         raise ValueError(f"unsupported gate for review: {gate!r}")
     name = validate_codename(codename)
-    artifact_rel = GATE_ARTIFACT[gate]
+    artifact_rel = gate_artifact_path(gate)
     session_dir = root / "sessions" / name
     artifact_path = session_dir / artifact_rel
     review: dict[str, Any] = {
@@ -215,7 +200,7 @@ def program_parent_next_action(report: dict[str, Any]) -> str:
             gate = str(child["pending_gate"])
             codename = str(child["codename"])
             review = child.get("gate_review") or {}
-            artifact = review.get("artifact_path") or GATE_ARTIFACT.get(gate, "gate artifact")
+            artifact = review.get("artifact_path") or gate_artifact_path(gate)
             return (
                 f"Review child `{codename}` `{artifact}` against decomposition scope; "
                 "route accept, reopen, or inbox correction after reading program-status.md"
@@ -352,11 +337,16 @@ def cleanup_completed_children(
     return program
 
 
-def monitor_program(root: Path, parent_codename: str) -> dict[str, Any]:
+def program_monitor_snapshot(
+    root: Path,
+    parent_codename: str,
+    program: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build program monitor report without cleanup or program.json mutation."""
     parent = validate_codename(parent_codename)
     session_dir = root / "sessions" / parent
-    program = load_program(session_dir)
-    program = cleanup_completed_children(root, parent, program)
+    if program is None:
+        program = load_program(session_dir)
     children = [
         child_snapshot(
             root,
@@ -375,6 +365,15 @@ def monitor_program(root: Path, parent_codename: str) -> dict[str, Any]:
     }
     report["parent_next_action"] = program_parent_next_action(report)
     return report
+
+
+def monitor_program(root: Path, parent_codename: str) -> dict[str, Any]:
+    """Run cleanup for completed children, then build monitor report."""
+    parent = validate_codename(parent_codename)
+    session_dir = root / "sessions" / parent
+    program = load_program(session_dir)
+    program = cleanup_completed_children(root, parent, program)
+    return program_monitor_snapshot(root, parent, program=program)
 
 
 def _one_line_next(child: dict[str, Any], review_payload: dict[str, Any] | None) -> str:

@@ -1090,12 +1090,12 @@ def guard_unbound_path_decision(root: Path, file_path: str) -> dict:
 
 
 def _load_workflow_state(root: Path, codename: str) -> tuple[dict | None, bool]:
-    path = root / "sessions" / codename / "workflow.json"
-    if not path.exists():
-        return None, False
+    session_dir = root / "sessions" / codename
     try:
-        workflow = json.loads(path.read_text())
-    except json.JSONDecodeError:
+        from workflow_plan import load_workflow
+
+        workflow = load_workflow(session_dir)
+    except (FileNotFoundError, ValueError):
         return None, False
     accepted = bool((workflow.get("gates") or {}).get("plan_user_accepted"))
     return workflow, accepted
@@ -1189,8 +1189,10 @@ def format_workflow_section(root: Path, codename: str) -> str:
         return ""
 
     try:
-        workflow = json.loads(workflow_path.read_text())
-    except json.JSONDecodeError:
+        from workflow_plan import load_workflow
+
+        workflow = load_workflow(root / "sessions" / codename)
+    except ValueError:
         return "\n## Workflow\n\n- **workflow.json:** invalid JSON — fix before `/workflow`\n"
 
     phase = sanitize_context_text(str(workflow.get("phase") or "unknown"), max_len=50) or "unknown"
@@ -1410,8 +1412,10 @@ def _maybe_apply_inbox_gate_at_sync(root: Path, codename: str) -> None:
     if not workflow_path.exists():
         return
     try:
-        workflow = json.loads(workflow_path.read_text())
-    except json.JSONDecodeError:
+        from workflow_plan import load_workflow
+
+        workflow = load_workflow(root / "sessions" / codename)
+    except (FileNotFoundError, ValueError):
         return
     phase = str(workflow.get("phase") or "")
     try:

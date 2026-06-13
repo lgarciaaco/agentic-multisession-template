@@ -15,6 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from session_binding import build_context_markdown, format_workflow_section  # noqa: E402
 from workflow_delivery import render_delivery_report, write_delivery_report  # noqa: E402
 from workflow_resume import (  # noqa: E402
+    PHASE_HINT_BUILDERS,
+    WORKFLOW_PHASES,
     reopen_brief,
     reopen_plan,
     workflow_next_action,
@@ -71,6 +73,11 @@ class WorkflowResumeTests(unittest.TestCase):
         self.assertIn("iteration 2/5", action)
         self.assertIn("REVISE", action)
         self.assertIn("workflow-plan-synthesize.py", action)
+
+    def test_workflow_phases_registry_covers_hint_builders(self) -> None:
+        self.assertEqual(set(WORKFLOW_PHASES), set(PHASE_HINT_BUILDERS.keys()))
+        self.assertIn("implementation", WORKFLOW_PHASES)
+        self.assertIn("code_review_loop", WORKFLOW_PHASES)
 
     def test_workflow_next_action_plan_user_review(self) -> None:
         action = workflow_next_action({"phase": "plan_user_review", "gates": {}, "loops": {}})

@@ -145,6 +145,10 @@ class HubUpgradeParsingTests(unittest.TestCase):
 
 
 class ResolveUpstreamTests(unittest.TestCase):
+    def test_default_upstream_is_generic_placeholder(self) -> None:
+        self.assertIn("YOUR_ORG", DEFAULT_UPSTREAM)
+        self.assertNotIn("lgarciaaco", DEFAULT_UPSTREAM)
+
     def test_resolve_upstream_url_precedence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

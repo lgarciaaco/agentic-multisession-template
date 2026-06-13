@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TypedDict
 
 from program_state import GATE_PHASES
+from workflow_plan import DEFAULT_WORKFLOW_ARTIFACTS
 
 
 class GateMetadataEntry(TypedDict):
@@ -14,20 +15,50 @@ class GateMetadataEntry(TypedDict):
     column_short: str
 
 
-GATE_METADATA: dict[str, GateMetadataEntry] = {
+# Gate phase → DEFAULT_WORKFLOW_ARTIFACTS key (artifact_path derived at build time).
+GATE_PHASE_ARTIFACT_KEYS: dict[str, str] = {
+    "brief_review": "brief",
+    "plan_user_review": "plan",
+}
+
+_STATIC_GATE_FIELDS: dict[str, dict[str, str]] = {
     "brief_review": {
-        "artifact_path": "artifacts/problem-brief.md",
         "feedback_kind": "brief_correction",
         "display_label": "Brief review",
         "column_short": "brief",
     },
     "plan_user_review": {
-        "artifact_path": "artifacts/action-plan.md",
         "feedback_kind": "plan_feedback",
         "display_label": "Plan review",
         "column_short": "plan",
     },
 }
+
+
+def _build_gate_metadata() -> dict[str, GateMetadataEntry]:
+    metadata: dict[str, GateMetadataEntry] = {}
+    for phase in GATE_PHASES:
+        artifact_key = GATE_PHASE_ARTIFACT_KEYS.get(phase)
+        if artifact_key is None:
+            raise RuntimeError(f"GATE_METADATA missing artifact key mapping for {phase!r}")
+        static = _STATIC_GATE_FIELDS.get(phase)
+        if static is None:
+            raise RuntimeError(f"GATE_METADATA missing static fields for {phase!r}")
+        rel = DEFAULT_WORKFLOW_ARTIFACTS.get(artifact_key)
+        if not rel:
+            raise RuntimeError(
+                f"DEFAULT_WORKFLOW_ARTIFACTS missing {artifact_key!r} for gate phase {phase!r}"
+            )
+        metadata[phase] = GateMetadataEntry(
+            artifact_path=rel,
+            feedback_kind=static["feedback_kind"],
+            display_label=static["display_label"],
+            column_short=static["column_short"],
+        )
+    return metadata
+
+
+GATE_METADATA: dict[str, GateMetadataEntry] = _build_gate_metadata()
 
 
 def gate_artifact_path(phase: str) -> str:

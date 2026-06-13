@@ -3,11 +3,11 @@ description: Start/end session triggers
 alwaysApply: true
 ---
 
-# Session orchestrator
+# Hub triggers
 
 **Fresh hub / bootstrap** → `./scripts/repos-status.sh` then `.cursor/skills/bootstrap-hub/SKILL.md` (agent asks for repos if missing).
 
-**Start work** / `/start-work` → load `.cursor/skills/session-orchestrator/SKILL.md`. You run `./scripts/*`.
+**Start work** / `/start-work` → load `.cursor/skills/session-start/SKILL.md`. Single-session bind and scope. You run `./scripts/*`.
 
 **Sessions program** / `/sessions-orchestrator` → load `.cursor/skills/sessions-orchestrator/SKILL.md`. Multi-session parent coordinator.
 

@@ -1,9 +1,9 @@
 ---
-name: session-orchestrator
+name: session-start
 description: Bind or create a workspace session, then execute the user's task.
 ---
 
-# Session orchestrator
+# Session start
 
 Triggers: `start work`, `/start-work`, `new task`
 

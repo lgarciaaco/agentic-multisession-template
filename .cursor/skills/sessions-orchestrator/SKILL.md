@@ -163,4 +163,4 @@ Parent: `sessions/<parent>/program.json`, `artifacts/program-*`, hub scripts/ski
 
 - [docs/PROGRAM_ORCHESTRATOR.md](../../../docs/PROGRAM_ORCHESTRATOR.md)
 - Child pipeline: [workflow-orchestrator](../workflow-orchestrator/SKILL.md)
-- Session bind: [session-orchestrator](../session-orchestrator/SKILL.md) (`/start-work`)
+- Single-session bind (not program parent): [session-start](../session-start/SKILL.md) (`/start-work`)

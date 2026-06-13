@@ -120,6 +120,6 @@ python3 scripts/program-route-feedback.py <parent> <child> \
 
 ## Related
 
-- Session bind (unchanged): `/start-work` → [session-orchestrator](../.cursor/skills/session-orchestrator/SKILL.md)
+- Single-session bind (unchanged): `/start-work` → [session-start](../.cursor/skills/session-start/SKILL.md)
 - Cross-session inbox: [SESSIONS.md](../SESSIONS.md)
 - Retirement checklist: `sessions/_template/artifacts/session-orchestrator-retirement-checklist.md`

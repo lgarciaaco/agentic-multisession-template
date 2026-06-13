@@ -84,7 +84,7 @@ First stable candidate — workflow pipeline, path guards, skills/docs hygiene s
 
 ### Changed
 
-- Session orchestrator skill and session-binding rule — agents set scope metadata before product edits when work intent is clear
+- session-start skill and session-binding rule — agents set scope metadata before product edits when work intent is clear
 - `resume_session_on_bind` backfills empty legacy titles to codename
 - SESSIONS.md Cursor workflow, `_template/BOUNDARIES.md`, and `docs/REPOS.md` document scope command
 

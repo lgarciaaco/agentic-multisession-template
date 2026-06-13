@@ -3,7 +3,7 @@
 | Skill | Trigger | Scripts |
 |-------|---------|---------|
 | [bootstrap-hub](bootstrap-hub/SKILL.md) | first run, bootstrap hub | `repos-status.sh`, `clone-repos.sh`, `install-workspace-agent.sh` |
-| [session-orchestrator](session-orchestrator/SKILL.md) | start work, `/start-work` | `resolve-session.sh`, `bind-session.sh`, `set-session-scope.sh`, `ensure-worktrees.sh`, … |
+| [session-start](session-start/SKILL.md) | start work, `/start-work` | `resolve-session.sh`, `bind-session.sh`, `set-session-scope.sh`, `ensure-worktrees.sh`, … |
 | [sessions-orchestrator](sessions-orchestrator/SKILL.md) | `/sessions-orchestrator` | `program-decompose.py`, `program-monitor.py`, `program-route-feedback.py`, … |
 | [workflow-orchestrator](workflow-orchestrator/SKILL.md) | `/workflow-orchestrator`, accept/reopen gates | `workflow-plan-synthesize.py`, `workflow-accept-plan.sh`, `workflow-code-review-*`, … |
 | [code-reviewer](code-reviewer/SKILL.md) | code review, quality gate | Task specialists + synthesizer |

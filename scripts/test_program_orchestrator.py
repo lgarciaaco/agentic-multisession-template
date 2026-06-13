@@ -155,7 +155,45 @@ class ProgramOrchestratorTests(unittest.TestCase):
         spec.loader.exec_module(mod)
         text = mod.format_text(report)
         self.assertIn("Parent next:", text)
-        self.assertIn("review: sessions/november/artifacts/problem-brief.md (present)", text)
+        self.assertIn("| Child | Phase | Gate | Next |", text)
+        self.assertIn(f"| `{self.child}` | brief_review | brief |", text)
+        self.assertNotIn("review: sessions/", text)
+        self.assertNotIn("siblings:", text)
+
+    def test_program_status_report_reviews_json_smoke(self) -> None:
+        child_dir = self.root / "sessions" / self.child
+        (child_dir / "artifacts" / "problem-brief.md").write_text("# Brief\n")
+        reviews_path = self.root / "child-reviews.json"
+        reviews_path.write_text(
+            json.dumps(
+                {
+                    self.child: {
+                        "next": "Accept brief or send corrections",
+                        "parent_assessment": "Aligned with decomposition scope.",
+                        "cross_child_check": "No sibling overlap.",
+                        "child_agent_action": "Wait for accept brief.",
+                    }
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        script = ROOT / "scripts" / "program-status-report.sh"
+        env = {**os.environ, "WORKSPACE_ROOT": str(self.root)}
+        result = subprocess.run(
+            [str(script), self.parent, "--reviews-json", str(reviews_path)],
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        status_path = self.root / "sessions" / self.parent / "artifacts" / "program-status.md"
+        self.assertTrue(status_path.is_file(), result.stdout)
+        body = status_path.read_text(encoding="utf-8")
+        self.assertIn("Aligned with decomposition scope.", body)
+        self.assertIn("**Cross-child check**", body)
+        self.assertIn("Accept brief or send corrections", body)
 
     def test_program_status_report_gate_review_section(self) -> None:
         child_dir = self.root / "sessions" / self.child

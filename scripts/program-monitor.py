@@ -36,16 +36,6 @@ def format_text(report: dict) -> str:
         codename = child.get("codename") or "—"
         next_line = _one_line_next(child)
         lines.append(f"| `{codename}` | {phase} | {gate} | {next_line} |")
-        review = child.get("gate_review")
-        if review:
-            present = "present" if review.get("artifact_present") else "missing"
-            lines.append(
-                f"  review: {review.get('artifact_path')} ({present})"
-            )
-            siblings = review.get("sibling_program_context") or []
-            if siblings:
-                codes = ", ".join(s["codename"] for s in siblings)
-                lines.append(f"  siblings: {len(siblings)} ({codes})")
     return "\n".join(lines) + "\n"
 
 

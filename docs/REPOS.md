@@ -214,6 +214,7 @@ hub root (main)                           # hook-blocked when bound; refresh via
 
 - `path: .` is for fetch-only registry entries, not development worktrees (git nesting limit).
 - Hub-root `scripts/`, `.cursor/`, docs, and registry pins (`repos.yaml`, `.hub-version`, `.hub-upstream`) are **hook-blocked** for bound sessions — edit pins only when unbound.
+- **`.hub-upstream` override:** copy `.hub-upstream.example` → `.hub-upstream` at hub root when your install tracks a fork or mirror instead of the default template URL. One HTTPS URL per line (comments allowed in the example file only). Used by `./scripts/hub-status.sh` and `./scripts/hub-upgrade.sh` via `resolve_upstream_url()`. Same unbound-only rule as `repos.yaml` and `.hub-version`.
 - Refresh hub layer: `./scripts/hub-upgrade.sh` only.
 
 ---

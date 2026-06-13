@@ -1279,9 +1279,9 @@ def format_program_section(root: Path, codename: str) -> str:
         return ""
 
     try:
-        from program_monitor import monitor_program
+        from program_monitor import program_monitor_snapshot
 
-        report = monitor_program(root, codename)
+        report = program_monitor_snapshot(root, codename)
     except (ImportError, ValueError, FileNotFoundError, OSError) as exc:
         hint = sanitize_context_text(str(exc), max_len=120)
         return f"\n## Program\n\n- **program.json:** unavailable ({hint})\n"

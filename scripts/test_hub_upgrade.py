@@ -149,14 +149,14 @@ class ResolveUpstreamTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             self.assertEqual(resolve_upstream_url(root), DEFAULT_UPSTREAM)
-            (root / ".hub-upstream").write_text("# comment\nhttps://github.com/lgarciaaco/agentic-multisession-template.git\n")
+            (root / ".hub-upstream").write_text("# comment\nhttps://github.com/YOUR_ORG/agentic-multisession-template.git\n")
             self.assertTrue(
                 resolve_upstream_url(root).endswith("agentic-multisession-template.git")
             )
             (root / ".hub-upstream").write_text("\n")
             self.assertEqual(resolve_upstream_url(root), DEFAULT_UPSTREAM)
 
-        with patch.dict(os.environ, {"WORKSPACE_TEMPLATE_UPSTREAM": "https://github.com/lgarciaaco/agentic-multisession-template.git"}):
+        with patch.dict(os.environ, {"WORKSPACE_TEMPLATE_UPSTREAM": "https://github.com/YOUR_ORG/agentic-multisession-template.git"}):
             self.assertTrue(resolve_upstream_url().endswith(".git"))
 
     def test_upstream_ref_rejects_invalid_template_ref(self) -> None:

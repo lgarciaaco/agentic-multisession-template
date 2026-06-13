@@ -30,6 +30,9 @@ Run once on the **installed rc tip** before tag prep. Compare `cat .hub-version`
 | S7 | Pre-PR suite | `python3 -m unittest discover -s scripts -p 'test_*.py'` | All tests pass |
 | S8 | Binding smoke | `python3 scripts/test_session_binding.py` | OK |
 | S9 | Workflow gate scripts | `python3 scripts/test_workflow_gates.py` && `python3 scripts/test_workflow_resume.py` | OK |
+| S10 | Program monitor | `python3 scripts/program-monitor.py <parent>` (active program parent) | JSON or text table with child phase/gate columns; no traceback |
+| S11 | Route feedback dry-run | `python3 scripts/program-route-feedback.py <parent> <child> --gate brief_review --message "accept brief" --dry-run` | Prints routed message; no tmux send-keys |
+| S12 | Tab cleanup | `python3 scripts/test_program_orchestrator.py ProgramChildTabsTests.test_cleanup_completed_children_updates_status_and_closes_tab` | OK (or covered by S7 suite) |
 
 ### S5 guard verification (optional script)
 
@@ -74,8 +77,9 @@ Historical snapshot from an earlier rc smoke run — record new runs here or in 
 | S7 | 2026-06-10 | PASS | 199 tests OK (worktree rc tip) |
 | S8 | 2026-06-10 | PASS | `test_session_binding.py` OK |
 | S9 | 2026-06-10 | PASS | workflow gate + resume tests OK |
+| S10–S12 | 2026-06-13 | PENDING | rc.4 post-xray smoke — optional program rows added; run when program parent + tmux available (head `14a3cfe`) |
 
-**Overall:** PASS (9/9) on rc tip @ merge PR #22 (`aab0da3`).
+**Overall:** PASS (9/9) on rc tip @ merge PR #22 (`aab0da3`). rc.4 S10–S12 pending.
 
 ---
 

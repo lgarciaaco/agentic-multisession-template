@@ -763,6 +763,71 @@ class WorktreeGuardTests(unittest.TestCase):
         section = format_program_section(self.root, self.codename)
         self.assertEqual(section, "")
 
+    @patch("program_monitor.monitor_program")
+    @patch("program_monitor.save_program")
+    @patch("program_monitor.close_child_window")
+    def test_format_program_section_uses_read_only_snapshot_without_cleanup(
+        self,
+        close,
+        save,
+        monitor,
+    ) -> None:
+        import program_monitor as pm
+
+        parent = self.codename
+        child = "november"
+        parent_dir = self.root / "sessions" / parent
+        child_dir = self.root / "sessions" / child
+        child_dir.mkdir(parents=True)
+        (child_dir / "artifacts").mkdir()
+        (child_dir / "workflow.json").write_text(
+            json.dumps(
+                {
+                    "version": 2,
+                    "phase": "completed",
+                    "gates": {"brief_accepted": True, "plan_user_accepted": True},
+                    "loops": {},
+                    "artifacts": {},
+                }
+            )
+            + "\n"
+        )
+        (child_dir / "session.json").write_text(
+            json.dumps({"codename": child, "title": "Child", "tasks": []}) + "\n"
+        )
+        from program_state import default_program, save_program
+
+        program = default_program(parent)
+        program["decomposition_approved"] = True
+        program["proposed_children"] = [
+            {
+                "id": "c1",
+                "suggested_codename": child,
+                "title": "Child scope",
+                "goal": "Child goal",
+                "repo": "template",
+                "depends_on": [],
+            }
+        ]
+        program["active_children"] = [{"codename": child, "status": "running"}]
+        save_program(parent_dir, program)
+
+        with patch.object(
+            pm,
+            "program_monitor_snapshot",
+            wraps=pm.program_monitor_snapshot,
+        ) as snapshot:
+            section = format_program_section(self.root, parent)
+            snapshot.assert_called_once_with(self.root, parent)
+
+        program_after = json.loads((parent_dir / "program.json").read_text())
+        self.assertEqual(program_after["active_children"][0]["status"], "running")
+
+        monitor.assert_not_called()
+        close.assert_not_called()
+        save.assert_not_called()
+        self.assertIn("## Program", section)
+
     def test_context_includes_next_step(self) -> None:
         session_path = self.root / "sessions" / self.codename / "session.json"
         session = json.loads(session_path.read_text())

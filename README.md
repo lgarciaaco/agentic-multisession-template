@@ -2,7 +2,7 @@
 
 Project-agnostic **multi-session Cursor agent hub**. Each chat/tmux tab binds to a codename; hooks enforce scope and inject context.
 
-**Release:** Installed version is in `.hub-version` (currently **1.0.0-rc.3**). Check upstream with `./scripts/hub-status.sh`. **1.0.0-rc.1** was the first stable candidate; later rc bumps tune the path to **1.0.0**. See [CHANGELOG.md](CHANGELOG.md); [docs/RC-RELEASE.md](docs/RC-RELEASE.md) records the rc.1 tag as historical.
+**Release:** Installed version is in `.hub-version` (currently **1.0.0-rc.4**). Check upstream with `./scripts/hub-status.sh`. **1.0.0-rc.1** was the first stable candidate; later rc bumps tune the path to **1.0.0**. See [CHANGELOG.md](CHANGELOG.md); [docs/RC-RELEASE.md](docs/RC-RELEASE.md) records the rc.1 tag as historical.
 
 Use **GitHub → Use this template**, or clone this repo as your hub.
 

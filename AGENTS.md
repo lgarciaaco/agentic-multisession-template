@@ -63,7 +63,7 @@ User gates **only at brief and plan**. Program parent→child gate routing uses 
 
 ## Hub template upgrade
 
-Installed version: **`.hub-version`** (currently **1.0.0-rc.3**). Upstream check: **`./scripts/hub-status.sh`**.
+Installed version: **`.hub-version`** (currently **1.0.0-rc.4**). Upstream check: **`./scripts/hub-status.sh`**.
 
 **1.0.0-rc.1** was the **first stable candidate** release line — not an incremental dev milestone. Later rc bumps (rc.2, rc.3, …) tune production-ready hub machinery toward **1.0.0**; report gaps before the final tag.
 

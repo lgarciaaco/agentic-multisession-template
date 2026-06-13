@@ -39,7 +39,7 @@ Regenerate a multi-root editor workspace: `./scripts/generate-workspace.sh` → 
 
 **`/sessions-orchestrator`** → `.cursor/skills/sessions-orchestrator/SKILL.md` · [docs/PROGRAM_ORCHESTRATOR.md](docs/PROGRAM_ORCHESTRATOR.md)
 
-**Check children / `/sessions-orchestrator status`:** parallel Task(child-reviewer) per active child (`model: claude-4.6-sonnet-medium-thinking`); parent chat is **one screen max** — `Parent next:` plus slim table `child | phase | gate | one-line next` only. Full **Parent assessment**, **Cross-child check**, and **Child agent action** live in `artifacts/program-status.md` (merge via `./scripts/program-status-report.sh <parent> --reviews-json <path>`). No **Your action — `<codename>`** blocks in chat.
+**Check children / `/sessions-orchestrator status`:** parallel Task(child-reviewer) per active child (`model: claude-4.6-sonnet-medium-thinking`); parent chat is **one screen max** — `Parent next:` plus slim markdown table (`Child`, `Phase`, `Gate`, `Next` columns) only. Full **Parent assessment**, **Cross-child check**, and **Child agent action** live in `artifacts/program-status.md` (merge via `./scripts/program-status-report.sh <parent> --reviews-json <path>`). No **Your action — `<codename>`** blocks in chat.
 
 Single-session **Problem → Plan → Code → Review → PR → CI → Delivery** in one chat. State: `sessions/<codename>/workflow.json`; artifacts under `sessions/<codename>/artifacts/`. Chat context includes phase, gates, loops, artifact paths, and **Resume** when `workflow.json` exists.
 

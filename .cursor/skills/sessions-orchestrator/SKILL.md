@@ -2,7 +2,8 @@
 name: sessions-orchestrator
 description: >-
   Program-level orchestrator: ingest work, decompose into child sessions running
-  /workflow-orchestrator, monitor gates, route inbox feedback, per-child PR review.
+  /workflow-orchestrator, monitor gates, route parent gate feedback via
+  program-route-feedback.py (tmux send-keys), per-child PR review.
 ---
 
 # Sessions orchestrator

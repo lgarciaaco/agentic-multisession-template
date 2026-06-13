@@ -4,9 +4,33 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.0-rc.4] - 2026-06-13
+
+Program orchestrator production pass (xray) — six child PRs merged (#66–#71, #68).
+
 ### Added
 
-- **Infra YAML reviewer** — code-reviewer pipeline specialist for Ansible, GitHub Actions, and deploy manifests (`triggers.infra`); `scripts/test_code_reviewer_skill.py` smoke tests
+- **`session-start` skill** — rename from `session-orchestrator`; `/start-work` entry distinct from `sessions-orchestrator`
+- **Program tmux routing** — parent gate feedback and corrections via `tmux send-keys` to child panes; `pane_id` persisted at bootstrap; `program-route-feedback.py` / `--message` for free-text
+- **Completed-child tab cleanup** — `program_monitor` closes child tmux windows when workflow phase is `completed`; `active_children[].status` synced
+- **Non-interactive git editors** — `GIT_EDITOR`/`EDITOR` in child tmux launch; `scripts/workflow-git-rebase.sh` for CI/rebase paths
+- **Leaks reviewer** — code-reviewer specialist (`triggers.leaks`) for secrets, PII, hardcoded identifiers; synthesizer FAIL wiring
+- **Cross-child gate review** — `sibling_program_context` in monitor JSON; child-reviewer cross-child checks; slim one-screen parent **Check children** chat; detail in `program-status.md` via `--reviews-json`
+- **Infra YAML reviewer** — code-reviewer pipeline specialist for Ansible, GitHub Actions, and deploy manifests (`triggers.infra`)
+
+### Changed
+
+- **Program parent routing** — removed program-parent inbox auto-apply (`write_inbox_program_route`, inbox gate authorization for program gates); standalone session inbox unchanged
+- **Skill optimizer docs** — hub integration in `AGENTS.md` / skills README; no mandated percent line-reduction target
+- **`AGENTS.md`**, **`docs/PROGRAM_ORCHESTRATOR.md`**, **`sessions-orchestrator`** skill — tmux routing, slim status format, merge-boundary notes for parallel program children
+
+### Session notes
+
+**Impact:** optional
+
+- Refresh stale `BOUNDARIES.md` from template if sessions predate tmux program routing
+- Parent program sessions: use `tmux send-keys` for gate commands; inbox gate polling no longer applies to program parent→child routing
+- Hub upgrade: `./scripts/hub-upgrade.sh` picks up rc.4 from upstream tag
 
 ## [1.0.0-rc.3] - 2026-06-11
 

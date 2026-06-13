@@ -10,12 +10,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from gate_metadata_registry import (  # noqa: E402
     GATE_METADATA,
+    GATE_PHASE_ARTIFACT_KEYS,
     gate_artifact_path,
     gate_column_short_label,
     gate_display_label,
     gate_feedback_kind,
 )
 from program_state import GATE_PHASES  # noqa: E402
+from workflow_plan import DEFAULT_WORKFLOW_ARTIFACTS  # noqa: E402
 
 _LIB_DIR = Path(__file__).resolve().parent / "lib"
 _CONSUMER_FILES = (
@@ -35,9 +37,19 @@ class GateMetadataRegistryTests(unittest.TestCase):
             for field in ("artifact_path", "feedback_kind", "display_label", "column_short"):
                 self.assertTrue(entry[field].strip(), msg=f"{phase}.{field} must be non-empty")
 
-    def test_artifact_paths_match_prior_gate_artifact(self) -> None:
-        self.assertEqual(gate_artifact_path("brief_review"), "artifacts/problem-brief.md")
-        self.assertEqual(gate_artifact_path("plan_user_review"), "artifacts/action-plan.md")
+    def test_artifact_paths_match_default_workflow_artifacts(self) -> None:
+        for phase in sorted(GATE_PHASES):
+            artifact_key = GATE_PHASE_ARTIFACT_KEYS[phase]
+            self.assertEqual(
+                gate_artifact_path(phase),
+                DEFAULT_WORKFLOW_ARTIFACTS[artifact_key],
+                msg=f"{phase} path must match DEFAULT_WORKFLOW_ARTIFACTS[{artifact_key!r}]",
+            )
+
+    def test_gate_artifact_path_unknown_phase_raises(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            gate_artifact_path("unknown_phase")
+        self.assertIn("unknown gate phase", str(ctx.exception))
 
     def test_feedback_kinds(self) -> None:
         self.assertEqual(gate_feedback_kind("brief_review"), "brief_correction")

@@ -77,7 +77,7 @@ Historical snapshot from an earlier rc smoke run — record new runs here or in 
 | S7 | 2026-06-10 | PASS | 199 tests OK (worktree rc tip) |
 | S8 | 2026-06-10 | PASS | `test_session_binding.py` OK |
 | S9 | 2026-06-10 | PASS | workflow gate + resume tests OK |
-| S10–S12 | 2026-06-13 | PENDING | rc.4 post-xray smoke — optional program rows added; run when program parent + tmux available (head `14a3cfe`) |
+| S10–S12 | 2026-06-13 | PENDING | Optional program smoke rows (S10–S12 table above) — run when program parent and tmux available |
 
 **Overall:** PASS (9/9) on rc tip @ merge PR #22 (`aab0da3`). rc.4 S10–S12 pending.
 

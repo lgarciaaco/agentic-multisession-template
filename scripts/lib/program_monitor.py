@@ -8,7 +8,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from program_state import GATE_PHASES, load_program
+from program_child_tabs import (
+    close_child_window,
+    in_tmux,
+    is_safe_child_close_target,
+    resolve_child_window,
+)
+from program_state import GATE_PHASES, load_program, save_program
 from session_binding import validate_codename
 from workflow_plan import load_workflow
 from workflow_resume import workflow_next_action
@@ -280,10 +286,77 @@ def child_snapshot(
     return snapshot
 
 
+def _child_workflow_phase(root: Path, codename: str) -> str | None:
+    session_dir = root / "sessions" / codename
+    workflow_path = session_dir / "workflow.json"
+    if not workflow_path.exists():
+        return None
+    try:
+        workflow = load_workflow(session_dir)
+    except (ValueError, OSError):
+        return None
+    phase = workflow.get("phase")
+    return str(phase) if phase is not None else None
+
+
+def cleanup_completed_children(
+    root: Path,
+    parent_codename: str,
+    program: dict[str, Any],
+) -> dict[str, Any]:
+    """Close completed child tabs and mark active_children status on the monitor pass."""
+    parent = validate_codename(parent_codename)
+    session_dir = root / "sessions" / parent
+    changed = False
+
+    for entry in program.get("active_children") or []:
+        if not isinstance(entry, dict):
+            continue
+        codename = str(entry.get("codename", "")).strip()
+        if not codename:
+            continue
+        phase = _child_workflow_phase(root, codename)
+        if phase != "completed":
+            continue
+
+        if entry.get("status") != "completed":
+            entry["status"] = "completed"
+            changed = True
+
+        if in_tmux():
+            raw_pane = entry.get("pane_id")
+            pane_id = (
+                str(raw_pane).strip()
+                if isinstance(raw_pane, str) and str(raw_pane).strip()
+                else None
+            )
+            raw_label = entry.get("window_label")
+            window_label = (
+                str(raw_label).strip()
+                if isinstance(raw_label, str) and str(raw_label).strip()
+                else None
+            )
+            target = resolve_child_window(
+                root,
+                codename,
+                pane_id=pane_id,
+                window_label=window_label,
+            )
+            if target and is_safe_child_close_target(
+                parent, codename, target, root=root
+            ):
+                close_child_window(target)
+
+    if changed:
+        save_program(session_dir, program, codename=parent)
+    return program
+
+
 def monitor_program(root: Path, parent_codename: str) -> dict[str, Any]:
     parent = validate_codename(parent_codename)
     session_dir = root / "sessions" / parent
     program = load_program(session_dir)
+    program = cleanup_completed_children(root, parent, program)
     children = [
         child_snapshot(
             root,

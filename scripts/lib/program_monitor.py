@@ -352,11 +352,16 @@ def cleanup_completed_children(
     return program
 
 
-def monitor_program(root: Path, parent_codename: str) -> dict[str, Any]:
+def program_monitor_snapshot(
+    root: Path,
+    parent_codename: str,
+    program: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build program monitor report without cleanup or program.json mutation."""
     parent = validate_codename(parent_codename)
     session_dir = root / "sessions" / parent
-    program = load_program(session_dir)
-    program = cleanup_completed_children(root, parent, program)
+    if program is None:
+        program = load_program(session_dir)
     children = [
         child_snapshot(
             root,
@@ -375,6 +380,15 @@ def monitor_program(root: Path, parent_codename: str) -> dict[str, Any]:
     }
     report["parent_next_action"] = program_parent_next_action(report)
     return report
+
+
+def monitor_program(root: Path, parent_codename: str) -> dict[str, Any]:
+    """Run cleanup for completed children, then build monitor report."""
+    parent = validate_codename(parent_codename)
+    session_dir = root / "sessions" / parent
+    program = load_program(session_dir)
+    program = cleanup_completed_children(root, parent, program)
+    return program_monitor_snapshot(root, parent, program=program)
 
 
 def _one_line_next(child: dict[str, Any], review_payload: dict[str, Any] | None) -> str:

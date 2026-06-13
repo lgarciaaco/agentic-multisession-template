@@ -22,7 +22,7 @@ Conductor bootstraps `workflow.json` + `artifacts/` from `sessions/_template/` i
 | Phase | You do | Agent does |
 |-------|--------|------------|
 | `intake` | Answer analyst questions | Draft `artifacts/problem-brief.md` |
-| `brief_review` | **`accept brief`** (or correlated inbox) | Sets `gates.brief_accepted`; enters plan loop |
+| `brief_review` | **`accept brief`** (chat or `./scripts/workflow-accept-brief.sh`) | Sets `gates.brief_accepted`; enters plan loop |
 
 Reopen: `python3 scripts/workflow-reopen-brief.py <codename>`
 
@@ -35,7 +35,7 @@ python3 scripts/program-route-feedback.py <parent> <child> \
   --message "Tighten SC-1 wording."
 ```
 
-The child agent receives these as chat prompts. Standalone sessions (no program parent) may still poll inbox at gates; **inbox gate-command auto-apply is disabled** (`gate_command_sender_authorized` always returns false — see [REPOS.md](REPOS.md) Limitations). Program parents route gate commands via tmux send-keys only. While in `brief_review`, poll every 2 minutes (standalone monitoring inbox only):
+The child agent receives these as chat prompts. Standalone sessions (no program parent) may poll inbox at gates for **classification only** — inbox `--apply` does not auto-mutate workflow state for gate commands or unauthorized feedback (`gate_command_sender_authorized` always returns false — see [REPOS.md](REPOS.md) Limitations). Rejected blocks stay in `pending`; program parents route gate commands via tmux send-keys only. While in `brief_review`, poll every 2 minutes:
 
 ```bash
 python3 scripts/workflow-pull-inbox-gate.py <codename> --apply
@@ -56,7 +56,7 @@ Task subagent isolation is mandatory — see [conductor.md Subagent isolation](.
 
 | Phase | You do | Agent does |
 |-------|--------|------------|
-| `plan_user_review` | **`accept plan`** (or correlated inbox; or add `plan-feedback.md`) | `./scripts/workflow-accept-plan.sh <codename>` |
+| `plan_user_review` | **`accept plan`** (or `plan-feedback.md` via chat) | `./scripts/workflow-accept-plan.sh <codename>` |
 
 Syncs tasks → `session.json`, creates worktrees, `phase: implementation`.
 

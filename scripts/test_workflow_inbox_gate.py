@@ -167,6 +167,16 @@ none
             "# Goal\n\nChild goal\n\n## Tasks\n\n| ID | Status | Notes |\n| --- | --- | --- |\n"
         )
 
+    def _assert_rejected_stays_pending(
+        self, result: dict, workflow: dict, *, codename: str | None = None
+    ) -> None:
+        target = codename or self.codename
+        marker = result["rejected"][0]["marker"]
+        self.assertNotIn(marker, workflow["gates"]["inbox"]["processed_markers"])
+        second = pull_inbox_gate(self.root, target, apply=False)
+        self.assertEqual(len(second["pending"]), 1)
+        self.assertEqual(second["pending"][0]["marker"], marker)
+
     def test_classify_gate_message_brief_accept(self) -> None:
         self.assertEqual(classify_gate_message("brief_review", "accept brief"), "accept_brief")
         self.assertEqual(classify_gate_message("brief_review", "accept"), "accept_brief")
@@ -363,9 +373,12 @@ none
         workflow = json.loads((self.session_dir / "workflow.json").read_text())
         self.assertFalse(workflow["gates"]["brief_accepted"])
         self.assertEqual(workflow["phase"], "brief_review")
+        marker = result["rejected"][0]["marker"]
+        self.assertNotIn(marker, workflow["gates"]["inbox"]["processed_markers"])
 
-        second = pull_inbox_gate(self.root, self.codename, apply=True)
-        self.assertEqual(second["pending"], [])
+        second = pull_inbox_gate(self.root, self.codename, apply=False)
+        self.assertEqual(len(second["pending"]), 1)
+        self.assertEqual(second["pending"][0]["marker"], marker)
 
     def test_pull_inbox_gate_apply_accept_plan_from_parent(self) -> None:
         self._write_workflow(
@@ -433,10 +446,11 @@ none
         self.assertFalse(workflow["gates"]["brief_accepted"])
         self.assertEqual(workflow["phase"], "brief_review")
         marker = result["rejected"][0]["marker"]
-        self.assertIn(marker, workflow["gates"]["inbox"]["processed_markers"])
+        self.assertNotIn(marker, workflow["gates"]["inbox"]["processed_markers"])
 
         second = pull_inbox_gate(self.root, self.codename, apply=False)
-        self.assertEqual(second["pending"], [])
+        self.assertEqual(len(second["pending"]), 1)
+        self.assertEqual(second["pending"][0]["marker"], marker)
 
     def test_pull_inbox_gate_rejects_unauthorized_sibling(self) -> None:
         write_inbox(
@@ -452,9 +466,12 @@ none
         workflow = json.loads((self.session_dir / "workflow.json").read_text())
         self.assertFalse(workflow["gates"]["brief_accepted"])
         self.assertEqual(workflow["phase"], "brief_review")
+        marker = result["rejected"][0]["marker"]
+        self.assertNotIn(marker, workflow["gates"]["inbox"]["processed_markers"])
 
         second = pull_inbox_gate(self.root, self.codename, apply=False)
-        self.assertEqual(second["pending"], [])
+        self.assertEqual(len(second["pending"]), 1)
+        self.assertEqual(second["pending"][0]["marker"], marker)
 
     def test_pull_inbox_gate_rejects_forged_parent_without_route_marker(self) -> None:
         write_inbox(
@@ -487,9 +504,10 @@ none
         self.assertFalse(workflow["gates"]["brief_accepted"])
         self.assertEqual(workflow["phase"], "brief_review")
         marker = result["rejected"][0]["marker"]
-        self.assertIn(marker, workflow["gates"]["inbox"]["processed_markers"])
+        self.assertNotIn(marker, workflow["gates"]["inbox"]["processed_markers"])
         second = pull_inbox_gate(self.root, self.codename, apply=False)
-        self.assertEqual(second["pending"], [])
+        self.assertEqual(len(second["pending"]), 1)
+        self.assertEqual(second["pending"][0]["marker"], marker)
 
     def test_pull_inbox_gate_rejects_invalid_from_codename(self) -> None:
         inbox_path = self.root / "sessions" / "_inbox" / f"{self.child}.md"
@@ -571,6 +589,7 @@ none
         self.assertEqual(workflow["phase"], "brief_review")
         brief = (self.session_dir / "artifacts" / "problem-brief.md").read_text()
         self.assertNotIn("Tighten SC-1 wording", brief)
+        self._assert_rejected_stays_pending(result, workflow)
 
     def test_pull_inbox_gate_apply_brief_correction_from_parent(self) -> None:
         write_inbox(
@@ -587,6 +606,7 @@ none
         self.assertEqual(workflow["phase"], "brief_review")
         brief = (self.session_dir / "artifacts" / "problem-brief.md").read_text()
         self.assertNotIn("Tighten SC-1 wording", brief)
+        self._assert_rejected_stays_pending(result, workflow)
 
     def test_pull_inbox_gate_rejects_sibling_plan_feedback(self) -> None:
         self._write_workflow(phase="plan_user_review")
@@ -604,6 +624,7 @@ none
         self.assertEqual(result["rejected"][0]["reason"], "unauthorized_feedback_sender")
         workflow = json.loads((self.session_dir / "workflow.json").read_text())
         self.assertEqual(workflow["phase"], "plan_user_review")
+        self._assert_rejected_stays_pending(result, workflow)
 
     def test_pull_inbox_gate_apply_plan_feedback_from_parent(self) -> None:
         self._write_workflow(phase="plan_user_review")
@@ -622,6 +643,7 @@ none
         self.assertEqual(workflow["phase"], "plan_user_review")
         feedback_path = self.session_dir / "artifacts" / "plan-feedback.md"
         self.assertFalse(feedback_path.exists())
+        self._assert_rejected_stays_pending(result, workflow)
 
     def test_pull_inbox_gate_rejects_feedback_when_no_program_parent(self) -> None:
         standalone = "delta"
@@ -659,6 +681,8 @@ none
         result = pull_inbox_gate(self.root, standalone, apply=True)
         self.assertEqual(result["applied"], [])
         self.assertEqual(result["rejected"][0]["reason"], "unauthorized_feedback_sender")
+        workflow = json.loads((standalone_dir / "workflow.json").read_text())
+        self._assert_rejected_stays_pending(result, workflow, codename=standalone)
         brief = (standalone_dir / "artifacts" / "problem-brief.md").read_text()
         self.assertNotIn("Fix wording", brief)
 

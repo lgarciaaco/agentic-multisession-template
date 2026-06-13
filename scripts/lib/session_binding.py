@@ -797,6 +797,12 @@ def inbox_path(root: Path, target_codename: str) -> Path:
 
 
 def resolve_inbox_caller(root: Path, *, as_codename: str | None = None) -> str | None:
+    """Resolve the authenticated caller for inbox CLI writes.
+
+    Bound sessions: ``--as`` must match the bound codename when provided; when
+    omitted, the bound codename is the caller. Unbound sessions: require explicit
+    ``--as`` matching ``from`` on write (no implicit caller).
+    """
     bound, _ = resolve_codename(root)
     if as_codename:
         caller = validate_codename(as_codename)
@@ -822,7 +828,13 @@ def write_inbox(
     *,
     caller_codename: str | None = None,
 ) -> Path:
-    """Append a message from one session into another session's inbox file."""
+    """Append a message from one session into another session's inbox file.
+
+    Caller authentication: ``from_codename`` must equal the resolved caller.
+    Bound sessions use the bound codename (or ``--as`` matching bound when the
+    CLI passes ``as_codename``). Unbound sessions require explicit ``--as``
+    matching ``from`` via ``caller_codename`` or ``resolve_inbox_caller``.
+    """
     message = sanitize_goal_text(message.strip())
     if not message:
         raise ValueError("inbox message must not be empty")

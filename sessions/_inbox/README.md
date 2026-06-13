@@ -20,18 +20,20 @@ Any bound session may send messages here via `./scripts/session-inbox.sh write <
 
 ## Workflow gate feedback
 
-When session B runs `/workflow-orchestrator` and is waiting at a user gate, correlated inbox messages count as user feedback. Other sessions (monitoring agents) can approve or revise without switching chats.
+When session B runs `/workflow-orchestrator` and is waiting at a user gate, the conductor polls inbox and **classifies** correlated messages. Inbox `--apply` does **not** auto-mutate workflow state for gate commands or unauthorized feedback (post-rc.4). Use chat gate commands, `./scripts/workflow-accept-*.sh`, or (for program children) **`program-route-feedback.py`** (tmux send-keys) to cross gates.
 
-**Authorization:** Inbox gate auto-apply for gate commands (`accept brief`, `accept plan`, `reopen brief`, `reopen plan`) is **disabled** — use chat gate commands, `./scripts/workflow-accept-*.sh`, or (for program children) **`program-route-feedback.py`** (tmux send-keys). Self-writes and sibling gate commands are rejected if present in inbox. **`session-inbox.sh write`** requires the bound caller to match `from` (or authenticated `--as <codename>` when bound). Chat gate commands and `./scripts/workflow-accept-*.sh` remain authorized user paths. **Program parent→child** gate commands and corrections use tmux send-keys — not inbox files. Bound and unbound sessions cannot edit `sessions/_inbox/` directly — use the inbox write CLI.
+**Authorization:** Inbox gate auto-apply for gate commands (`accept brief`, `accept plan`, `reopen brief`, `reopen plan`) is **disabled** — `gate_command_sender_authorized` always returns false. Self-writes, sibling gate commands, and parent ordinary inbox writes are rejected at apply time and **not** marked processed (they remain in `pending` for audit). **`session-inbox.sh write`** requires the bound caller to match `from`; unbound writes require explicit `--as <codename>` matching `from`. Chat gate commands and `./scripts/workflow-accept-*.sh` remain authorized user paths. **Program parent→child** gate commands and corrections use tmux send-keys — not inbox files. Bound and unbound sessions cannot edit `sessions/_inbox/` directly — use the inbox write CLI.
 
-| Target phase | First line of message | Effect |
-|--------------|----------------------|--------|
-| `brief_review` | `accept brief` or `accept` | Accept brief → plan loop |
-| `brief_review` | `reopen brief` | Reopen brief |
-| `brief_review` | anything else | Brief correction for conductor |
-| `plan_user_review` | `accept plan` | Accept plan → implementation |
-| `plan_user_review` | `reopen plan` | Reopen plan |
-| `plan_user_review` | anything else | Plan feedback → `plan-feedback.md`, re-enter plan loop |
+**Standalone `brief_correction` / `plan_feedback`:** No inbox auto-apply path is enabled (`feedback_sender_authorized` returns false for program children and standalone sessions today). Classified feedback is rejected at apply; use chat or tmux routing instead.
+
+| Target phase | First line of message | Classification (inbox apply does not mutate) |
+|--------------|----------------------|---------------------------------------------|
+| `brief_review` | `accept brief` or `accept` | Gate command: accept brief |
+| `brief_review` | `reopen brief` | Gate command: reopen brief |
+| `brief_review` | anything else | Brief correction text for conductor |
+| `plan_user_review` | `accept plan` | Gate command: accept plan |
+| `plan_user_review` | `reopen plan` | Gate command: reopen plan |
+| `plan_user_review` | anything else | Plan feedback text for conductor |
 
 Optional prefix: `workflow: accept plan`
 
@@ -41,7 +43,7 @@ The workflow conductor polls every **2 minutes** while at a gate:
 python3 scripts/workflow-pull-inbox-gate.py <to-codename> --apply
 ```
 
-Processed inbox blocks are tracked in `workflow.json` → `gates.inbox.processed_markers`.
+Only **successfully applied** inbox blocks are tracked in `workflow.json` → `gates.inbox.processed_markers`. Rejected blocks stay pending.
 
 ## Program orchestrator routing
 

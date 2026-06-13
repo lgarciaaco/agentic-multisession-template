@@ -317,7 +317,6 @@ def pull_inbox_gate(
         if is_gate_command_action(action) and not gate_command_sender_authorized(
             root, codename, from_session, body, marker=marker
         ):
-            applied_markers.append(marker)
             rejected.append(
                 {
                     "action": action,
@@ -331,7 +330,6 @@ def pull_inbox_gate(
         if action in gate_feedback_kinds() and not feedback_sender_authorized(
             root, codename, from_session
         ):
-            applied_markers.append(marker)
             rejected.append(
                 {
                     "action": action,

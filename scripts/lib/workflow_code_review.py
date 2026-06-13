@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 import json
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from hub_paths import resolve_review_workspace, resolve_session_artifact
+from workflow_ids import latest_review_id, next_review_id
+from workflow_io import read_summary_json
 from workflow_plan import (
+    DEFAULT_WORKFLOW_ARTIFACTS,
+    artifact_rel,
     dedupe_findings,
     load_workflow,
     parse_action_plan_tasks,
+    resolve_artifact,
     save_workflow,
 )
 
@@ -158,51 +162,37 @@ def update_code_review_loop_state(
 
 def next_code_review_id(reviews_dir: Path) -> str:
     """Allocate next r-NNN id from sessions/<codename>/reviews/."""
-    reviews_dir.mkdir(parents=True, exist_ok=True)
-    highest = 0
-    for path in reviews_dir.glob("r-*.json"):
-        match = re.fullmatch(r"r-(\d+)", path.stem)
-        if match:
-            highest = max(highest, int(match.group(1)))
-    return f"r-{highest + 1:03d}"
+    return next_review_id(reviews_dir, "r")
 
 
 def read_review_summary(session_dir: Path, review_id: str) -> dict[str, Any]:
     path = session_dir / "reviews" / f"{review_id}.json"
-    if not path.exists():
-        raise FileNotFoundError(f"Review summary not found: {path}")
-    return json.loads(path.read_text())
+    result = read_summary_json(path, missing="raise")
+    assert result is not None
+    return result
 
 
 def latest_review_summary(session_dir: Path) -> tuple[str, dict[str, Any]] | None:
     reviews_dir = session_dir / "reviews"
-    if not reviews_dir.is_dir():
-        return None
-    best_id = ""
-    best_num = -1
-    for path in reviews_dir.glob("r-*.json"):
-        match = re.fullmatch(r"r-(\d+)", path.stem)
-        if match and int(match.group(1)) > best_num:
-            best_num = int(match.group(1))
-            best_id = path.stem
+    best_id = latest_review_id(reviews_dir, "r")
     if not best_id:
         return None
-    return best_id, read_review_summary(session_dir, best_id)
+    summary = read_summary_json(reviews_dir / f"{best_id}.json", missing="raise")
+    assert summary is not None
+    return best_id, summary
 
 
 def workflow_acceptance_criteria(session_dir: Path) -> list[dict[str, Any]]:
     """Build acceptance criteria from action-plan.md and session.json tasks."""
-    workflow_path = session_dir / "workflow.json"
-    if not workflow_path.exists():
+    try:
+        workflow = load_workflow(session_dir)
+    except (FileNotFoundError, ValueError):
         return []
 
-    workflow = json.loads(workflow_path.read_text())
-    artifacts = workflow.get("artifacts") or {}
-    plan_rel = artifacts.get("plan", "artifacts/action-plan.md")
     try:
-        plan_path = resolve_session_artifact(session_dir, plan_rel)
+        plan_path = resolve_artifact(session_dir, workflow, "plan")
     except ValueError:
-        plan_path = session_dir / "artifacts" / "action-plan.md"
+        plan_path = session_dir / DEFAULT_WORKFLOW_ARTIFACTS["plan"]
 
     by_id: dict[str, dict[str, Any]] = {}
     if plan_path.exists():
@@ -256,8 +246,7 @@ def enrich_scope_manifest(
         return manifest_path
 
     workflow = load_workflow(session_dir)
-    artifacts = workflow.get("artifacts") or {}
-    plan_rel = artifacts.get("plan", "artifacts/action-plan.md")
+    plan_rel = artifact_rel(workflow, "plan")
     task_id = active_code_review_task_id(session_dir)
     if task_id:
         criteria = [item for item in criteria if item.get("id") == task_id] or criteria

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from hub_paths import resolve_session_artifact
-from workflow_plan import load_workflow, save_workflow
+from workflow_plan import artifact_rel, load_workflow, resolve_artifact, save_workflow
 from workflow_resume import (
     latest_code_review_id,
     latest_plan_review_id,
@@ -28,7 +28,6 @@ def render_delivery_report(
     session = json.loads(session_path.read_text()) if session_path.exists() else {}
     report_title = title or session.get("title") or codename
     workflow = load_workflow(session_dir)
-    artifacts = workflow.get("artifacts") or {}
     loops = workflow.get("loops") or {}
 
     tasks = session.get("tasks") or []
@@ -84,8 +83,8 @@ def render_delivery_report(
     if not deferred_lines:
         deferred_lines.append("- None.")
 
-    brief_rel = artifacts.get("brief", "artifacts/problem-brief.md")
-    plan_rel = artifacts.get("plan", "artifacts/action-plan.md")
+    brief_rel = artifact_rel(workflow, "brief")
+    plan_rel = artifact_rel(workflow, "plan")
     artifact_lines = [
         f"- `{brief_rel}`",
         f"- `{plan_rel}`",
@@ -135,9 +134,7 @@ def write_delivery_report(
 ) -> Path:
     """Write artifacts/delivery-report.md and set phase completed."""
     workflow = load_workflow(session_dir)
-    artifacts = workflow.get("artifacts") or {}
-    delivery_rel = artifacts.get("delivery", "artifacts/delivery-report.md")
-    delivery_path = resolve_session_artifact(session_dir, delivery_rel)
+    delivery_path = resolve_artifact(session_dir, workflow, "delivery")
     delivery_path.parent.mkdir(parents=True, exist_ok=True)
     delivery_path.write_text(render_delivery_report(session_dir, codename=codename, title=title))
     workflow["phase"] = "completed"

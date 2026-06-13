@@ -22,8 +22,12 @@ from program_child_tabs import (  # noqa: E402
     format_manual_child_steps,
     is_safe_child_close_target,
     launch_child_agents,
+    list_hub_panes,
     open_child_windows,
+    persist_child_panes,
+    resolve_child_pane,
     resolve_child_window,
+    send_to_child_pane,
 )
 from program_state import default_program, save_program  # noqa: E402
 
@@ -102,13 +106,16 @@ class ProgramChildTabsTests(unittest.TestCase):
                 [ChildWindow("november", "%1", "hub-november")],
             )
         send_calls = [c for c in self.tmux_calls if c[0] == "send-keys"]
-        self.assertEqual(len(send_calls), 1)
-        self.assertEqual(send_calls[0][1:3], ["-t", "%1"])
-        self.assertIn("test-agent", send_calls[0][3])
-        self.assertIn("--reuse", send_calls[0][3])
-        self.assertIn("--workflow", send_calls[0][3])
-        self.assertIn("GIT_EDITOR=true", send_calls[0][3])
-        self.assertIn("EDITOR=true", send_calls[0][3])
+        self.assertEqual(len(send_calls), 2)
+        self.assertEqual(send_calls[0][:3], ["send-keys", "-l", "-t"])
+        self.assertEqual(send_calls[0][3], "%1")
+        cmd = send_calls[0][4]
+        self.assertIn("test-agent", cmd)
+        self.assertIn("--reuse", cmd)
+        self.assertIn("--workflow", cmd)
+        self.assertIn("GIT_EDITOR=true", cmd)
+        self.assertIn("EDITOR=true", cmd)
+        self.assertEqual(send_calls[1], ["send-keys", "-t", "%1", "C-m"])
 
     def test_format_manual_child_steps(self) -> None:
         text = format_manual_child_steps(
@@ -153,6 +160,49 @@ class ProgramChildTabsTests(unittest.TestCase):
         )
         open_windows.assert_called_once()
         launch_agents.assert_called_once()
+        program = json.loads((self.session_dir / "program.json").read_text())
+        self.assertEqual(program["active_children"][0]["pane_id"], "%1")
+        self.assertEqual(program["active_children"][1]["pane_id"], "%2")
+
+    @patch("program_child_tabs._pane_codename", return_value="november")
+    @patch("program_child_tabs._pane_alive", return_value=True)
+    def test_resolve_child_pane_uses_stored_id(self, _alive, _codename) -> None:
+        pane = resolve_child_pane(self.root, "november", "%1")
+        self.assertEqual(pane, "%1")
+
+    @patch("program_child_tabs._pane_alive", return_value=False)
+    @patch("program_child_tabs.list_hub_panes")
+    def test_resolve_child_pane_falls_back_to_scan(self, list_panes, _alive) -> None:
+        list_panes.return_value = [{"pane_id": "%9", "codename": "november", "path": str(self.root)}]
+        pane = resolve_child_pane(self.root, "november", "%stale")
+        self.assertEqual(pane, "%9")
+
+    def test_persist_child_panes_merges_window_records(self) -> None:
+        program = default_program(self.parent)
+        program["active_children"] = [
+            {"codename": "november", "status": "running"},
+            {"codename": "oscar", "status": "running"},
+        ]
+        windows = [
+            ChildWindow("november", "%1", "hub-november"),
+            ChildWindow("oscar", "%2", "hub-oscar"),
+        ]
+        persist_child_panes(program, windows)
+        self.assertEqual(program["active_children"][0]["pane_id"], "%1")
+        self.assertEqual(program["active_children"][1]["window_label"], "hub-oscar")
+
+    @patch("program_child_tabs._run_tmux")
+    def test_send_to_child_pane_submits_enter(self, run_tmux) -> None:
+        run_tmux.return_value = subprocess.CompletedProcess(("send-keys",), 0, "", "")
+        send_to_child_pane("%1", "accept brief", submit=True)
+        self.assertEqual(
+            run_tmux.call_args_list[0][0],
+            ("send-keys", "-l", "-t", "%1", "accept brief"),
+        )
+        self.assertEqual(
+            run_tmux.call_args_list[1][0],
+            ("send-keys", "-t", "%1", "C-m"),
+        )
 
     @patch("program_bootstrap._run_script")
     @patch.dict(os.environ, {}, clear=True)

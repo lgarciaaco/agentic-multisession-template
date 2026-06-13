@@ -16,6 +16,7 @@ from program_child_tabs import (
     in_tmux,
     launch_child_agents,
     open_child_windows,
+    persist_child_panes,
 )
 from program_state import load_program, save_program
 from session_binding import validate_codename
@@ -143,6 +144,8 @@ def bootstrap_children(
         if new_codenames:
             windows = open_child_windows(root, new_codenames)
             launch_child_agents(root, windows, prompt=workflow_prompt)
+            persist_child_panes(program, windows)
+            save_program(session_dir, program, codename=parent_name)
             result["tmux"] = True
             result["windows"] = child_window_records(windows)
     else:

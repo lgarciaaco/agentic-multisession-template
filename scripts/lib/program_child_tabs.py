@@ -9,8 +9,11 @@ from pathlib import Path
 from typing import Any
 
 from session_binding import (
+    _index_sessions,
+    _pane_path_under_hub_root,
     _run_tmux,
     agent_launcher_name,
+    is_active_session,
     tmux_pane_option,
     tmux_window_label,
     validate_codename,
@@ -256,6 +259,100 @@ def _child_agent_launch_cmd(hub: str, launcher: str, *, prompt: str) -> str:
     )
 
 
+def list_hub_panes(root: Path) -> list[dict[str, str]]:
+    """List tmux panes under hub_root with pane_id and bound codename.
+
+    Shared lookup surface for program routing (pc2) and tab cleanup (pc3).
+    """
+    if not in_tmux():
+        return []
+    opt = tmux_pane_option()
+    result = _run_tmux(
+        "list-panes",
+        "-s",
+        "-F",
+        f"#{{pane_id}}\t#{{@{opt}}}\t#{{pane_current_path}}",
+    )
+    if not result:
+        return []
+    hub = root.resolve()
+    index_sessions = _index_sessions(hub)
+    panes: list[dict[str, str]] = []
+    for line in result.stdout.splitlines():
+        parts = line.split("\t", 2)
+        if len(parts) < 3:
+            continue
+        pane_id, codename, pane_path = parts[0].strip(), parts[1].strip(), parts[2].strip()
+        if not codename or not _pane_path_under_hub_root(hub, pane_path):
+            continue
+        if not is_active_session(hub, codename, index_sessions.get(codename, {})):
+            continue
+        panes.append({"pane_id": pane_id, "codename": codename, "path": pane_path})
+    return panes
+
+
+def _pane_alive(pane_id: str) -> bool:
+    result = _run_tmux("display-message", "-p", "-t", pane_id, "#{pane_id}")
+    return result is not None and bool(result.stdout.strip())
+
+
+def _pane_codename(pane_id: str) -> str | None:
+    opt = tmux_pane_option()
+    result = _run_tmux("display-message", "-p", "-t", pane_id, f"#{{@{opt}}}")
+    if not result:
+        return None
+    value = result.stdout.strip()
+    return value or None
+
+
+def resolve_child_pane(
+    root: Path,
+    codename: str,
+    stored_pane_id: str | None = None,
+) -> str:
+    """Return a live pane id for codename; prefer stored id when still valid."""
+    name = validate_codename(codename)
+    if stored_pane_id and _pane_alive(stored_pane_id):
+        bound = _pane_codename(stored_pane_id)
+        if bound == name:
+            return stored_pane_id
+    for pane in list_hub_panes(root):
+        if pane["codename"] == name:
+            return pane["pane_id"]
+    raise ValueError(f"no tmux pane found for child {name!r}")
+
+
+def send_to_child_pane(pane_id: str, text: str, *, submit: bool = True) -> None:
+    """Send text to a child pane; append Enter when submit is True."""
+    message = text.strip()
+    if not message:
+        raise ValueError("message must not be empty")
+    if _run_tmux("send-keys", "-l", "-t", pane_id, message) is None:
+        raise RuntimeError(f"tmux send-keys failed for pane {pane_id!r}")
+    if submit:
+        if _run_tmux("send-keys", "-t", pane_id, "C-m") is None:
+            raise RuntimeError(f"tmux send-keys failed for pane {pane_id!r}")
+
+
+def persist_child_panes(
+    program: dict[str, Any],
+    windows: list[ChildWindow],
+) -> dict[str, Any]:
+    """Merge bootstrap window records into program active_children."""
+    by_codename = {window.codename: window for window in windows}
+    active = list(program.get("active_children") or [])
+    for entry in active:
+        codename = entry.get("codename")
+        window = by_codename.get(codename)
+        if window is None:
+            continue
+        entry["pane_id"] = window.pane_id
+        if window.window_label:
+            entry["window_label"] = window.window_label
+    program["active_children"] = active
+    return program
+
+
 def launch_child_agents(
     root: Path,
     windows: list[ChildWindow],
@@ -267,7 +364,7 @@ def launch_child_agents(
     hub = str(root)
     for window in windows:
         cmd = _child_agent_launch_cmd(hub, launcher, prompt=prompt)
-        _run_tmux("send-keys", "-t", window.pane_id, cmd, "C-m")
+        send_to_child_pane(window.pane_id, cmd, submit=True)
 
 
 def child_window_records(windows: list[ChildWindow]) -> list[dict[str, Any]]:

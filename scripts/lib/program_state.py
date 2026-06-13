@@ -97,8 +97,9 @@ def _validate_active_child(entry: Any, index: int) -> dict[str, Any]:
     if started is not None and not isinstance(started, str):
         raise ValueError(f"active_children[{index}].started must be a string when set")
     pane_id = entry.get("pane_id")
-    if pane_id is not None and not isinstance(pane_id, str):
-        raise ValueError(f"active_children[{index}].pane_id must be a string when set")
+    if pane_id is not None:
+        if not isinstance(pane_id, str) or not pane_id.strip():
+            raise ValueError(f"active_children[{index}].pane_id must be a non-empty string when set")
     window_label = entry.get("window_label")
     if window_label is not None and not isinstance(window_label, str):
         raise ValueError(f"active_children[{index}].window_label must be a string when set")

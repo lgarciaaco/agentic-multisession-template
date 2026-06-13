@@ -22,10 +22,9 @@ from program_monitor import (  # noqa: E402
     render_program_status_markdown,
     sibling_program_context,
 )
-from program_route_feedback import route_feedback  # noqa: E402
-from workflow_inbox_gate import classify_gate_message, parse_inbox_blocks, pull_inbox_gate  # noqa: E402
-from program_state import default_program, save_program  # noqa: E402
-from session_binding import write_inbox  # noqa: E402
+from program_route_feedback import route_correction, route_feedback  # noqa: E402
+from program_state import default_program, load_program, save_program  # noqa: E402
+from workflow_inbox_gate import pull_inbox_gate  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -54,7 +53,13 @@ class ProgramOrchestratorTests(unittest.TestCase):
                 "depends_on": [],
             }
         ]
-        program["active_children"] = [{"codename": self.child, "status": "running"}]
+        program["active_children"] = [
+            {
+                "codename": self.child,
+                "status": "running",
+                "pane_id": "%1",
+            }
+        ]
         save_program(parent_dir, program)
 
         workflow = {
@@ -82,20 +87,64 @@ class ProgramOrchestratorTests(unittest.TestCase):
     def _route_feedback(self, **kwargs: object) -> str:
         parent = kwargs.pop("parent", self.parent)
         child = kwargs.pop("child", self.child)
+        sent: list[tuple[str, str]] = []
+
+        def _capture(pane_id: str, text: str, *, submit: bool = True) -> None:
+            sent.append((pane_id, text))
+
         with mock.patch(
             "program_route_feedback.resolve_codename",
             return_value=(parent, "binding"),
         ):
-            with mock.patch(
-                "session_binding.resolve_inbox_caller",
-                return_value=parent,
-            ):
-                return route_feedback(
-                    self.root,
-                    parent=parent,
-                    child=child,
-                    **kwargs,
-                )
+            with mock.patch("program_route_feedback.in_tmux", return_value=True):
+                with mock.patch(
+                    "program_route_feedback.resolve_child_pane",
+                    return_value="%1",
+                ):
+                    with mock.patch(
+                        "program_route_feedback.send_to_child_pane",
+                        side_effect=_capture,
+                    ) as send_mock:
+                        result = route_feedback(
+                            self.root,
+                            parent=parent,
+                            child=child,
+                            **kwargs,
+                        )
+        self._last_send_mock = send_mock
+        self._last_sent = sent
+        return result
+
+    def _route_correction(self, message: str, **kwargs: object) -> str:
+        parent = kwargs.pop("parent", self.parent)
+        child = kwargs.pop("child", self.child)
+        sent: list[tuple[str, str]] = []
+
+        def _capture(pane_id: str, text: str, *, submit: bool = True) -> None:
+            sent.append((pane_id, text))
+
+        with mock.patch(
+            "program_route_feedback.resolve_codename",
+            return_value=(parent, "binding"),
+        ):
+            with mock.patch("program_route_feedback.in_tmux", return_value=True):
+                with mock.patch(
+                    "program_route_feedback.resolve_child_pane",
+                    return_value="%1",
+                ):
+                    with mock.patch(
+                        "program_route_feedback.send_to_child_pane",
+                        side_effect=_capture,
+                    ):
+                        result = route_correction(
+                            self.root,
+                            parent=parent,
+                            child=child,
+                            message=message,
+                            **kwargs,
+                        )
+        self._last_sent = sent
+        return result
 
     def test_monitor_reports_child_gate(self) -> None:
         report = monitor_program(self.root, self.parent)
@@ -277,27 +326,54 @@ print(status_path)
         self.assertEqual(review["decomposition_scope"]["title"], "Plan child")
         self.assertEqual(review["child_scope"]["title"], "Child session title")
 
-    def test_route_feedback_writes_inbox(self) -> None:
-        self._route_feedback(
+    def test_route_feedback_sends_keys(self) -> None:
+        payload = self._route_feedback(
             gate="brief_review",
             message="accept brief",
         )
+        self.assertEqual(payload, "accept brief")
+        self.assertEqual(self._last_sent, [("%1", "accept brief")])
         inbox = self.root / "sessions" / "_inbox" / f"{self.child}.md"
-        self.assertTrue(inbox.exists())
-        blocks = parse_inbox_blocks(inbox.read_text())
-        self.assertEqual(blocks[0]["body"].splitlines()[0].strip(), "accept brief")
-        self.assertEqual(
-            classify_gate_message("brief_review", blocks[0]["body"]),
-            "accept_brief",
-        )
+        self.assertFalse(inbox.exists())
 
-    def test_route_feedback_classifies_as_gate_accept(self) -> None:
+    def test_route_feedback_dry_run_returns_command(self) -> None:
+        payload = self._route_feedback(
+            gate="brief_review",
+            message="accept brief",
+            dry_run=True,
+        )
+        self.assertEqual(payload, "accept brief")
+        self.assertEqual(getattr(self, "_last_sent", []), [])
+
+    def test_route_feedback_requires_tmux(self) -> None:
+        with mock.patch("program_route_feedback.resolve_codename", return_value=(self.parent, "binding")):
+            with mock.patch("program_route_feedback.in_tmux", return_value=False):
+                with self.assertRaisesRegex(ValueError, "requires TMUX"):
+                    route_feedback(
+                        self.root,
+                        parent=self.parent,
+                        child=self.child,
+                        gate="brief_review",
+                        message="accept brief",
+                    )
+
+    def test_route_correction_sends_keys(self) -> None:
+        body = "Tighten SC-1 wording for clarity."
+        payload = self._route_correction(body)
+        self.assertEqual(payload, body)
+        self.assertEqual(self._last_sent, [("%1", body)])
+
+    def test_route_feedback_does_not_apply_via_inbox_pull(self) -> None:
         self._route_feedback(
             gate="brief_review",
             message="accept brief",
         )
-        result = pull_inbox_gate(self.root, self.child, apply=False)
-        self.assertEqual(result["pending"][0]["action"], "accept_brief")
+        result = pull_inbox_gate(self.root, self.child, apply=True)
+        self.assertEqual(result["applied"], [])
+        workflow = json.loads(
+            (self.root / "sessions" / self.child / "workflow.json").read_text()
+        )
+        self.assertFalse(workflow["gates"]["brief_accepted"])
 
     def test_route_feedback_unknown_child_raises(self) -> None:
         with self.assertRaisesRegex(ValueError, "not registered"):
@@ -374,43 +450,43 @@ none
             "# Tasks\n\n## Goal\n\nChild session goal line\n\n## Tasks\n\n| ID | Status | Notes |\n| --- | --- | --- |\n"
         )
 
-    def test_route_feedback_accept_plan_applies_via_inbox_pull(self) -> None:
+    def test_route_feedback_accept_plan_does_not_apply_via_inbox_pull(self) -> None:
         self._write_child_plan_gate_workflow()
         self._route_feedback(
             gate="plan_user_review",
             message="accept plan",
         )
         result = pull_inbox_gate(self.root, self.child, apply=True)
-        self.assertEqual(result["applied"][0]["action"], "accept_plan")
+        self.assertEqual(result["applied"], [])
         workflow = json.loads(
             (self.root / "sessions" / self.child / "workflow.json").read_text()
         )
-        self.assertEqual(workflow["phase"], "implementation")
+        self.assertEqual(workflow["phase"], "plan_user_review")
 
-    def test_route_feedback_reopen_brief_applies_via_inbox_pull(self) -> None:
+    def test_route_feedback_reopen_brief_does_not_apply_via_inbox_pull(self) -> None:
         self._route_feedback(
             gate="brief_review",
             message="reopen brief",
         )
         result = pull_inbox_gate(self.root, self.child, apply=True)
-        self.assertEqual(result["applied"][0]["action"], "reopen_brief")
+        self.assertEqual(result["applied"], [])
         workflow = json.loads(
             (self.root / "sessions" / self.child / "workflow.json").read_text()
         )
-        self.assertEqual(workflow["phase"], "intake")
+        self.assertEqual(workflow["phase"], "brief_review")
 
-    def test_route_feedback_reopen_plan_applies_via_inbox_pull(self) -> None:
+    def test_route_feedback_reopen_plan_does_not_apply_via_inbox_pull(self) -> None:
         self._write_child_plan_gate_workflow()
         self._route_feedback(
             gate="plan_user_review",
             message="reopen plan",
         )
         result = pull_inbox_gate(self.root, self.child, apply=True)
-        self.assertEqual(result["applied"][0]["action"], "reopen_plan")
+        self.assertEqual(result["applied"], [])
         workflow = json.loads(
             (self.root / "sessions" / self.child / "workflow.json").read_text()
         )
-        self.assertEqual(workflow["phase"], "plan_loop")
+        self.assertEqual(workflow["phase"], "plan_user_review")
 
     def _write_completed_child_workflow(self) -> None:
         child_dir = self.root / "sessions" / self.child
@@ -512,6 +588,7 @@ none
         self._write_completed_child_workflow()
         parent_dir = self.root / "sessions" / self.parent
         program = json.loads((parent_dir / "program.json").read_text())
+        program["active_children"][0].pop("pane_id", None)
         program["active_children"][0]["window_label"] = "hub-november"
         save_program(parent_dir, program)
         program = json.loads((parent_dir / "program.json").read_text())

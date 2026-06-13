@@ -861,42 +861,10 @@ def write_inbox_program_route(
     child_codename: str,
     message: str,
 ) -> Path:
-    """Trusted program-orchestrator parent route — internal API only."""
-    from program_state import find_program_parent
-
-    message = sanitize_goal_text(message.strip())
-    if not message:
-        raise ValueError("inbox message must not be empty")
-    parent = validate_codename(parent_codename)
-    child = validate_codename(child_codename)
-    for name in (parent, child):
-        if not (root / "sessions" / name).is_dir():
-            raise ValueError(f"invalid session codename: {name}")
-    registered = find_program_parent(root, child)
-    if registered is None or registered != parent:
-        raise ValueError(
-            "program_route inbox write requires registered program parent as from_codename"
-        )
-    from gate_command_registry import PROGRAM_GATE_MARKER
-
-    if PROGRAM_GATE_MARKER not in message:
-        raise ValueError("program_route inbox write requires program gate marker in message")
-    caller = resolve_inbox_caller(root)
-    if caller is None:
-        raise ValueError(
-            "program_route inbox write requires bound session caller equal to registered parent"
-        )
-    if caller != parent:
-        raise ValueError(
-            f"program_route inbox write requires caller {parent!r}, not {caller!r}"
-        )
-    return _append_inbox_message(
-        root,
-        parent,
-        child,
-        message,
-        provenance_kind="program_route",
-        verified_caller="program-route-feedback",
+    """Removed — program parent→child routing uses tmux send-keys (program-route-feedback.py)."""
+    raise ValueError(
+        "write_inbox_program_route is removed; use program-route-feedback.py "
+        "(tmux send-keys) for parent program gate routing"
     )
 
 
@@ -1109,6 +1077,13 @@ def guard_unbound_path_decision(root: Path, file_path: str) -> dict:
         return _guard_deny(
             f"No session bound; cannot edit sessions/{other}/.",
             "Bind a session first (./scripts/bind-session.sh <codename>).",
+        )
+
+    inbox_dir = root / "sessions" / "_inbox"
+    if _path_is_within(resolved, inbox_dir) or resolved == inbox_dir:
+        return _guard_deny(
+            "Direct inbox path edits are blocked when unbound.",
+            "Use ./scripts/session-inbox.sh write to send cross-session messages.",
         )
 
     return _GUARD_ALLOW

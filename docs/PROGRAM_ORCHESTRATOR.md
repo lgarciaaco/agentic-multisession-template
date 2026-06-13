@@ -8,7 +8,7 @@ Multi-session coordination layer above single-session [`/workflow-orchestrator`]
 /sessions-orchestrator (parent chat)
   ingest → decompose → [approve decomposition]
   → bootstrap child sessions
-  → monitor gates → route inbox feedback
+  → monitor gates → route tmux feedback to child panes
   → per-child /pr-review on completion
 
 /workflow-orchestrator (each child chat)
@@ -34,7 +34,7 @@ Template: `sessions/_template/program.json`
 | `scripts/program-bootstrap-children.py` | Bootstrap children + open tmux tabs |
 | `scripts/program-monitor.py` | Read child workflow phases/gates |
 | `scripts/program-status-report.sh` | Write `artifacts/program-status.md` |
-| `scripts/program-route-feedback.py` | Parent → child inbox at gates |
+| `scripts/program-route-feedback.py` | Parent → child tmux pane at gates (send-keys) |
 | `scripts/program-merge-order.py` | PR merge sequencing |
 | `scripts/lib/program_state.py` | Load/save/validate `program.json` |
 
@@ -62,9 +62,17 @@ When `TMUX` is set, the script opens one detached window per child in the same t
 - Sets pane option `@workspace-codename` before the agent starts
 - Runs `$(cat .hub-launcher) --reuse --workflow` so the child auto-starts `/workflow-orchestrator` without the session picker
 
-The parent window stays selected. Outside tmux, the script prints manual bind/launcher steps and exits 0.
+The parent window stays selected. Bootstrap persists each child's `pane_id` on `program.json` → `active_children[]` for later routing.
 
-See [SESSIONS.md](../SESSIONS.md) § Program orchestrator child tabs.
+### Shared pane helpers (`program_child_tabs.py`)
+
+Program routing and future tab cleanup (pc3) share:
+
+- `resolve_child_pane(root, codename, stored_pane_id=None)` — live pane id from stored value or `@workspace-codename` scan
+- `send_to_child_pane(pane_id, text)` — `tmux send-keys` with trailing Enter
+- `persist_child_panes(program, windows)` — merge bootstrap window records into `program.json`
+
+Outside tmux, route scripts fail fast with manual steps (no inbox fallback).
 
 ## Check children / status (one screen)
 
@@ -112,8 +120,8 @@ Parent sessions coordinate; they do not edit child sessions.
 
 | Feedback type | Tool | Example |
 |---------------|------|---------|
-| Accept / reopen gate | `python3 scripts/program-route-feedback.py` | `python3 scripts/program-route-feedback.py <parent> <child> --gate brief_review --message "accept brief"` (also `--gate plan_user_review --message "accept plan"`; reopen with `--message "reopen brief"` / `"reopen plan"`) |
-| Brief or plan correction | `session-inbox.sh write <parent> <child> "…"` | Prose review notes |
+| Accept / reopen gate | `python3 scripts/program-route-feedback.py` | Sends exact gate command to child tmux pane via send-keys |
+| Brief or plan correction | `python3 scripts/program-route-feedback.py` (no `--gate`) or `--correction` | Free-text sent to child pane as chat input |
 
 **Read-only review (mandatory at gates):** inspect child gate artifacts via monitor `gate_review`; compare to decomposition scope and `sibling_program_context`; read full assessments in `artifacts/program-status.md` before routing. Never patch child artifacts or worktrees from the parent chat. Monitor JSON includes `gate_review` paths, `sibling_program_context`, and `parent_next_action`.
 
@@ -128,9 +136,11 @@ python3 scripts/program-route-feedback.py <parent> <child> \
   --gate brief_review --message "reopen brief"
 python3 scripts/program-route-feedback.py <parent> <child> \
   --gate plan_user_review --message "reopen plan"
+python3 scripts/program-route-feedback.py <parent> <child> \
+  --message "Tighten SC-2 wording — checklist count should be 13."
 ```
 
-**Child → parent escalation:** program children dual-write open questions and blockers to the parent inbox and persist them in the gate artifact before presenting a user gate (see workflow conductor rules).
+Gate and correction messages arrive in the **child chat** as typed prompts (not inbox files). Child workflow handles `accept brief` / `accept plan` in chat; corrections update the gate artifact in the child session.
 
 ## Related
 

@@ -23,7 +23,6 @@ from session_binding import validate_codename
 from workflow_plan import load_workflow, parse_action_plan_tasks
 from workflow_resume import workflow_next_action
 
-
 def _mtime_iso(path: Path) -> str | None:
     if not path.exists():
         return None

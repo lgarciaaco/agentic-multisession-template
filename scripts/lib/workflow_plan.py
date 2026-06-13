@@ -9,9 +9,40 @@ from pathlib import Path
 from typing import Any
 
 from hub_paths import resolve_review_workspace, resolve_session_artifact
+from workflow_ids import next_review_id
 
 SEVERITY_RANK = {"NIT": 0, "SUGGESTION": 1, "REQUIRED": 2, "BLOCKER": 3}
 INBOX_GATE_POLL_SECONDS = 120
+
+DEFAULT_WORKFLOW_ARTIFACTS: dict[str, str] = {
+    "brief": "artifacts/problem-brief.md",
+    "plan": "artifacts/action-plan.md",
+    "delivery": "artifacts/delivery-report.md",
+    "plan_feedback": "artifacts/plan-feedback.md",
+    "code_review_disposition": "artifacts/code-review-disposition.md",
+}
+
+
+def resolve_artifact(
+    session_dir: Path,
+    workflow: dict[str, Any],
+    key: str,
+) -> Path:
+    """Resolve artifact path from workflow overrides or DEFAULT_WORKFLOW_ARTIFACTS."""
+    artifacts = workflow.get("artifacts") or {}
+    rel = artifacts.get(key) or DEFAULT_WORKFLOW_ARTIFACTS.get(key)
+    if not rel:
+        raise KeyError(f"unknown workflow artifact key: {key}")
+    return resolve_session_artifact(session_dir, str(rel))
+
+
+def artifact_rel(workflow: dict[str, Any], key: str) -> str:
+    """Return relative artifact path string for *key*."""
+    artifacts = workflow.get("artifacts") or {}
+    rel = artifacts.get(key) or DEFAULT_WORKFLOW_ARTIFACTS.get(key)
+    if not rel:
+        raise KeyError(f"unknown workflow artifact key: {key}")
+    return str(rel)
 
 
 def make_workflow_id(when: datetime | None = None) -> str:
@@ -22,13 +53,7 @@ def make_workflow_id(when: datetime | None = None) -> str:
 
 def next_plan_review_id(plan_review_dir: Path) -> str:
     """Allocate next pr-NNN id from artifacts/plan-review/."""
-    plan_review_dir.mkdir(parents=True, exist_ok=True)
-    highest = 0
-    for path in plan_review_dir.glob("pr-*.json"):
-        match = re.fullmatch(r"pr-(\d+)", path.stem)
-        if match:
-            highest = max(highest, int(match.group(1)))
-    return f"pr-{highest + 1:03d}"
+    return next_review_id(plan_review_dir, "pr")
 
 
 def dedupe_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -288,9 +313,8 @@ def run_plan_loop(
     session_dir = root / "sessions" / codename
     workflow = load_workflow(session_dir)
     workflow["phase"] = "plan_loop"
-    artifacts = workflow.get("artifacts") or {}
-    brief_rel = artifacts.get("brief", "artifacts/problem-brief.md")
-    plan_rel = artifacts.get("plan", "artifacts/action-plan.md")
+    brief_rel = artifact_rel(workflow, "brief")
+    plan_rel = artifact_rel(workflow, "plan")
     brief_path = f"sessions/{codename}/{brief_rel}"
     plan_path = f"sessions/{codename}/{plan_rel}"
     session = json.loads((session_dir / "session.json").read_text())
@@ -472,9 +496,7 @@ def sync_action_plan_tasks(root: Path, codename: str) -> list[dict[str, Any]]:
 
     session_dir = root / "sessions" / codename
     workflow = load_workflow(session_dir)
-    artifacts = workflow.get("artifacts") or {}
-    plan_rel = artifacts.get("plan", "artifacts/action-plan.md")
-    plan_path = resolve_session_artifact(session_dir, plan_rel)
+    plan_path = resolve_artifact(session_dir, workflow, "plan")
     if not plan_path.exists():
         raise FileNotFoundError(f"missing {plan_path}")
 
@@ -517,7 +539,7 @@ def accept_action_plan(root: Path, codename: str) -> dict[str, Any]:
         raise ValueError(f"cannot accept plan in phase '{phase}'")
 
     tasks = sync_action_plan_tasks(root, codename)
-    plan_rel = (workflow.get("artifacts") or {}).get("plan", "artifacts/action-plan.md")
+    plan_rel = artifact_rel(workflow, "plan")
     set_action_plan_user_approved(session_dir, plan_rel)
 
     gates["plan_user_accepted"] = True

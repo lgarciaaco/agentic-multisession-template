@@ -16,7 +16,7 @@ from gate_command_registry import (
     classify_gate_command,
     is_gate_command_action,
 )
-from gate_metadata_registry import gate_artifact_path, gate_feedback_kind, gate_feedback_kinds
+from gate_metadata_registry import gate_feedback_kind, gate_feedback_kinds
 from hub_paths import resolve_session_artifact
 from program_state import GATE_PHASES, find_program_parent
 from inbox_provenance import inbox_block_marker
@@ -24,7 +24,9 @@ from session_binding import read_inbox, sanitize_goal_text, validate_codename
 from workflow_plan import (
     INBOX_GATE_POLL_SECONDS,
     accept_action_plan,
+    artifact_rel,
     load_workflow,
+    resolve_artifact,
     save_workflow,
 )
 from workflow_resume import reopen_brief, reopen_plan
@@ -179,8 +181,7 @@ def accept_brief(root: Path, codename: str, *, source: str = "user") -> dict[str
     if gates.get("brief_accepted"):
         raise ValueError("brief already accepted")
 
-    artifacts = workflow.get("artifacts") or {}
-    brief_rel = artifacts.get("brief", gate_artifact_path("brief_review"))
+    brief_rel = artifact_rel(workflow, "brief")
     set_problem_brief_accepted(session_dir, brief_rel)
 
     gates["brief_accepted"] = True
@@ -203,9 +204,8 @@ def apply_brief_correction(
     if phase != "brief_review":
         raise ValueError(f"cannot apply brief correction in phase '{phase}'")
 
-    artifacts = workflow.get("artifacts") or {}
-    brief_rel = artifacts.get("brief", gate_artifact_path("brief_review"))
-    brief_path = resolve_session_artifact(session_dir, brief_rel)
+    brief_rel = artifact_rel(workflow, "brief")
+    brief_path = resolve_artifact(session_dir, workflow, "brief")
     brief_path.parent.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     safe_body = sanitize_goal_text(message.strip())
@@ -231,9 +231,8 @@ def apply_plan_feedback(
     if phase != "plan_user_review":
         raise ValueError(f"cannot apply plan feedback in phase '{phase}'")
 
-    artifacts = workflow.get("artifacts") or {}
-    feedback_rel = artifacts.get("plan_feedback", "artifacts/plan-feedback.md")
-    feedback_path = resolve_session_artifact(session_dir, feedback_rel)
+    feedback_rel = artifact_rel(workflow, "plan_feedback")
+    feedback_path = resolve_artifact(session_dir, workflow, "plan_feedback")
     feedback_path.parent.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     safe_body = sanitize_goal_text(message.strip())

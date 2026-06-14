@@ -713,6 +713,46 @@ class WorktreeGuardTests(unittest.TestCase):
         section = format_workflow_section(self.root, self.codename)
         self.assertIn("problem-brief.md` (present)", section)
 
+    def test_format_workflow_section_inbox_poll_disabled_for_program_child(self) -> None:
+        parent = "mike"
+        child = "november"
+        parent_dir = self.root / "sessions" / parent
+        child_dir = self.root / "sessions" / child
+        parent_dir.mkdir(parents=True)
+        child_dir.mkdir(parents=True)
+        from program_state import default_program, save_program
+
+        program = default_program(parent)
+        program["active_children"] = [{"codename": child, "status": "running"}]
+        save_program(parent_dir, program)
+        workflow = {
+            "version": 2,
+            "phase": "brief_review",
+            "gates": {"brief_accepted": False, "plan_user_accepted": False},
+            "loops": {},
+            "artifacts": {},
+        }
+        (child_dir / "workflow.json").write_text(json.dumps(workflow) + "\n")
+        section = format_workflow_section(self.root, child)
+        self.assertIn("poll disabled", section)
+        self.assertIn("program-route-feedback.py", section)
+
+    def test_format_workflow_section_inbox_classify_only_for_standalone(self) -> None:
+        standalone = "delta"
+        session_dir = self.root / "sessions" / standalone
+        session_dir.mkdir(parents=True)
+        workflow = {
+            "version": 2,
+            "phase": "plan_user_review",
+            "gates": {"brief_accepted": True, "plan_user_accepted": False},
+            "loops": {},
+            "artifacts": {},
+        }
+        (session_dir / "workflow.json").write_text(json.dumps(workflow) + "\n")
+        section = format_workflow_section(self.root, standalone)
+        self.assertIn("classify-only", section)
+        self.assertNotIn("poll disabled", section)
+
     def test_format_program_section_shows_mandatory_gate_review(self) -> None:
         parent = self.codename
         child = "november"

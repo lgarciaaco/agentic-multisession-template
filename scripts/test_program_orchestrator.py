@@ -341,6 +341,22 @@ class ProgramOrchestratorTests(unittest.TestCase):
         self.assertTrue(child["routable"])
         self.assertIsNone(child["route_skip_reason"])
 
+    def test_monitor_gate_child_is_routable_at_plan_user_review(self) -> None:
+        self._set_child_workflow(
+            {
+                "version": 2,
+                "phase": "plan_user_review",
+                "gates": {"brief_accepted": True, "plan_user_accepted": False},
+                "loops": {},
+                "artifacts": {},
+            }
+        )
+        report = monitor_program(self.root, self.parent)
+        child = report["children"][0]
+        self.assertEqual(child["pending_gate"], "plan_user_review")
+        self.assertTrue(child["routable"])
+        self.assertIsNone(child["route_skip_reason"])
+
     def test_monitor_routable_via_reopen_when_plan_already_accepted(self) -> None:
         self._set_child_workflow(
             {
@@ -355,6 +371,18 @@ class ProgramOrchestratorTests(unittest.TestCase):
         child = report["children"][0]
         self.assertTrue(child["routable"])
         self.assertIsNone(child["route_skip_reason"])
+
+    def test_child_snapshot_loads_workflow_once_for_route_fields(self) -> None:
+        from program_monitor import child_snapshot
+
+        with mock.patch("program_route_feedback._load_child_workflow") as load_mock:
+            child_snapshot(
+                self.root,
+                self.child,
+                parent_codename=self.parent,
+                child_entry={"codename": self.child},
+            )
+        load_mock.assert_not_called()
 
     def test_monitor_reports_child_gate(self) -> None:
         report = monitor_program(self.root, self.parent)

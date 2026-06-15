@@ -753,6 +753,31 @@ class WorktreeGuardTests(unittest.TestCase):
         self.assertIn("classify-only", section)
         self.assertNotIn("poll disabled", section)
 
+    def test_format_workflow_section_inbox_pending_shows_not_auto_applied(self) -> None:
+        standalone = "delta"
+        session_dir = self.root / "sessions" / standalone
+        session_dir.mkdir(parents=True)
+        workflow = {
+            "version": 2,
+            "phase": "plan_user_review",
+            "gates": {"brief_accepted": True, "plan_user_accepted": False},
+            "loops": {},
+            "artifacts": {},
+        }
+        (session_dir / "workflow.json").write_text(json.dumps(workflow) + "\n")
+        pending = [{"action": "accept plan", "from": "parent"}]
+        with patch(
+            "workflow_inbox_gate.inbox_gate_poll_enabled",
+            return_value=True,
+        ):
+            with patch(
+                "workflow_inbox_gate.pull_inbox_gate",
+                return_value={"pending": pending},
+            ):
+                section = format_workflow_section(self.root, standalone)
+        self.assertIn("classify-only", section)
+        self.assertIn("not auto-applied", section)
+
     def test_format_program_section_shows_mandatory_gate_review(self) -> None:
         parent = self.codename
         child = "november"

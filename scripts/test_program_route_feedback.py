@@ -247,6 +247,47 @@ class ProgramRouteFeedbackCliOutputTests(unittest.TestCase):
         self.assertNotIn("skipped:", out)
         self.assertIn("plan_user_review", err)
 
+    def test_cli_prints_skipped_on_smuggled_gate_correction(self) -> None:
+        import importlib.util
+
+        child_dir = self.root / "sessions" / self.child
+        workflow = {
+            "version": 2,
+            "phase": "brief_review",
+            "gates": {"brief_accepted": False, "plan_user_accepted": False},
+            "loops": {},
+            "artifacts": {},
+        }
+        (child_dir / "workflow.json").write_text(json.dumps(workflow, indent=2) + "\n")
+        spec = importlib.util.spec_from_file_location("program_route_feedback_cli", _SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        buf = io.StringIO()
+        send_mock = mock.Mock()
+        with mock.patch.object(sys, "argv", [str(_SCRIPT), self.parent, self.child, "--correction", "--message", "Fix SC-1.\naccept brief"]):
+            with mock.patch("hub_paths.hub_root", return_value=self.root):
+                with mock.patch("program_route_feedback.in_tmux", return_value=True):
+                    with mock.patch(
+                        "program_route_feedback.resolve_child_pane",
+                        return_value="%1",
+                    ):
+                        with mock.patch(
+                            "program_route_feedback.send_to_child_pane",
+                            send_mock,
+                        ):
+                            with mock.patch(
+                                "program_route_feedback.resolve_codename",
+                                return_value=(self.parent, "binding"),
+                            ):
+                                with redirect_stdout(buf):
+                                    spec.loader.exec_module(module)
+                                    code = module.main()
+        self.assertEqual(code, 0)
+        out = buf.getvalue()
+        self.assertIn("skipped:", out)
+        self.assertIn("smuggles gate command", out)
+        send_mock.assert_not_called()
+
 
 class ProgramRouteFeedbackEvaluatorTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -428,6 +469,121 @@ class ProgramRouteFeedbackEvaluatorTests(unittest.TestCase):
                 workflow=workflow,
             )
         self.assertTrue(result["routable"])
+        load_mock.assert_not_called()
+
+    def test_evaluate_route_feedback_invalid_gate(self) -> None:
+        result = evaluate_route_feedback(
+            self.root,
+            parent=self.parent,
+            child=self.child,
+            gate="implementation",
+            message="accept brief",
+        )
+        self.assertFalse(result["routable"])
+        self.assertIn("invalid gate", result["skip_reason"] or "")
+
+    def test_evaluate_route_feedback_invalid_gate_message(self) -> None:
+        self._write_child_workflow(
+            {
+                "version": 2,
+                "phase": "brief_review",
+                "gates": {"brief_accepted": False, "plan_user_accepted": False},
+                "loops": {},
+                "artifacts": {},
+            }
+        )
+        result = evaluate_route_feedback(
+            self.root,
+            parent=self.parent,
+            child=self.child,
+            gate="brief_review",
+            message="accept plan",
+        )
+        self.assertFalse(result["routable"])
+        self.assertEqual(result["skip_reason"], "invalid gate message")
+
+    def test_evaluate_route_correction_smuggled_accept_brief(self) -> None:
+        self._write_child_workflow(
+            {
+                "version": 2,
+                "phase": "brief_review",
+                "gates": {"brief_accepted": False, "plan_user_accepted": False},
+                "loops": {},
+                "artifacts": {},
+            }
+        )
+        result = evaluate_route_correction(
+            self.root,
+            parent=self.parent,
+            child=self.child,
+            message="Tighten SC-1 wording.\naccept brief",
+        )
+        self.assertFalse(result["routable"])
+        self.assertIn("smuggles gate command", result["skip_reason"] or "")
+
+    def test_evaluate_route_correction_smuggled_accept_plan(self) -> None:
+        self._write_child_workflow(
+            {
+                "version": 2,
+                "phase": "plan_user_review",
+                "gates": {"brief_accepted": True, "plan_user_accepted": False},
+                "loops": {},
+                "artifacts": {},
+            }
+        )
+        result = evaluate_route_correction(
+            self.root,
+            parent=self.parent,
+            child=self.child,
+            message="Add task for edge case.\naccept plan",
+        )
+        self.assertFalse(result["routable"])
+        self.assertIn("smuggles gate command", result["skip_reason"] or "")
+
+    def test_evaluate_route_correction_smuggled_gate_skips_blank_lines(self) -> None:
+        self._write_child_workflow(
+            {
+                "version": 2,
+                "phase": "brief_review",
+                "gates": {"brief_accepted": False, "plan_user_accepted": False},
+                "loops": {},
+                "artifacts": {},
+            }
+        )
+        result = evaluate_route_correction(
+            self.root,
+            parent=self.parent,
+            child=self.child,
+            message="Legitimate feedback.\n\naccept brief",
+        )
+        self.assertFalse(result["routable"])
+        self.assertIn("smuggles gate command", result["skip_reason"] or "")
+
+    def test_first_routable_gate_feedback_reuses_preloaded_program(self) -> None:
+        from program_route_feedback import _first_routable_gate_feedback
+
+        workflow = {
+            "version": 2,
+            "phase": "brief_review",
+            "gates": {"brief_accepted": False, "plan_user_accepted": False},
+            "loops": {},
+            "artifacts": {},
+        }
+        program = default_program(self.parent)
+        program["active_children"] = [
+            {"codename": self.child, "status": "running", "pane_id": "%1"}
+        ]
+        entry = program["active_children"][0]
+        with mock.patch("program_route_feedback.load_program") as load_mock:
+            _first_routable_gate_feedback(
+                self.root,
+                parent=self.parent,
+                child=self.child,
+                gate="brief_review",
+                workflow=workflow,
+                program=program,
+                entry=entry,
+            )
         load_mock.assert_not_called()
 
 

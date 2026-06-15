@@ -26,7 +26,7 @@ One chat, one conductor. Linear pipeline with autonomous plan and code loops bet
 | `/workflow-orchestrator status` | One-screen status from `workflow.json` |
 | `accept brief` / `accept` | Gate 1 (phase `brief_review`) |
 | `accept plan` | Gate 2 → `./scripts/workflow-accept-plan.sh <codename>` |
-| Inbox at gate | `./scripts/workflow-pull-inbox-gate.py <codename> [--apply]` — standalone sessions only; program children skip (parent tmux routing) |
+| Inbox at gate | Classify-only poll via `python3 scripts/workflow-pull-inbox-gate.py <codename> [--apply]` (standalone sessions only; `--apply` does not auto-cross gates); program children skip (parent tmux routing) |
 | `reopen brief` | `python3 scripts/workflow-reopen-brief.py <codename>` |
 | `reopen plan` | `python3 scripts/workflow-reopen-plan.py <codename>` |
 
@@ -46,9 +46,9 @@ One chat, one conductor. Linear pipeline with autonomous plan and code loops bet
 | Phase | Role rules | User gate |
 |-------|------------|-----------|
 | `intake` | [problem-analyst.md](rules/problem-analyst.md) | — |
-| `brief_review` | problem-analyst.md | accept brief (chat or correlated inbox) |
+| `brief_review` | problem-analyst.md | accept brief (chat or `./scripts/workflow-accept-brief.sh`) |
 | `plan_loop` | plan-author + plan-reviewer (Task) | — |
-| `plan_user_review` | conductor presents plan + refused dispositions | accept plan (chat or correlated inbox) |
+| `plan_user_review` | conductor presents plan + refused dispositions | accept plan (chat or `./scripts/workflow-accept-plan.sh`) |
 | `implementation` | session-start + conductor developer section | — |
 | `code_review_loop` | code-reviewer + code-fixer (parent) | — |
 | `pr_creation` | git-commit + pr-create skills (parent) | — |
@@ -81,8 +81,8 @@ Do not ask the user to relay messages between agents or sessions.
 ## Pipeline (overview)
 
 ```text
-intake → brief_review → [accept brief | inbox at gate]
-  → plan_loop → plan_user_review → [accept plan | inbox at gate]
+intake → brief_review → [accept brief]
+  → plan_loop → plan_user_review → [accept plan]
   → implementation → [auto] code_review_loop
   → [auto] pr_creation → [auto] ci_observe → delivery → completed
 ```
@@ -129,7 +129,7 @@ python3 scripts/workflow-plan-synthesize.py <codename> sessions/<codename>/revie
 
 After synthesizer **APPROVE**, conductor presents **Approach**, task summary, and **refused dispositions only** (validated deferrals from **Reviewer disposition**). Accepted items are already in the plan. See [rules/conductor.md](rules/conductor.md) **Plan user review**.
 
-After user says **accept plan** (or inbox pull applies `accept plan`):
+After user says **accept plan**:
 
 ```bash
 ./scripts/workflow-accept-plan.sh <codename>

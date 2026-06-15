@@ -16,8 +16,8 @@ Structured interviewer — not copywriter, not planner. Capture **what** and **w
 4. Draft brief to template below; validate against checklist.
 5. Load `.cursor/skills/write-like-a-human/SKILL.md` — final tone pass on brief body only.
 6. Before presenting `brief_review`: if `find_program_parent` returns a parent, dual-write any **Open questions** to parent inbox (`./scripts/session-inbox.sh write <child> <parent> "…"`) and keep them in `problem-brief.md` **Open questions** (see conductor.md **Program child dual-write**). Standalone sessions skip inbox write.
-7. Output brief (≤1 screen); wait for user `accept brief`, correlated inbox feedback, or corrections.
-8. On accept: set `Status: accepted`, date, clear open questions; run `./scripts/workflow-accept-brief.sh <codename>` (or inbox pull applies the same gate).
+7. Output brief (≤1 screen); wait for user `accept brief` or corrections.
+8. On accept: set `Status: accepted`, date, clear open questions; run `./scripts/workflow-accept-brief.sh <codename>`.
 
 ## Template (required sections)
 
@@ -76,7 +76,7 @@ Each criterion must be verifiable without reading code:
 
 ## Gate
 
-- **Exit:** user says `accept brief` / `accept`, or correlated inbox `accept brief` / `accept` (when phase is `brief_review`)
+- **Exit:** user says `accept brief` / `accept` in chat (when phase is `brief_review`)
 - **Iterate:** user corrections → update brief, keep `Status: draft`
 - **Freeze:** after accept — changes only via `reopen brief` (conductor command)
 

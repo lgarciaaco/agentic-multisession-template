@@ -31,10 +31,10 @@ Canonical path: `sessions/<codename>/workflow.json`. Created when user runs `/wo
 
 | Field | Type | Set when |
 |-------|------|----------|
-| `brief_accepted` | boolean | User `accept brief` or correlated inbox at `brief_review` |
-| `plan_user_accepted` | boolean | User `accept plan` or correlated inbox at `plan_user_review` |
-| `inbox.last_pull_at` | string \| null | ISO timestamp of last inbox gate pull |
-| `inbox.processed_markers` | string[] | Hashes of inbox blocks already applied or surfaced at a gate |
+| `brief_accepted` | boolean | User `accept brief` via chat or `./scripts/workflow-accept-brief.sh` only |
+| `plan_user_accepted` | boolean | User `accept plan` via chat or `./scripts/workflow-accept-plan.sh` only |
+| `inbox.last_pull_at` | string \| null | ISO timestamp of last classify-only inbox gate pull |
+| `inbox.processed_markers` | string[] | Hashes of inbox blocks marked processed after successful apply (`--apply` does not auto-cross gates). Poll semantics: [sessions/_inbox/README.md](../../../sessions/_inbox/README.md) |
 
 ## loops.plan
 

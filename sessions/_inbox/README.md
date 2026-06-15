@@ -37,13 +37,15 @@ When session B runs `/workflow-orchestrator` and is waiting at a user gate, the 
 
 Optional prefix: `workflow: accept plan`
 
-The workflow conductor polls every **2 minutes** while at a gate:
+**Standalone workflow sessions only** — program children skip inbox poll; parent routes gates via `program-route-feedback.py` (tmux send-keys).
+
+The workflow conductor polls every **2 minutes** while at a gate (standalone sessions only):
 
 ```bash
 python3 scripts/workflow-pull-inbox-gate.py <to-codename> --apply
 ```
 
-Only **successfully applied** inbox blocks are tracked in `workflow.json` → `gates.inbox.processed_markers`. Rejected blocks stay pending.
+Only inbox blocks with **successful apply** (rare — classify-only `--apply` rejects unauthorized senders) are tracked in `workflow.json` → `gates.inbox.processed_markers`. Rejected blocks stay pending. See [workflow-schema.md](../../.cursor/skills/workflow-orchestrator/references/workflow-schema.md) and [docs/WORKFLOW.md](../../docs/WORKFLOW.md).
 
 ## Program orchestrator routing
 

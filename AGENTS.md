@@ -50,12 +50,12 @@ Single-session **Problem → Plan → Code → Review → PR → CI → Delivery
 | `/pr-review` | Code review → `.cursor/skills/code-reviewer/SKILL.md` |
 | `accept brief` / `accept` | Gate 1 |
 | `accept plan` | Gate 2 → `./scripts/workflow-accept-plan.sh <codename>` |
-| Inbox at gate | `python3 scripts/workflow-pull-inbox-gate.py <codename> [--apply]` every 2m at brief/plan gates (standalone sessions only); program children use `program-route-feedback.py` |
+| Inbox at gate | Classify-only poll via `python3 scripts/workflow-pull-inbox-gate.py <codename> [--apply]` (standalone only; does not auto-cross gates) — see [sessions/_inbox/README.md](sessions/_inbox/README.md); program children use `program-route-feedback.py` |
 | `reopen brief` / `reopen plan` | `python3 scripts/workflow-reopen-brief.py <codename>` / `python3 scripts/workflow-reopen-plan.py <codename>` |
 
 Workflow phase scripts and CLI commands: [SESSIONS.md#commands](SESSIONS.md#commands).
 
-User gates **only at brief and plan**. Program parent→child gate routing uses **`program-route-feedback.py`** (tmux send-keys to child panes — not inbox). Standalone workflow sessions may still poll inbox at gates via `workflow-pull-inbox-gate.py`; program gate commands no longer auto-apply from inbox. Inbox CLI writes require bound caller to match `from`. Autonomous inner loops for plan, code review, PR creation, and CI observe — no commit/PR pause before review. Plan loop: author dispositions → reviewer validates. Code loop: fixer dispositions SUGGESTION/NIT → specialists validate → **PASS**. After PASS: auto commit + draft PR → CI observe (rebase on conflict, fix on failure, 5-iteration cap) → delivery. Delivery report is inform only. Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
+User gates **only at brief and plan**. Program parent→child gate routing uses **`program-route-feedback.py`** (tmux send-keys to child panes — not inbox). Standalone workflow sessions classify-only poll inbox at gates via `workflow-pull-inbox-gate.py`; program gate commands no longer auto-apply from inbox. Inbox CLI writes require bound caller to match `from`. Autonomous inner loops for plan, code review, PR creation, and CI observe — no commit/PR pause before review. Plan loop: author dispositions → reviewer validates. Code loop: fixer dispositions SUGGESTION/NIT → specialists validate → **PASS**. After PASS: auto commit + draft PR → CI observe (rebase on conflict, fix on failure, 5-iteration cap) → delivery. Delivery report is inform only. Walkthrough: [docs/WORKFLOW.md](docs/WORKFLOW.md).
 
 ## End
 

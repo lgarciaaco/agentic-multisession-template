@@ -137,7 +137,7 @@ Before tagging the **next stable-candidate rc** or **1.0.0**, run [RC-SMOKE-CHEC
 | `workflow-plan-synthesize.py` | After plan reviewer Task |
 | `workflow-accept-plan.sh` | User accept plan |
 | `workflow-accept-brief.sh` | User accept brief |
-| `workflow-pull-inbox-gate.py` | Poll inbox at gates (every 2m, standalone sessions only); program children skip — parent routes via `program-route-feedback.py` |
+| `python3 scripts/workflow-pull-inbox-gate.py <codename> [--apply]` | Classify-only poll at gates (every 2m, standalone only; does not auto-cross gates) — see [sessions/_inbox/README.md](../sessions/_inbox/README.md) |
 | `workflow-mark-implementation-ready.py` | Per-task slice complete |
 | `workflow-code-review-enrich-scope.py` | After code-reviewer scope collector |
 | `workflow-code-review-advance.py` | After code-reviewer synthesizer |

@@ -10,7 +10,7 @@ Agent-internal design notes for workflow-orchestrator. Not user-facing release d
 - Intent-style criteria mapping (brief SC-n → plan tasks)
 - Scope constraints and explicit out-of-scope in brief; risks in plan
 - Definition of Ready checks on plan tasks
-- Two user gates (brief, plan); correlated inbox at those gates; autonomous plan and code loops
+- Two user gates (brief, plan); standalone classify-only inbox poll at those gates; autonomous plan and code loops
 
 ## Reject
 
@@ -35,8 +35,8 @@ Agent-internal design notes for workflow-orchestrator. Not user-facing release d
 |----------|------------|-------|
 | Implementation discovery | New scope → `reopen plan`; nits → inline task note | conductor.md |
 | Max loop iterations | Default 5 in `workflow.loops.*.max` | conductor.md |
-| Plan gate feedback | `artifacts/plan-feedback.md` + re-enter plan_loop (chat or inbox) | conductor.md |
-| Inbox at gate | Correlated inbox → same effect as gate commands; poll every 2m | conductor.md, `workflow-pull-inbox-gate.py` |
+| Plan gate feedback | `artifacts/plan-feedback.md` + re-enter plan_loop (chat only; inbox classify-only poll does not auto-append or re-enter) | conductor.md |
+| Inbox at gate | Correlated inbox → classify-only poll every 2m; gates cross via chat or `workflow-accept-*.sh` | conductor.md, `workflow-pull-inbox-gate.py` |
 | Hub test rule | Fire when `session_mode == hub` OR `scripts/` in Files/areas | plan-reviewer.md |
 | Workspace IDs | `wf-*` for plan; `review-*` for code-reviewer | conductor.md |
 | Subagent isolation | Conductor spawns Task agents only; no inline plan/findings | conductor.md |

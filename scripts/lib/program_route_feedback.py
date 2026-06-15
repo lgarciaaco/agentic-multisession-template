@@ -93,6 +93,20 @@ def _correction_phase_skip(phase: str | None) -> str | None:
     return None
 
 
+def _correction_smuggled_gate_skip(phase: str, message: str) -> str | None:
+    """Reject corrections whose lines after the first smuggle gate commands."""
+    lines = message.splitlines()
+    if len(lines) <= 1:
+        return None
+    for line in lines[1:]:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if classify_gate_command(phase, stripped):
+            return "correction smuggles gate command on subsequent line"
+    return None
+
+
 def _gate_feedback_skip_reason(
     workflow: dict[str, Any],
     entry: dict[str, Any],
@@ -126,6 +140,9 @@ def _correction_skip_reason(
         phase_skip = _correction_phase_skip(phase)
         if phase_skip:
             return phase_skip
+        smuggle_skip = _correction_smuggled_gate_skip(phase, message)
+        if smuggle_skip:
+            return smuggle_skip
         normalized = normalize_route_message(message, gate_command=False)
         dedupe = _dedupe_skip_reason(entry, normalized, gate_command=False)
         if dedupe:
@@ -210,6 +227,8 @@ def evaluate_route_feedback(
     message: str,
     force: bool = False,
     workflow: dict[str, Any] | None = None,
+    program: dict[str, Any] | None = None,
+    entry: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Read-only guard evaluation for monitor and tests."""
     parent_name = validate_codename(parent)
@@ -219,8 +238,10 @@ def evaluate_route_feedback(
     if not is_allowed_route_message(gate, message):
         return {"routable": False, "skip_reason": "invalid gate message"}
     try:
-        program = load_program(root / "sessions" / parent_name)
-        entry = _active_child_entry(program, child_name)
+        if program is None:
+            program = load_program(root / "sessions" / parent_name)
+        if entry is None:
+            entry = _active_child_entry(program, child_name)
     except ValueError as exc:
         return {"routable": False, "skip_reason": str(exc)}
     if workflow is None:
@@ -278,6 +299,8 @@ def _first_routable_gate_feedback(
     child: str,
     gate: str,
     workflow: dict[str, Any] | None = None,
+    program: dict[str, Any] | None = None,
+    entry: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Probe all allowed gate messages; routable if any action passes guards."""
     evaluation: dict[str, Any] = {
@@ -292,6 +315,8 @@ def _first_routable_gate_feedback(
             gate=gate,
             message=msg,
             workflow=workflow,
+            program=program,
+            entry=entry,
         )
         if candidate.get("routable"):
             return candidate
@@ -306,6 +331,7 @@ def child_route_snapshot_fields(
     child_entry: dict[str, Any],
     pending_gate: str | None,
     workflow: dict[str, Any] | None = None,
+    program: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Monitor fields: last route metadata plus hypothetical routable evaluation."""
     child_name = validate_codename(str(child_entry.get("codename", "")))
@@ -315,6 +341,7 @@ def child_route_snapshot_fields(
         "routable": False,
         "route_skip_reason": None,
     }
+    entry = child_entry if program is not None else None
     if pending_gate == "brief_review":
         evaluation = _first_routable_gate_feedback(
             root,
@@ -322,6 +349,8 @@ def child_route_snapshot_fields(
             child=child_name,
             gate="brief_review",
             workflow=workflow,
+            program=program,
+            entry=entry,
         )
     elif pending_gate == "plan_user_review":
         evaluation = _first_routable_gate_feedback(
@@ -330,6 +359,8 @@ def child_route_snapshot_fields(
             child=child_name,
             gate="plan_user_review",
             workflow=workflow,
+            program=program,
+            entry=entry,
         )
     else:
         evaluation = evaluate_route_correction(

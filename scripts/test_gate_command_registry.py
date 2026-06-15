@@ -99,6 +99,10 @@ class GateCommandRegistryTests(unittest.TestCase):
     def test_phase_command_actions_unknown_phase(self) -> None:
         self.assertEqual(phase_command_actions("implementation"), ())
 
+    def test_allowed_route_messages_unknown_phase_raises(self) -> None:
+        with self.assertRaisesRegex(ValueError, "invalid gate phase"):
+            allowed_route_messages("implementation")
+
     def test_command_pattern_lookup(self) -> None:
         self.assertIsNotNone(command_pattern(ACCEPT_BRIEF))
         self.assertIsNone(command_pattern("not_an_action"))

@@ -6,7 +6,7 @@
 
 ## Purpose
 
-Single-chat orchestrator for Problem → Plan → Code → Review → PR → CI → Delivery. Autonomous inner loops; **user gates only at brief and plan**. Inbox feedback from monitoring sessions counts at gates when correlated (see **Inbox gate feedback**).
+Single-chat orchestrator for Problem → Plan → Code → Review → PR → CI → Delivery. Autonomous inner loops; **user gates only at brief and plan**. Standalone sessions classify inbox messages at gates; gates cross via chat or `./scripts/workflow-accept-*.sh` only (see **Inbox gate feedback**).
 
 ## Phase state machine
 
@@ -41,16 +41,16 @@ On guard violation: state current phase, missing gate, and required user command
 | 1 | `accept brief` / `accept` | `gates.brief_accepted: true`; freeze brief |
 | 2 | `accept plan` | `gates.plan_user_accepted: true`; sync tasks → session.json |
 
-**Inbox gate feedback:** Other sessions monitoring progress may write to this session's inbox. When the message correlates with the active gate, treat it as user feedback — same effect as the chat commands above.
+**Inbox gate feedback:** Standalone sessions may poll inbox at `brief_review` and `plan_user_review` to **classify** correlated messages. `python3 scripts/workflow-pull-inbox-gate.py --apply` does **not** auto-cross gates or auto-apply brief corrections — unauthorized senders are rejected; cross gates via chat commands or `./scripts/workflow-accept-*.sh` only. Program children skip inbox poll; parent routes via `program-route-feedback.py` (tmux send-keys).
 
-| Phase | Inbox first line (or body) | Effect |
-|-------|----------------------------|--------|
-| `brief_review` | `accept brief` or `accept` | `./scripts/workflow-accept-brief.sh <codename>` |
-| `brief_review` | `reopen brief` | `python3 scripts/workflow-reopen-brief.py <codename>` |
-| `brief_review` | other non-empty text | Brief correction — update `problem-brief.md`, stay in gate |
-| `plan_user_review` | `accept plan` | `./scripts/workflow-accept-plan.sh <codename>` |
-| `plan_user_review` | `reopen plan` | `python3 scripts/workflow-reopen-plan.py <codename>` |
-| `plan_user_review` | other non-empty text | Append `artifacts/plan-feedback.md`; `phase → plan_loop` |
+| Phase | Inbox first line (or body) | Classification only (`--apply` does not mutate) |
+|-------|----------------------------|--------------------------------------------------|
+| `brief_review` | `accept brief` or `accept` | Gate command — cross via chat or `./scripts/workflow-accept-brief.sh` |
+| `brief_review` | `reopen brief` | Gate command — cross via chat or `python3 scripts/workflow-reopen-brief.py` |
+| `brief_review` | other non-empty text | Brief correction — conductor applies via chat workflow, not inbox auto-mutate |
+| `plan_user_review` | `accept plan` | Gate command — cross via chat or `./scripts/workflow-accept-plan.sh` |
+| `plan_user_review` | `reopen plan` | Gate command — cross via chat or `python3 scripts/workflow-reopen-plan.py` |
+| `plan_user_review` | other non-empty text | Plan feedback — append via chat; re-enter `plan_loop` |
 
 While phase is `brief_review` or `plan_user_review`, **standalone** sessions poll inbox every **2 minutes** (classify-only):
 
@@ -60,7 +60,7 @@ python3 scripts/workflow-pull-inbox-gate.py <codename> --apply
 
 **Program children** (`find_program_parent` returns a parent): **do not** poll inbox or arm `/loop 120s` — parent routes gates via `program-route-feedback.py` (tmux send-keys) only.
 
-On loop tick or after presenting a gate artifact (standalone only), run pull with `--apply`. For `brief_correction`, apply the message to the brief before marking processed. Arm the loop per `.cursor/skills/loop/SKILL.md` (fixed `120s` schedule) for standalone sessions only; stop when phase leaves a gate.
+On loop tick or after presenting a gate artifact (standalone only), run pull with `--apply` to refresh `pending`/`rejected` classification. Unauthorized blocks stay pending (not marked processed). Arm the loop per `.cursor/skills/loop/SKILL.md` (fixed `120s` schedule) for standalone sessions only; stop when phase leaves a gate.
 
 ### Gate-entry checklist (mandatory)
 
@@ -96,6 +96,8 @@ Monitoring agents write via:
 ```bash
 ./scripts/session-inbox.sh write <from-codename> <to-codename> "accept plan"
 ```
+
+Inbox writes classify only — gate crossing requires chat or `./scripts/workflow-accept-*.sh`.
 
 Delivery report is **inform only** — not a gate. Never ask the user to approve delivery, commit, or open a PR before the autonomous code review loop runs.
 

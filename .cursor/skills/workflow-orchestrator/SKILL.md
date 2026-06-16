@@ -24,9 +24,9 @@ One chat, one conductor. Linear pipeline with autonomous plan and code loops bet
 |---------|--------|
 | `/workflow-orchestrator` | Start or resume pipeline |
 | `/workflow-orchestrator status` | One-screen status from `workflow.json` |
-| `accept brief` / `accept` | Gate 1 (phase `brief_review`) |
-| `accept plan` | Gate 2 → `./scripts/workflow-accept-plan.sh <codename>` |
-| Inbox at gate | Classify-only poll via `python3 scripts/workflow-pull-inbox-gate.py <codename> [--apply]` (standalone sessions only; `--apply` does not auto-cross gates); program children skip (parent tmux routing) |
+| `accept brief` / `accept` | Gate 1 (phase `brief_review`) → `./scripts/workflow-accept-brief.sh <codename>` |
+| `accept plan` | Gate 2 (phase `plan_user_review`) → `./scripts/workflow-accept-plan.sh <codename>` |
+| Inbox at gate | Classify-only poll via `python3 scripts/workflow-pull-inbox-gate.py <codename> [--apply]` (standalone sessions only; `--apply` does not auto-cross gates); program children skip (parent tmux routing — see conductor **Program child gate handling**) |
 | `reopen brief` | `python3 scripts/workflow-reopen-brief.py <codename>` |
 | `reopen plan` | `python3 scripts/workflow-reopen-plan.py <codename>` |
 
@@ -87,7 +87,7 @@ intake → brief_review → [accept brief]
   → [auto] pr_creation → [auto] ci_observe → delivery → completed
 ```
 
-At `brief_review` and `plan_user_review`, follow [rules/conductor.md](rules/conductor.md) **Gate-entry checklist**. **Standalone** sessions: immediate classify-only `workflow-pull-inbox-gate.py --apply`, then arm `/loop 120s`. **Program children** (`find_program_parent` non-null): skip inbox poll and loop — parent routes via `program-route-feedback.py` only. Program children dual-write gate blockers to parent inbox before presenting the gate.
+At `brief_review` and `plan_user_review`, follow [rules/conductor.md](rules/conductor.md) **Gate-entry checklist**. **Standalone** sessions: immediate classify-only `workflow-pull-inbox-gate.py --apply`, then arm `/loop 120s`. **Program children** (`find_program_parent` non-null): skip inbox poll and loop — parent routes via `program-route-feedback.py` (tmux to child chat); child conductor runs gate scripts per **Program child gate handling**. Program children dual-write gate blockers to parent inbox before presenting the gate.
 
 Autonomous loops — conductor runs without user between gates.
 

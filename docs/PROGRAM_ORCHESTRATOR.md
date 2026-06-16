@@ -70,7 +70,7 @@ Program routing and completed-child tab cleanup share:
 
 - `resolve_child_pane(root, codename, stored_pane_id=None)` — live pane id from stored value (hub cwd validated) or `@workspace-codename` scan
 - `resolve_child_window(root, codename, pane_id=..., window_label=...)` — resolve pane for routing or cleanup
-- `send_to_child_pane(pane_id, text)` — `tmux send-keys` with trailing Enter
+- `send_to_child_pane(pane_id, text)` — clears child composer (`C-u`), sends text (paste-buffer for multiline), submits Enter, clears composer again
 - `persist_child_panes(program, windows)` — merge bootstrap window records into `program.json`
 - `close_child_window(pane_id)` — kill the tmux window containing the pane (used by tab cleanup)
 

@@ -109,7 +109,9 @@ At every child gate the parent **always reviews** — never defer with "accept w
 1. Run monitor + status report with merged subagent reviews (or full **Check children** flow).
 2. Subagent reads `gate_review.artifact_path`, `gate_review.sibling_program_context`, and compares to full `program-plan.md`.
 3. Parent chat shows slim table only; user reads **Parent assessment** in program-status.md before routing.
-4. User routes the gate via **`program-route-feedback.py`** (tmux send-keys) or sends free-text corrections the same way — parent does not skip the review step.
+4. User routes the gate via **`program-route-feedback.py`** (tmux send-keys to child chat) or sends free-text corrections the same way — parent does not skip the review step.
+
+**Routing rules:** one route per gate via `program-route-feedback.py` with exact `--message`; do **not** also write inbox gate commands; do **not** paste gate text manually into child tabs.
 
 | Child phase | After review, user may say | Block / reopen |
 |-------------|---------------------------|----------------|
@@ -125,8 +127,8 @@ The parent **reviews** child gate artifacts — it does **not** implement child 
 | Allowed | Forbidden |
 |---------|-----------|
 | Read child `artifacts/problem-brief.md` and `artifacts/action-plan.md` (via monitor paths or child session folder) | Edit child `artifacts/`, `workflow.json`, or worktrees |
-| Route gate commands via `program-route-feedback.py` (tmux send-keys) | Offer to patch, amend, or draft child briefs/plans yourself |
-| Route free-text corrections via `program-route-feedback.py` (no `--gate`) | Prose approval via inbox expecting auto-accept |
+| Route gate commands via `program-route-feedback.py` (tmux send-keys to child chat) | Offer to patch, amend, or draft child briefs/plans yourself |
+| Route free-text corrections via `program-route-feedback.py` (no `--gate`) | Prose approval via inbox expecting auto-accept; duplicate inbox gate writes |
 
 **Gate commands** (exact strings; delivered to child pane via send-keys):
 

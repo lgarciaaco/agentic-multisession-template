@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Program route composer hygiene** — `send_to_child_pane` clears the child composer before and after each tmux route; multiline corrections use paste-buffer to avoid accidental mid-message submits
+
 ## [1.0.0-rc.5] - 2026-06-16
 
 Program routing hardening and workflow consolidation — idempotent gate guards,

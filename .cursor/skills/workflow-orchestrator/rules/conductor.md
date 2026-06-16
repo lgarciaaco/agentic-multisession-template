@@ -58,9 +58,24 @@ While phase is `brief_review` or `plan_user_review`, **standalone** sessions pol
 python3 scripts/workflow-pull-inbox-gate.py <codename> --apply
 ```
 
-**Program children** (`find_program_parent` returns a parent): **do not** poll inbox or arm `/loop 120s` — parent routes gates via `program-route-feedback.py` (tmux send-keys) only.
+**Program children** (`find_program_parent` returns a parent): **do not** poll inbox or arm `/loop 120s` — parent routes gates via `program-route-feedback.py` (tmux send-keys to child chat; not inbox).
 
 On loop tick or after presenting a gate artifact (standalone only), run pull with `--apply` to refresh `pending`/`rejected` classification. Unauthorized blocks stay pending (not marked processed). Arm the loop per `.cursor/skills/loop/SKILL.md` (fixed `120s` schedule) for standalone sessions only; stop when phase leaves a gate.
+
+### Program child gate handling (mandatory)
+
+When `find_program_parent(hub_root, codename)` returns a parent and chat input (including parent tmux route) is an **exact** gate command at the current gate phase — run the matching script **immediately**. Do **not** re-type the command into the composer; do **not** poll inbox.
+
+| Input | Action |
+|-------|--------|
+| `accept brief` / `accept` (phase `brief_review`) | `./scripts/workflow-accept-brief.sh <codename>` |
+| `accept plan` (phase `plan_user_review`) | `./scripts/workflow-accept-plan.sh <codename>` |
+| `reopen brief` (phase `brief_review`) | `python3 scripts/workflow-reopen-brief.py <codename>` |
+| `reopen plan` (phase `plan_user_review`) | `python3 scripts/workflow-reopen-plan.py <codename>` |
+
+Then `./scripts/sync-session.sh <codename>` and resume from the new `workflow.json` phase.
+
+**Free-text corrections** from parent tmux route (no `--gate`): apply per the inbox classification table above (brief correction / plan feedback → re-enter the appropriate loop); do not treat as gate commands.
 
 ### Gate-entry checklist (mandatory)
 
@@ -70,7 +85,7 @@ When entering `brief_review` or `plan_user_review`:
 
 1. Do **not** run `workflow-pull-inbox-gate.py` or arm `/loop 120s` inbox polling.
 2. Dual-write gate blockers to parent inbox (see **Program child dual-write**).
-3. Wait for parent to route via `program-route-feedback.py` (tmux) or user chat gate commands in this pane.
+3. Wait for parent to route via `program-route-feedback.py` (tmux to this chat) or user gate commands in this pane; on receipt, follow **Program child gate handling**.
 
 **Standalone session** (no registered program parent):
 

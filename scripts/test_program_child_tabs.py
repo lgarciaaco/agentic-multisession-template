@@ -106,16 +106,18 @@ class ProgramChildTabsTests(unittest.TestCase):
                 [ChildWindow("november", "%1", "hub-november")],
             )
         send_calls = [c for c in self.tmux_calls if c[0] == "send-keys"]
-        self.assertEqual(len(send_calls), 2)
-        self.assertEqual(send_calls[0][:3], ["send-keys", "-l", "-t"])
-        self.assertEqual(send_calls[0][3], "%1")
-        cmd = send_calls[0][4]
+        self.assertEqual(len(send_calls), 4)
+        self.assertEqual(send_calls[0], ["send-keys", "-t", "%1", "C-u"])
+        self.assertEqual(send_calls[1][:3], ["send-keys", "-l", "-t"])
+        self.assertEqual(send_calls[1][3], "%1")
+        cmd = send_calls[1][4]
         self.assertIn("test-agent", cmd)
         self.assertIn("--reuse", cmd)
         self.assertIn("--workflow", cmd)
         self.assertIn("GIT_EDITOR=true", cmd)
         self.assertIn("EDITOR=true", cmd)
-        self.assertEqual(send_calls[1], ["send-keys", "-t", "%1", "C-m"])
+        self.assertEqual(send_calls[2], ["send-keys", "-t", "%1", "C-m"])
+        self.assertEqual(send_calls[3], ["send-keys", "-t", "%1", "C-u"])
 
     def test_format_manual_child_steps(self) -> None:
         text = format_manual_child_steps(
@@ -211,11 +213,46 @@ class ProgramChildTabsTests(unittest.TestCase):
         send_to_child_pane("%1", "accept brief", submit=True)
         self.assertEqual(
             run_tmux.call_args_list[0][0],
-            ("send-keys", "-l", "-t", "%1", "accept brief"),
+            ("send-keys", "-t", "%1", "C-u"),
         )
         self.assertEqual(
             run_tmux.call_args_list[1][0],
+            ("send-keys", "-l", "-t", "%1", "accept brief"),
+        )
+        self.assertEqual(
+            run_tmux.call_args_list[2][0],
             ("send-keys", "-t", "%1", "C-m"),
+        )
+        self.assertEqual(
+            run_tmux.call_args_list[3][0],
+            ("send-keys", "-t", "%1", "C-u"),
+        )
+
+    @patch("program_child_tabs._run_tmux")
+    def test_send_to_child_pane_multiline_uses_paste_buffer(self, run_tmux) -> None:
+        run_tmux.return_value = subprocess.CompletedProcess(("tmux",), 0, "", "")
+        body = "PROGRAM HOLD: pause implementation.\nWait for parent signal."
+        send_to_child_pane("%1", body, submit=True)
+        self.assertEqual(run_tmux.call_args_list[0][0], ("send-keys", "-t", "%1", "C-u"))
+        self.assertEqual(
+            run_tmux.call_args_list[1][0],
+            ("set-buffer", "-b", "ws-route-1", body),
+        )
+        self.assertEqual(
+            run_tmux.call_args_list[2][0],
+            ("paste-buffer", "-b", "ws-route-1", "-t", "%1"),
+        )
+        self.assertEqual(
+            run_tmux.call_args_list[3][0],
+            ("delete-buffer", "-b", "ws-route-1"),
+        )
+        self.assertEqual(
+            run_tmux.call_args_list[4][0],
+            ("send-keys", "-t", "%1", "C-m"),
+        )
+        self.assertEqual(
+            run_tmux.call_args_list[5][0],
+            ("send-keys", "-t", "%1", "C-u"),
         )
 
     @patch("program_bootstrap._run_script")

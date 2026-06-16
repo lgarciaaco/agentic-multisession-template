@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.0-rc.5] - 2026-06-16
+
+Program routing hardening and workflow consolidation — idempotent gate guards,
+shared helper refactors, gate registry, and doc alignment (#73–#88).
+
+### Added
+
+- **Idempotent route feedback guards** — `program-route-feedback.py` blocks duplicate gate commands, smuggled gate strings in corrections, and already-accepted re-sends (#84, #88)
+- **Gate metadata registry** — shared gate constants and phase lookups consolidated into `scripts/lib/gate_registry.py` (#75)
+- **Gate registry drift tests** — guards ensuring CLI scripts, workflow phases, and route feedback stay in sync with the registry (#83)
+
+### Changed
+
+- **Workflow helper consolidation** — shared plan/code-review/PR helpers refactored into common modules; reduced duplication across phase scripts (#77, #81)
+- **Program monitor snapshot** — read-only snapshot split from context refresh; child workflow state reused in route checks (#76, #86)
+- **Hub-upgrade defaults** — `DEFAULT_UPSTREAM` genericized; RC smoke-test docs updated (#74)
+- **Docs alignment** — program orchestrator, workflow, sessions-orchestrator skill, and inbox gate docs aligned with shipped classify-only and tmux routing semantics (#73, #79, #82, #87)
+
+### Fixed
+
+- **Tmux pane routing** — hardened pane lookup for parent gate feedback (#80)
+- **Inbox gate rejected markers** — rejected items kept in pending queue instead of silently dropped (#78)
+- **Route normalizer** — standalone poll docs and route input normalization for consistent gate matching (#85)
+
+### Session notes
+
+**Impact:** optional
+
+- Existing sessions keep working; no session folder edits required
+- Program parent sessions benefit from idempotent route guards — duplicate gate commands are now safely skipped
+- Hub upgrade: `./scripts/hub-upgrade.sh` picks up rc.5 from upstream tag
+
 ## [1.0.0-rc.4] - 2026-06-13
 
 Program orchestrator production pass (xray) — six child PRs merged (#66–#71, #68).

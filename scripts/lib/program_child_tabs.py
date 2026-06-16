@@ -305,16 +305,38 @@ def resolve_child_pane(
     raise ValueError(f"no tmux pane found for child {name!r}")
 
 
+def _clear_pane_input(pane_id: str) -> None:
+    """Discard partial prompt input so successive routes do not concatenate."""
+    if _run_tmux("send-keys", "-t", pane_id, "C-u") is None:
+        raise RuntimeError(f"tmux send-keys failed clearing pane {pane_id!r}")
+
+
+def _paste_multiline_to_pane(pane_id: str, message: str) -> None:
+    """Paste multiline text atomically; send-keys -l would submit on embedded newlines."""
+    buffer_name = f"ws-route-{pane_id.lstrip('%')}"
+    if _run_tmux("set-buffer", "-b", buffer_name, message) is None:
+        raise RuntimeError(f"tmux set-buffer failed for pane {pane_id!r}")
+    try:
+        if _run_tmux("paste-buffer", "-b", buffer_name, "-t", pane_id) is None:
+            raise RuntimeError(f"tmux paste-buffer failed for pane {pane_id!r}")
+    finally:
+        _run_tmux("delete-buffer", "-b", buffer_name)
+
+
 def send_to_child_pane(pane_id: str, text: str, *, submit: bool = True) -> None:
     """Send text to a child pane; append Enter when submit is True."""
     message = text.strip()
     if not message:
         raise ValueError("message must not be empty")
-    if _run_tmux("send-keys", "-l", "-t", pane_id, message) is None:
+    _clear_pane_input(pane_id)
+    if "\n" in message:
+        _paste_multiline_to_pane(pane_id, message)
+    elif _run_tmux("send-keys", "-l", "-t", pane_id, message) is None:
         raise RuntimeError(f"tmux send-keys failed for pane {pane_id!r}")
     if submit:
         if _run_tmux("send-keys", "-t", pane_id, "C-m") is None:
             raise RuntimeError(f"tmux send-keys failed for pane {pane_id!r}")
+        _clear_pane_input(pane_id)
 
 
 def persist_child_panes(
